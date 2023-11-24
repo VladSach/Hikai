@@ -14,15 +14,20 @@ set EXE_NAME=blight.exe
 REM /Ehsc - Windows Structured Exception Handling
 REM /W4   - Sets output warning level. Displays all warnings
 REM /std: - Specifies c++ version
-REM /Zi   - Debug Information Format
-set COMPILER_FLAGS=/EHsc /W4 /std:c++17
+REM /Z7   - Debug Information Format
+set COMPILER_FLAGS=/EHsc /W4 /std:c++17 /Z7
 
-REM Set the path to the MSVC compiler
-set COMPILER="N:\Apps\Programming\Visual Studio 2022 Community\VC\Tools\MSVC\14.37.32822\bin\Hostx64\x64\cl.exe"
+REM Sets environment variable "VCROOT" to  Drive:\Path\To\VS\VC.
+pushd %~dp0..\engine\tools
+call locateMSVC.bat
+popd
+if errorlevel 1 exit /B %ERRORLEVEL%
 
 REM Call vcvarsall.bat to set up environment variables
-set VCVARSALL="N:\Apps\Programming\Visual Studio 2022 Community\VC\Auxiliary\Build\vcvarsall.bat"
-@call %VCVARSALL% x64 >nul
+@call "%VCROOT%\Auxiliary\Build\vcvarsall.bat" x64 >nul
+
+REM Set the path to the MSVC compiler
+set COMPILER="cl"
 
 if not exist %BUILD_DIR% mkdir %BUILD_DIR%
 if not exist %OUT_DIR% mkdir %OUT_DIR%
@@ -53,7 +58,7 @@ for /R %1 %%G in (*.cpp) do (
 )
 goto :linking
 
-REM Compile each .cpp file in the source and imgui directories
+REM Compile each .cpp file in the source dir
 call :compile_dir %SOURCE_DIR%
 
 :linking
@@ -66,6 +71,6 @@ for /R %BUILD_DIR% %%G in (*.obj) do (
 )
 
 REM Link the .obj files to create the executable
-@link /DEBUG /OUT:%OUT_DIR%/%EXE_NAME% %OBJ_FILES% %LIBS% 2>&1 | findstr /i "error warning"
+@link /DEBUG:FULL /OUT:%OUT_DIR%/%EXE_NAME% %OBJ_FILES% %LIBS% 2>&1 | findstr /i "error warning"
 
 endlocal

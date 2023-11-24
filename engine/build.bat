@@ -4,9 +4,10 @@ setlocal EnableDelayedExpansion
 set SOURCE_DIR=src
 set BUILD_DIR=build
 set OUT_DIR=bin
+set LIB_DIR=lib
 
-set INCLUDE_DIRS=/Isrc /I"%VULKAN_SDK%/Include"
-set LIBS=user32.lib /LIBPATH:"%VULKAN_SDK%/Lib" vulkan-1.lib
+set INCLUDE_DIRS=/Isrc
+set LIBS=user32.lib /LIBPATH:"%LIB_DIR%" vulkan-1.lib
 set DEFINES=/D HKDEBUG /D HKDLL_OUT
 
 set DLL_NAME=hikai
@@ -14,17 +15,23 @@ set DLL_NAME=hikai
 REM /Ehsc - Windows Structured Exception Handling
 REM /W4   - Sets output warning level. Displays all warnings
 REM /std: - Specifies c++ version
-REM /Zi   - Debug Information Format
+REM /Z7   - Debug Information Format
 REM /LD   - Use Run-Time Library. Created DLL
-REM /MD   - Use RTL. Uses multithread and DLL version of the run-time library. 
-set COMPILER_FLAGS=/EHsc /W4 /std:c++17 /LD /MD
+REM /MD   - Use RTL. Uses multithread and DLL version of the run-time library.
+set COMPILER_FLAGS=/EHsc /W4 /std:c++17 /Z7 /LDd /MD
 
-REM Set the path to the MSVC compiler
-set COMPILER="N:\Apps\Programming\Visual Studio 2022 Community\VC\Tools\MSVC\14.37.32822\bin\Hostx64\x64\cl.exe"
+
+REM Sets environment variable "VCROOT" to  Drive:\Path\To\VS\VC.
+pushd tools
+call locateMSVC.bat
+popd
+if errorlevel 1 exit /B %ERRORLEVEL%
 
 REM Call vcvarsall.bat to set up environment variables
-set VCVARSALL="N:\Apps\Programming\Visual Studio 2022 Community\VC\Auxiliary\Build\vcvarsall.bat"
-@call %VCVARSALL% x64 >nul
+@call "%VCROOT%\Auxiliary\Build\vcvarsall.bat" x64 >nul
+
+REM Set the path to the MSVC compiler
+set COMPILER="cl"
 
 if not exist %BUILD_DIR% mkdir %BUILD_DIR%
 if not exist %OUT_DIR% mkdir %OUT_DIR%
@@ -70,7 +77,8 @@ for /R %BUILD_DIR% %%G in (*.obj) do (
 )
 
 REM Link the .obj files to create the executable
-@link /DLL /DEBUG /OUT:%OUT_DIR%/%DLL_NAME%.dll /IMPLIB:bin/%DLL_NAME%.lib ^
-                %OBJ_FILES% %LIBS% 2>&1 | findstr /i "error warning"
+@link /DLL /DEBUG:FULL ^
+           /OUT:%OUT_DIR%/%DLL_NAME%.dll /IMPLIB:bin/%DLL_NAME%.lib ^
+           %OBJ_FILES% %LIBS% 2>&1 | findstr /i "error warning"
 
 endlocal
