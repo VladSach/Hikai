@@ -27,7 +27,7 @@ void Logger::addMessageHandler(void *self, LoggerHandlerCallback callback)
 {
 	if (cntHandlers >= 5)
 	{
-		LOG_WARN("Currently supports only up to 5 handlers");
+		LOG_WARN("Currently supported only up to 5 handlers");
 		return;
 	}
 	handlers[cntHandlers++] = {self, callback};
@@ -52,18 +52,33 @@ void Logger::log(const MsgInfo &info)
 	bool is_trace = info.level == Level::LVL_TRACE;
 	int log_lvl = static_cast<int>(info.level);
 
-	// TODO: delete this
 	std::time_t now = std::time(nullptr);
 	std::tm tm;
 	char time_str[32];
 	localtime_s(&tm, &now);
     std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
 
+	std::string caller = info.callerName;
+#ifdef _MSC_VER
+	// Removes all __cdecl instances from __FUNCSIG__
+	std::string r = "__cdecl ";
 
-	// Deleting "class " before caller's name
-	std::string caller = info.callerName.substr(6);
+	for (std::string::size_type i = caller.find(r);
+		 i != std::string::npos;
+		 i = caller.find(r))
+	{
+		caller.erase(i, r.length());
+	}
+#endif
+
+	if (caller.size() > MaxFuncNameLength) {
+		caller.erase(MaxFuncNameLength - 3, std::string::npos);
+		caller.append("...");
+	}
+
 	// Obtaining only file name instead of full path
-	std::string file = info.fileName.substr(info.fileName.find_last_of("/\\") + 1) + ":";
+	std::string file = info.fileName.substr(
+							info.fileName.find_last_of("/\\") + 1) + ":";
 
 	MsgAddInfo misc {is_error, is_trace, log_lvl, time_str, caller, file};
 

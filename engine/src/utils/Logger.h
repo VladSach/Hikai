@@ -101,8 +101,10 @@ public:
         LoggerHandlerCallback callback = nullptr;
     };
 
+    static constexpr int MaxFuncNameLength = 65;
+
 private:
-    unsigned cntHandlers = 0; 
+    unsigned cntHandlers = 0;
     Handler handlers[5];
 
 public:

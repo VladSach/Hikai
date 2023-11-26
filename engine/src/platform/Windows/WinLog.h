@@ -28,7 +28,6 @@ class WinLog {
 private:
     // console log
     HANDLE hConsole = nullptr;
-    short maxBufferSize = 100;
 
     // file log
     std::string logFile = "log.txt";
@@ -46,6 +45,9 @@ public:
     static void logWinFile(void *self,
                            const Logger::MsgInfo& info,
                            const Logger::MsgAddInfo &misc);
+
+private:
+    bool setConsoleSize(i16 cols, i16 rows);
 };
 
 #endif // HK_WINLOG_H

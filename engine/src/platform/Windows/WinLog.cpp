@@ -14,18 +14,27 @@ void WinLog::allocWinConsole()
 										 CONSOLE_TEXTMODE_BUFFER, NULL);
 	SetConsoleActiveScreenBuffer(hConsole);
 
-	// Enable colors
+	// Enable Virtual Terminal Sequences(colors, etc)
+	// https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
     DWORD dwMode = 0;
     GetConsoleMode(hConsole, &dwMode);
     dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     SetConsoleMode(hConsole, dwMode);
+
+    constexpr u16 maxBufferSize = 100;
+	// 95 char for info + 65 for message
+	constexpr u16 maxBufferLineSize = 160;
 
 	// Enable scrolling
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
 	GetConsoleScreenBufferInfo(hConsole, &csbi);
 	COORD bufferSize = csbi.dwSize;
 	bufferSize.Y = maxBufferSize;
+	bufferSize.X = maxBufferLineSize;
 	SetConsoleScreenBufferSize(hConsole, bufferSize);
+
+	GetConsoleScreenBufferInfo(hConsole, &csbi);
+	setConsoleSize(maxBufferLineSize, csbi.srWindow.Bottom);
 
     Logger::getInstance()->addMessageHandler(this, logWinConsole);
 }
@@ -70,7 +79,7 @@ void WinLog::logWinConsole(void *self,
 		<< "\033[0;10m" << ' ';
 
 	wss << "\033[1;36m"
-		<< std::setw(12) << misc.caller.c_str()
+		<< std::setw(Logger::MaxFuncNameLength) << misc.caller.c_str()
 		<< "\033[0;10m" << ' ';
 
 	if (misc.is_trace) {
@@ -79,16 +88,30 @@ void WinLog::logWinConsole(void *self,
 			<< "\033[0;10m";
 	}
 
-    wss << "\033[1;97m"
-    	<< std::setw(40) << (info.message + " " + info.args).c_str()
-    	<< "\033[0;10m" << ' ';
+	// New string with 95 empty spaces + delimiter
+	constexpr char const *filler = "\n"
+								   "                                          "
+								   "                                          "
+								   "           + ";
+    wss << "\033[1;97m";
+    	// << std::setw(65) << (info.message + " " + info.args).c_str()
+		std::string message = info.message + " " + info.args;
+		if (message.length() > 65) {
+			u32 rows = static_cast<u32>(message.length()) / 65;
+			for (u32 i = 0; i < rows; i++) {
+				message.insert((95 * i) + 65 * (i + 1), filler);
+			}
+		}
+		wss << message.c_str();
+    wss << "\033[0;10m";
+
+	wss << (misc.is_error ? filler : "");
 
 	wss << "\033[1;31m"
-		<< std::setw(12) << (misc.is_error ? misc.file.c_str() : "")
-		<< "\033[0;10m";
-
-	wss << "\033[1;31m"
-		<< std::setw(3) << (misc.is_error ? info.lineNumber.c_str() : "")
+		// << std::setw(12) << (misc.is_error ? misc.file.c_str() : "")
+		// << std::setw(3) << (misc.is_error ? info.lineNumber.c_str() : "")
+		<< (misc.is_error ? misc.file.c_str() : "")
+		<< (misc.is_error ? info.lineNumber.c_str() : "")
 		<< "\033[0;10m" << ' ';
 
 	wss << '\n';
@@ -108,7 +131,7 @@ void WinLog::logWinFile(void *self,
 	wss << std::left;
     wss << misc.time.c_str() << ' ';
     wss << std::setw(8)  << Logger::lookup_level[misc.log_lvl] << ' ';
-	wss << std::setw(12) << misc.caller.c_str() << ' ';
+	wss << std::setw(Logger::MaxFuncNameLength) << misc.caller.c_str() << ' ';
 	// if (is_trace) { wss << "---" << ' '; }
     // wss << std::setw(40) << (info.message + " " + info.args).c_str() << ' ';
     wss << std::setw(30) << (info.message + " " + info.args).c_str() << ' ';
@@ -121,4 +144,50 @@ void WinLog::logWinFile(void *self,
         file << wss.rdbuf();
         file.close();
     }
+}
+
+bool WinLog::setConsoleSize(i16 cols, i16 rows)
+{
+    CONSOLE_FONT_INFO fi;
+    CONSOLE_SCREEN_BUFFER_INFO bi;
+    int w, h, bw, bh;
+    RECT rect = {0, 0, 0, 0};
+    COORD coord = {0, 0};
+
+    HWND hWnd = GetConsoleWindow();
+    if (hWnd) {
+        if (GetCurrentConsoleFont(hConsole, FALSE, &fi)) {
+            if (GetClientRect(hWnd, &rect)) {
+                w = rect.right-rect.left;
+                h = rect.bottom-rect.top;
+                if (GetWindowRect(hWnd, &rect)) {
+                    bw = rect.right-rect.left-w;
+                    bh = rect.bottom-rect.top-h;
+                    if (GetConsoleScreenBufferInfo(hConsole, &bi)) {
+                        coord.X = bi.dwSize.X;
+                        coord.Y = bi.dwSize.Y;
+                        if (coord.X < cols || coord.Y < rows) {
+                            if (coord.X < cols) {
+                                coord.X = cols;
+                            }
+                            if (coord.Y < rows) {
+                                coord.Y = rows;
+                            }
+                            if (!SetConsoleScreenBufferSize(hConsole, coord)) {
+                                return false;
+                            }
+                        }
+                        return SetWindowPos(hWnd, NULL, rect.left, rect.top,
+                        					cols*fi.dwFontSize.X+bw,
+                        					rows*fi.dwFontSize.Y+bh,
+                        					SWP_NOACTIVATE |
+                        					SWP_NOMOVE |
+                        					SWP_NOOWNERZORDER |
+                        					SWP_NOZORDER);
+                    }
+                }
+            }
+        }
+    }
+    return false;
 }
