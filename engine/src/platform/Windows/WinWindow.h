@@ -5,6 +5,7 @@
 #include <windowsx.h>
 
 #include "defines.h"
+#include "core/EventSystem.h"
 
 #include <functional>
 #include <string>
@@ -17,16 +18,12 @@ private:
 
 	b8 isFullscreen = false;
 	b8 isVisible = false;
-	u32 backgroundColor = 0xFFFFFFFF;
 
 	HWND hWnd = nullptr;
 	HINSTANCE hInstance = nullptr;
-	
-	// using OnResizeCallback = void(*)(int, int);
-	// TODO: change this to "executeCallback"
-	using OnResizeCallback = std::function<void(int, int)>;
-	OnResizeCallback onResizeCallback;
 
+	EventSystem *evs = nullptr;
+	
 protected:
 	static LRESULT CALLBACK StaticWindowProc(HWND hWnd, UINT message,
 											 WPARAM wParam, LPARAM lParam);
@@ -42,11 +39,6 @@ public:
 	b8 ProcessMessages();
 
 	void flush();
-
-	void setOnResizeCallback(const OnResizeCallback& callback)
-	{
-		onResizeCallback = callback;
-	}
 
 	u32 getWidth() const { return winWidth; }
 	u32 getHeight() const { return winHeight; }

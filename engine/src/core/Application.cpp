@@ -1,16 +1,30 @@
 #include "Application.h"
+#include "input.h"
+
+Application::Application(const AppDesc &desc)
+    : desc(desc)
+{
+    evsys = EventSystem::instance();
+
+    window.init(desc.title, desc.width, desc.height);
+    evsys->init();
+    hk::input::init();
+
+}
 
 void Application::run()
 {
-    bool running = true;
+    b8 running = true;
     while (running) {
-
-        if (!window.ProcessMessages())
+        if (!window.ProcessMessages()) {
             running = false;
-    }
-}
+        }
 
-void Application::setWindow()
-{
-    window.init(desc.title, desc.width, desc.height);
+        evsys->dispatch();
+
+        update(0);
+        hk::input::update();
+
+        render();
+    }
 }

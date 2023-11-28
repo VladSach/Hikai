@@ -2,6 +2,7 @@
 #define HK_APPLICATION_H
 
 #include "defines.h"
+#include "EventSystem.h"
 #include "platform/platform.h"
 
 struct AppDesc {
@@ -10,16 +11,16 @@ struct AppDesc {
     std::wstring title = L"Sandbox";
 };
 
-// TODO: find where to put window.deinit
+// TODO: find where to put deinits (window, logger, eventsystem, input, ...)
 class Application {
 private:
-    AppDesc desc;
-
     b8 initialized = false;
+
+    AppDesc desc;
     Window window;
+    EventSystem *evsys;
 public:
-    Application(const AppDesc &desc)
-        : desc(desc) {}
+    HKAPI Application(const AppDesc &desc);
     HKAPI virtual ~Application() {};
 
     // OPTIMIZE: Maybe add basic implementation instead of pure abstract?
@@ -34,7 +35,6 @@ public:
 
     // Engine internal use
     HKAPI void run();
-    HKAPI void setWindow();
 };
 
 // Defined by user

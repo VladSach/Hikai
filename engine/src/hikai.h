@@ -4,6 +4,8 @@
 #include "defines.h"
 
 #include "core/Application.h"
+#include "core/EventSystem.h"
+#include "core/input.h"
 
 #include "platform/platform.h"
 

@@ -14,6 +14,8 @@ void WinLog::allocWinConsole()
 										 CONSOLE_TEXTMODE_BUFFER, NULL);
 	SetConsoleActiveScreenBuffer(hConsole);
 
+	SetConsoleTitle("Hikai DevConsole");
+
 	// Enable Virtual Terminal Sequences(colors, etc)
 	// https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
     DWORD dwMode = 0;
@@ -21,9 +23,11 @@ void WinLog::allocWinConsole()
     dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
     SetConsoleMode(hConsole, dwMode);
 
+	// TODO: change all console settings related stuff to virtual terminal
+
     constexpr u16 maxBufferSize = 100;
-	// 95 char for info + 65 for message
-	constexpr u16 maxBufferLineSize = 160;
+	// 95 char for info + 65 for message + 10 just in case
+	constexpr u16 maxBufferLineSize = 170;
 
 	// Enable scrolling
 	CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -126,6 +130,7 @@ void WinLog::logWinFile(void *self,
 						const Logger::MsgInfo& info,
                 		const Logger::MsgAddInfo &misc)
 {
+	// TODO: test and fix log to file
 	// No coloring
 	std::wstringstream wss;
 	wss << std::left;

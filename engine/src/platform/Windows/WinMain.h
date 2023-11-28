@@ -21,7 +21,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     args.nShowCmd = nShowCmd;
 
     Application &app = *create_app();
-    app.setWindow();
+    // app.setWindow();
 
     app.init();
     app.run();

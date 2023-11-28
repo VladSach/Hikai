@@ -13,27 +13,27 @@ private:
     u32 tail;
     u32 head;
 
-    u32 size;
+    u32 size_;
     T buffer[N];
 public:
-    ring_buffer() : tail(0), head(0), size(0) {}
+    ring_buffer() : tail(0), head(0), size_(0) {}
     ~ring_buffer() { clear(); }
 
     constexpr T& operator[](u32 index) noexcept
 	{
-		ALWAYS_ASSERT((size > 0 && index < size), "Out of bounds");
+		ALWAYS_ASSERT((size_ > 0 && index < size_), "Out of bounds");
 		return buffer[index];
 	}
 
 	constexpr const T& operator[](size_t index) const noexcept
 	{
-		ALWAYS_ASSERT((size > 0 && index < size), "Out of bounds");
+		ALWAYS_ASSERT((size_ > 0 && index < size_), "Out of bounds");
 		return buffer[index];
 	}
 
     bool push(const T &value)
     {
-        if (size == N) {
+        if (size_ == N) {
             if (!overwrite) {
                 LOG_WARN("Trying to insert value in filled ring_buffer "
                          "w/o overwrite option | Skipping push");
@@ -50,19 +50,19 @@ public:
         buffer[tail] = value;
         tail = (tail + 1) % N;
 
-        ++size;
+        ++size_;
 
         return true;
     }
 
     bool pop(T &value)
     {
-        if (!size) {
-            LOG_WARN("Trying to read value from empty ring_buffer");
+        if (!size_) {
+            // LOG_WARN("Trying to read value from empty ring_buffer");
             return false;
         }
 
-        --size;
+        --size_;
 
         value = buffer[head];
         head = (head + 1) % N;
@@ -71,8 +71,8 @@ public:
 
     bool peek(T &value) const
     {
-        if (!size) {
-            LOG_WARN("Trying to read value from empty ring_buffer");
+        if (!size_) {
+            // LOG_WARN("Trying to read value from empty ring_buffer");
             return false;
         }
 
@@ -82,14 +82,14 @@ public:
 
     constexpr void clear() noexcept
     {
-        while(size--) {
+        while(size_--) {
             T value; pop(value);
             value.~T();
         }
-        tail = 0; head = 0; size = 0;
+        tail = 0; head = 0; size_ = 0;
     }
 
-    inline u32 getSize() const { return size; }
+    inline u32 size() const { return size_; }
 };
 
 }

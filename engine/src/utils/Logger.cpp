@@ -9,6 +9,7 @@ Logger *Logger::getInstance()
 {
 	if (singleton == nullptr) {
 		singleton = new Logger();
+		singleton->init();
 	}
 	return singleton;
 }

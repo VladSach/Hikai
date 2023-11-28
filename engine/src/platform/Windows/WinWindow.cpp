@@ -14,6 +14,7 @@ void Window::init(std::wstring title, u32 width, u32 height)
 	winHeight = height;
 
 	hInstance = PlatformArgs::instance()->hInstance;
+	evs = EventSystem::instance();
 
 	WNDCLASSEX wc;
 	ZeroMemory(&wc, sizeof(WNDCLASSEX));
@@ -124,10 +125,10 @@ LRESULT CALLBACK Window::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
     //     return true;
 
     LRESULT result = 0;
-    // sort through and find what code to run for the message given
+
     switch (message) {
-    // this message is read when the window is closed
     case WM_CLOSE:
+    	// this message is read when the window is closed
         DestroyWindow(hWnd);
         break;
 
@@ -140,24 +141,121 @@ LRESULT CALLBACK Window::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 	{
         if (wParam == SIZE_MINIMIZED) {
             // Window is being minimized
-            isVisible = true;
+            isVisible = false;
             LOG_INFO("Window minimized");
             break;
         }
 
 		RECT cr;
 		GetClientRect(hWnd, &cr);
-		int width = cr.right - cr.left;
-		int height = cr.bottom - cr.top;
+		u32 width = cr.right - cr.left;
+		u32 height = cr.bottom - cr.top;
 
 		winWidth = width;
 		winHeight = height;
-		isVisible = false;
 
-		if (onResizeCallback) { onResizeCallback(width, height); }
+		hk::EventContext context;
+		context.u32[0] = width;
+		context.u32[1] = height;
+		evs->fireEvent(hk::EVENT_WINDOW_RESIZE, context);
 
 		LOG_INFO("Window's size set to: ", width, "x", height);
 	} break;
+
+    case WM_KEYUP:
+    case WM_SYSKEYUP:
+	case WM_KEYDOWN:
+    case WM_SYSKEYDOWN:
+    {
+		/* https://learn.microsoft.com/en-us/windows/win32/
+		 * inputdev/about-keyboard-input
+		 */
+        b8 pressed = (message == WM_KEYDOWN || message == WM_SYSKEYDOWN);
+
+		u16 vkCode = LOWORD(wParam);
+    	u16 keyFlags = HIWORD(lParam);
+
+    	u16 scanCode = LOBYTE(keyFlags);
+    	b8 isExtendedKey = (keyFlags & KF_EXTENDED) == KF_EXTENDED;
+
+    	if (isExtendedKey)
+        	scanCode = MAKEWORD(scanCode, 0xE0);
+
+		// if we want to distinguish these keys:
+		switch (vkCode) {
+		case VK_SHIFT:   // converts to VK_LSHIFT or VK_RSHIFT
+		case VK_CONTROL: // converts to VK_LCONTROL or VK_RCONTROL
+		case VK_MENU:    // converts to VK_LMENU or VK_RMENU
+    		vkCode = LOWORD(MapVirtualKeyW(scanCode, MAPVK_VSC_TO_VK_EX));
+    		break;
+		}
+
+		hk::EventContext context;
+		context.u16[0] = vkCode;
+		context.u16[1] = static_cast<u16>(pressed);
+        evs->fireEvent(pressed ? hk::EVENT_KEY_PRESSED : hk::EVENT_KEY_RELEASED,
+        			   context);
+
+        // Prevent window processing some keys
+        return 0;
+	} break;
+
+	case WM_MOUSEMOVE:
+	{
+		hk::EventContext context;
+		context.i32[0] = GET_X_LPARAM(lParam);
+		context.i32[1] = GET_Y_LPARAM(lParam);
+        evs->fireEvent(hk::EVENT_MOUSE_MOVED, context);
+	} break;
+
+	case WM_MOUSEWHEEL:
+	{
+		i16 zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+        if (zDelta != 0) {
+			hk::EventContext context;
+			context.i16[0] = (zDelta < 0) ? -1 : 1;
+        	evs->fireEvent(hk::EVENT_MOUSE_WHEEL, context);
+        }
+	} break;
+
+    case WM_RBUTTONUP:
+	case WM_RBUTTONDOWN:
+    {
+        b8 pressed = (message == WM_RBUTTONDOWN);
+
+		hk::EventContext context;
+		context.u16[0] = VK_RBUTTON;
+		context.u16[1] = static_cast<u16>(pressed);
+        evs->fireEvent(pressed ? hk::EVENT_MOUSE_PRESSED :
+                                 hk::EVENT_MOUSE_RELEASED,
+        			   context);
+    } break;
+
+    case WM_MBUTTONUP:
+	case WM_MBUTTONDOWN:
+    {
+        b8 pressed = (message == WM_MBUTTONDOWN);
+
+		hk::EventContext context;
+		context.u16[0] = VK_MBUTTON;
+		context.u16[1] = static_cast<u16>(pressed);
+        evs->fireEvent(pressed ? hk::EVENT_MOUSE_PRESSED :
+                                 hk::EVENT_MOUSE_RELEASED,
+        			   context);
+    } break;
+
+    case WM_LBUTTONUP:
+    case WM_LBUTTONDOWN:
+    {
+        b8 pressed = (message == WM_LBUTTONDOWN);
+
+		hk::EventContext context;
+		context.u16[0] = VK_LBUTTON;
+		context.u16[1] = static_cast<u16>(pressed);
+        evs->fireEvent(pressed ? hk::EVENT_MOUSE_PRESSED :
+                                 hk::EVENT_MOUSE_RELEASED,
+        			   context);
+    } break;
 
     default:
         result = DefWindowProc(hWnd, message, wParam, lParam);

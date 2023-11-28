@@ -3,6 +3,8 @@
 #include "hikai.h"
 
 class Blight : public Application {
+private:
+    EventSystem *evsys;
 public:
     Blight(const AppDesc &desc)
         : Application(desc) {}
@@ -56,10 +58,10 @@ public:
             DebStr value; rb.peek(value);
             LOG_TRACE("rb head at:",  value.id);
 
-            for(u32 i = 0; i < rb.getSize(); ++i)
-            {
-                LOG_TRACE("rb", i, ":", rb[i].id);
-            }
+            // for(u32 i = 0; i < rb.size(); ++i)
+            // {
+            //     LOG_TRACE("rb", i, ":", rb[i].id);
+            // }
 
             for(u32 i = 0; rb.pop(value); ++i)
             {}
@@ -71,7 +73,24 @@ public:
         }
         LOG_DEBUG("=== END DEBUGGING RING BUFFER ===");
 
+        LOG_DEBUG("=== DEBUGGING EVENT SYSTEM ===");
+        {
+            // auto getInput = [&](hk::EventContext userdata) {
+            //     LOG_TRACE("Key pressed: ", (char)(userdata.u32[0]));
+            // };
 
+            // evsys = EventSystem::instance();
+            // evsys->subscribe(hk::EVENT_KEY_PRESSED, getInput, this);
+        }
+        LOG_DEBUG("=== END DEBUGGING EVENT SYSTEM ===");
+
+        LOG_DEBUG("=== DEBUGGING INPUT SYSTEM ===");
+        {
+            if (hk::input::isKeyPressed(hk::input::KEY_A))
+                LOG_TRACE("Key pressed: ",
+                          hk::input::getKeycodeStr(hk::input::KEY_A));
+        }
+        LOG_DEBUG("=== END DEBUGGING INPUT SYSTEM ===");
     }
 
     void update(f32 dt)
@@ -79,6 +98,44 @@ public:
         // WARN: temp fix to silence warning
         // delete this when start using dt in your code
         (void)dt;
+
+        if (hk::input::isKeyPressed(hk::input::KEY_A))
+            LOG_TRACE("Key pressed:",
+                      hk::input::getKeycodeStr(hk::input::KEY_A));
+
+        // if (hk::input::isKeyDown(hk::input::KEY_A))
+        //     LOG_TRACE("Key down:",
+        //               hk::input::getKeycodeStr(hk::input::KEY_A));
+
+        if (hk::input::isKeyReleased(hk::input::KEY_A))
+            LOG_TRACE("Key released:",
+                      hk::input::getKeycodeStr(hk::input::KEY_A));
+
+
+        if(hk::input::isMousePressed(hk::input::BUTTON_LEFT))
+            LOG_TRACE("Left button clicked");
+
+        // if(hk::input::isMouseDown(hk::input::BUTTON_LEFT))
+        //     LOG_TRACE("Left button down");
+
+        if(hk::input::isMouseReleased(hk::input::BUTTON_LEFT))
+            LOG_TRACE("Left button released");
+
+        i32 mouseX, mouseY;
+        hk::input::getMousePosition(mouseX, mouseY);
+        // LOG_DEBUG("Mouse current pos:", mouseX, mouseY);
+
+        hk::input::getMouseDelta(mouseX, mouseY);
+        // LOG_DEBUG("Mouse delta pos:", mouseX, mouseY);
+
+        if (hk::input::getMouseWheelDelta() > 0) {
+            LOG_DEBUG("Mouse wheel went up");
+        } else if (hk::input::getMouseWheelDelta() < 0) {
+            LOG_DEBUG("Mouse wheel went down");
+        } else {
+            // LOG_DEBUG("Mouse wheel unchanged");
+        }
+
     }
 
     void render()
@@ -91,6 +148,8 @@ Application* create_app()
 {
     AppDesc desc;
     desc.title = L"Blight";
+    desc.width = 1020;
+    desc.height = 780;
 
     return new Blight(desc);
 }

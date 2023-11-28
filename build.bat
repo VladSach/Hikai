@@ -31,6 +31,6 @@ echo Copying blight.exe...
 robocopy ".\game\bin" ".\bin" blight.exe /mt 2>&1 | findstr /i "ERROR"
 
 echo ===========================
-echo Is this it? :(
+echo Build successful
 
 endlocal

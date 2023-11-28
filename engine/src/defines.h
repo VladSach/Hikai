@@ -42,13 +42,13 @@ STATIC_ASSERT(sizeof(f64) == 8, "Type error: i64 should be 8 bytes");
 
 #include <cstdlib>
 
-#define BREAK __debugbreak()
+#define HKBREAK __debugbreak()
 
 #define ALWAYS_ASSERT(expression, ...) \
 	if (!(expression)) \
 	{ \
 		LOG_FATAL("Assertion failed:", __VA_ARGS__); \
-		BREAK; \
+		HKBREAK; \
 		std::abort(); \
 	}
 
