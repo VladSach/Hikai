@@ -6,8 +6,6 @@
 
 extern Application* create_app();
 
-#include "platform/PlatformArgs.h"
-
 #include PLATFORM_MAIN
 
 #endif // HK_ENTRY_H

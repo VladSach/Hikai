@@ -5,8 +5,6 @@
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                    LPSTR lpCmdLine, int nShowCmd)
 {
-    // (void)nShowCmd; (void)lpCmdLine; (void)hPrevInstance;
-
 #ifdef HKDEBUG
     WinLog log;
     log.allocWinConsole();
