@@ -24,30 +24,9 @@ inline std::string getErrorMessage(HRESULT hr)
     return buffer;
 }
 
-class WinLog {
-private:
-    // console log
-    HANDLE hConsole = nullptr;
-
-    // file log
-    std::string logFile = "log.txt";
-
-public:
-    HKAPI void allocWinConsole();
-    HKAPI void deallocWinConsole();
-
-    HKAPI void setLogFile(std::string file) { logFile = file; }
-
-    static void logWinConsole(void *self,
-                              const Logger::MsgInfo& info,
-                              const Logger::MsgAddInfo &misc);
-
-    static void logWinFile(void *self,
-                           const Logger::MsgInfo& info,
-                           const Logger::MsgAddInfo &misc);
-
-private:
-    bool setConsoleSize(i16 cols, i16 rows);
-};
+HKAPI void allocWinConsole();
+HKAPI void deallocWinConsole();
+HKAPI void setLogFile(const std::string &file);
+HKAPI void removeLogFile();
 
 #endif // HK_WINLOG_H

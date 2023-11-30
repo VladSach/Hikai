@@ -38,8 +38,6 @@ public:
 
 	b8 ProcessMessages();
 
-	void flush();
-
 	u32 getWidth() const { return winWidth; }
 	u32 getHeight() const { return winHeight; }
 	b8  getIsVisible() const { return isVisible; }

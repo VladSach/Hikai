@@ -88,17 +88,6 @@ bool Window::ProcessMessages()
     return true;
 }
 
-void Window::flush()
-{
-	// swapchain->Present(0, 0);
-}
-
-// Forward declare message handler from imgui_impl_win32.cpp
-// extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd,
-// 															 UINT msg,
-// 															 WPARAM wParam,
-// 															 LPARAM lParam);
-
 LRESULT CALLBACK Window::StaticWindowProc(HWND hWnd, UINT message,
 										  WPARAM wParam, LPARAM lParam)
 {
@@ -121,9 +110,6 @@ LRESULT CALLBACK Window::StaticWindowProc(HWND hWnd, UINT message,
 
 LRESULT CALLBACK Window::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 {
-    // if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
-    //     return true;
-
     LRESULT result = 0;
 
     switch (message) {

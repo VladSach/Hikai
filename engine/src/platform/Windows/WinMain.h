@@ -1,3 +1,6 @@
+#ifndef HK_WINMAIN_H
+#define HK_WINMAIN_H
+
 #include "core/Application.h"
 #include "platform/platform.h"
 #include "platform/PlatformArgs.h"
@@ -6,8 +9,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                    LPSTR lpCmdLine, int nShowCmd)
 {
 #ifdef HKDEBUG
-    WinLog log;
-    log.allocWinConsole();
+    allocWinConsole();
+    setLogFile("hikai_log.txt");
 #endif
 
     LOG_INFO("Initializing Windows startup");
@@ -19,14 +22,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     args.nShowCmd = nShowCmd;
 
     Application &app = *create_app();
-    // app.setWindow();
 
     app.init();
     app.run();
 
 #ifdef HKDEBUG
-    log.deallocWinConsole();
+    deallocWinConsole();
+    removeLogFile();
 #endif
 
     return 0;
 }
+
+#endif // HK_WINMAIN_H

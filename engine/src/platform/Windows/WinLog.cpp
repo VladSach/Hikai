@@ -3,9 +3,44 @@
 #include <fstream>
 #include <iomanip>
 
-void WinLog::allocWinConsole()
+// console log
+static HANDLE hConsole = nullptr;
+// file log
+static std::string logFile = "";
+
+bool setConsoleSize(i16 cols, i16 rows);
+void logWinConsole(void *self,
+				   const Logger::MsgInfo& info,
+                   const Logger::MsgAddInfo &misc);
+void logWinFile(void *self,
+				const Logger::MsgInfo& info,
+                const Logger::MsgAddInfo &misc);
+
+BOOL WINAPI HandlerRoutine(DWORD dwCtrlType)
 {
-    deallocWinConsole();
+	switch (dwCtrlType) {
+	case CTRL_C_EVENT:
+	case CTRL_CLOSE_EVENT:
+	{
+		/* Turns out it's too late to call FreeConsole in the handler
+		 * so this won't work for CTRL_CLOSE_EVENT
+		 * if console should be closed w/o closing the app user can press Ctrl+C
+		 * or alternative implementations should be used.
+		 * Like creating child process and IO pipes
+		 * https://stackoverflow.com/questions/696117/
+		 * what-happens-when-you-close-a-c-console-application
+		 */
+		deallocWinConsole();
+        return TRUE;
+	} break;
+
+    default: { return FALSE; }
+	}
+}
+
+void allocWinConsole()
+{
+	if (hConsole) { return; }
 
 	AllocConsole();
 
@@ -15,6 +50,8 @@ void WinLog::allocWinConsole()
 	SetConsoleActiveScreenBuffer(hConsole);
 
 	SetConsoleTitle("Hikai DevConsole");
+
+	SetConsoleCtrlHandler(HandlerRoutine, TRUE);
 
 	// Enable Virtual Terminal Sequences(colors, etc)
 	// https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
@@ -40,10 +77,10 @@ void WinLog::allocWinConsole()
 	GetConsoleScreenBufferInfo(hConsole, &csbi);
 	setConsoleSize(maxBufferLineSize, csbi.srWindow.Bottom);
 
-    Logger::getInstance()->addMessageHandler(this, logWinConsole);
+    Logger::getInstance()->addMessageHandler(nullptr, logWinConsole);
 }
 
-void WinLog::deallocWinConsole()
+void deallocWinConsole()
 {
 	if (!hConsole) { return; }
 
@@ -52,18 +89,35 @@ void WinLog::deallocWinConsole()
 
 	FreeConsole();
 
-    Logger::getInstance()->removeMessageHandler(this, logWinConsole);
+    Logger::getInstance()->removeMessageHandler(nullptr, logWinConsole);
 }
 
-void WinLog::logWinConsole(void *self,
-						   const Logger::MsgInfo& info,
-                           const Logger::MsgAddInfo &misc)
+
+void setLogFile(const std::string &file)
+{
+	logFile = file;
+	if (logFile.empty()) { return; }
+
+    Logger::getInstance()->addMessageHandler(nullptr, logWinFile);
+}
+
+void removeLogFile()
+{
+    Logger::getInstance()->removeMessageHandler(nullptr, logWinFile);
+}
+
+void logWinConsole(void *self,
+				   const Logger::MsgInfo& info,
+                   const Logger::MsgAddInfo &misc)
 {
 	/* Colored output
 	 * time [log_lvl]: caller message [opt]: args file line
 	 * gray diff cyan white white red red
 	 * More info about colors: https://ss64.com/nt/syntax-ansi.html
 	 * */
+
+	// Unused
+	(void)self;
 
 	constexpr char const *lookup_color[static_cast<int>(Logger::Level::max_levels)] = {
 		"0;41m",
@@ -122,14 +176,16 @@ void WinLog::logWinConsole(void *self,
 
 	DWORD dwBytesWritten = 0;
 	unsigned length = static_cast<unsigned>(wss.str().size());
-	WriteConsoleW(static_cast<WinLog*>(self)->hConsole, wss.str().c_str(), length,
-				  &dwBytesWritten, NULL);
+	WriteConsoleW(hConsole, wss.str().c_str(), length, &dwBytesWritten, NULL);
 }
 
-void WinLog::logWinFile(void *self,
-						const Logger::MsgInfo& info,
-                		const Logger::MsgAddInfo &misc)
+void logWinFile(void *self,
+				const Logger::MsgInfo& info,
+                const Logger::MsgAddInfo &misc)
 {
+	// Unused
+	(void)self;
+
 	// TODO: test and fix log to file
 	// No coloring
 	std::wstringstream wss;
@@ -144,14 +200,14 @@ void WinLog::logWinFile(void *self,
 	wss << std::setw(3)  << (misc.is_error ? info.lineNumber.c_str() : "") << ' ';
 	wss << '\n';
 
-	std::wofstream file(static_cast<WinLog*>(self)->logFile, std::ios::out | std::ios::app);
+	std::wofstream file(logFile, std::ios::out | std::ios::app);
     if (file.is_open()) {
         file << wss.rdbuf();
         file.close();
     }
 }
 
-bool WinLog::setConsoleSize(i16 cols, i16 rows)
+bool setConsoleSize(i16 cols, i16 rows)
 {
     CONSOLE_FONT_INFO fi;
     CONSOLE_SCREEN_BUFFER_INFO bi;

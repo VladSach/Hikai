@@ -1,5 +1,5 @@
-#ifndef HKRING_BUFFER_H
-#define HKRING_BUFFER_H
+#ifndef HK_RING_BUFFER_H
+#define HK_RING_BUFFER_H
 
 #include "defines.h"
 #include "utils/Logger.h"
@@ -31,7 +31,7 @@ public:
 		return buffer[index];
 	}
 
-    bool push(const T &value)
+    inline bool push(const T &value)
     {
         if (size_ == N) {
             if (!overwrite) {
@@ -55,7 +55,7 @@ public:
         return true;
     }
 
-    bool pop(T &value)
+    inline bool pop(T &value)
     {
         if (!size_) {
             // LOG_WARN("Trying to read value from empty ring_buffer");
@@ -69,7 +69,7 @@ public:
         return true;
     }
 
-    bool peek(T &value) const
+    inline bool peek(T &value) const
     {
         if (!size_) {
             // LOG_WARN("Trying to read value from empty ring_buffer");
@@ -94,4 +94,4 @@ public:
 
 }
 
-#endif // HKRING_BUFFER_H
+#endif // HK_RING_BUFFER_H
