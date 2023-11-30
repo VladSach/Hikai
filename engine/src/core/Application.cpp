@@ -1,6 +1,8 @@
 #include "Application.h"
 #include "input.h"
 
+#include <thread>
+
 Application::Application(const AppDesc &desc)
     : desc(desc)
 {
@@ -10,19 +12,31 @@ Application::Application(const AppDesc &desc)
     evsys->init();
     hk::input::init();
 
+    clock.record();
 }
 
 void Application::run()
 {
+    f32 dt = .0f;
+    const f32 frameRate = 1.0f / 60.f;
+
     b8 running = true;
     while (running) {
+
         if (!window.ProcessMessages()) {
             running = false;
         }
 
+        dt += static_cast<f32>(clock.update());
+        if (!window.getIsVisible() || dt < frameRate) {
+            std::this_thread::yield();
+            dt += static_cast<f32>(clock.update());
+        }
+
         evsys->dispatch();
 
-        update(0);
+        update(dt);
+
         hk::input::update();
 
         render();

@@ -145,7 +145,7 @@ LRESULT CALLBACK Window::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 		context.u32[1] = height;
 		evs->fireEvent(hk::EVENT_WINDOW_RESIZE, context);
 
-		LOG_INFO("Window's size set to: ", width, "x", height);
+		LOG_INFO("Window's size set to:", width, "x", height);
 	} break;
 
     case WM_KEYUP:

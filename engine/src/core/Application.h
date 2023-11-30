@@ -2,6 +2,7 @@
 #define HK_APPLICATION_H
 
 #include "defines.h"
+#include "Timer.h"
 #include "EventSystem.h"
 #include "platform/platform.h"
 
@@ -19,6 +20,8 @@ private:
     AppDesc desc;
     Window window;
     EventSystem *evsys;
+
+    hk::Timer clock;
 public:
     HKAPI Application(const AppDesc &desc);
     HKAPI virtual ~Application() {};
@@ -28,7 +31,10 @@ public:
     // Being called before anything else, right after app creation
     HKAPI virtual void init() = 0;
     // Being called every frame
-    HKAPI virtual void update(f32 dt) = 0;
+    HKAPI virtual void update(f32 dt) { (void)dt; };
+    // Being called by fixed amount of time
+    HKAPI virtual void fixedUpdate() {};
+    // Being called at the end of the game loop
     HKAPI virtual void render() = 0;
 
     HKAPI const AppDesc& getDesc() const { return desc; }
