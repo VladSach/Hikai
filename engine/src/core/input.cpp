@@ -34,7 +34,6 @@ void update()
 {
     mouse.z_delta = 0;
 
-    // FIX: unsure if mouse delta pos works correctly
     mouse.x_delta = 0;
     mouse.y_delta = 0;
 

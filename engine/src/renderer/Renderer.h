@@ -2,6 +2,29 @@
 #define HK_RENDERER_H
 
 #include "defines.h"
+#include "core/EventSystem.h"
+#include "BackendVulkan.h"
 
+enum class RenderBackend {
+    NONE,
+    VULKAN,
+    DIRECTX12,
+    DIRECTX11,
+};
+
+class Renderer {
+public:
+    void init(RenderBackend api);
+    void deinit();
+
+    void render();
+
+    static void onResize(hk::EventContext data);
+private:
+    bool createRenderBackend(RenderBackend api);
+
+private:
+    Backend *backend;
+};
 
 #endif // HK_RENDERER_H

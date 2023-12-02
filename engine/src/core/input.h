@@ -22,7 +22,9 @@ HKAPI b8 isMouseDown(Button button);
 // Returns true if the mouse button was just released
 HKAPI b8 isMouseReleased(Button button);
 
+// Get mouse absolute position
 HKAPI void getMousePosition(i32 &x, i32 &y);
+// Get mouse relative to previous position
 HKAPI void getMouseDelta(i32 &x, i32 &y);
 
 // Returns [-1, 0, 1] depending on wheel scroll direction

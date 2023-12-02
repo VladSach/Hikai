@@ -37,7 +37,6 @@ if not exist %BUILD_DIR% mkdir %BUILD_DIR%
 if not exist %OUT_DIR% mkdir %OUT_DIR%
 
 REM Function to compile a directory of .cpp files
-REM TODO: fix imgui and other files wrong  recompilation
 :compile_dir
 for /R %1 %%G in (*.cpp) do (
     set "source=%%G"
@@ -63,9 +62,8 @@ for /R %1 %%G in (*.cpp) do (
 )
 goto :linking
 
-REM Compile each .cpp file in the source and imgui directories
+REM Compile each .cpp file in the source directory
 call :compile_dir %SOURCE_DIR%
-REM call :compile_dir %IMGUI_DIR%
 
 :linking
 REM Create an empty string to hold the list of .obj files

@@ -2,11 +2,11 @@
 #define HK_EVENTSYSTEM_H
 
 #include "defines.h"
+#include "utils/containers/hkvector.h"
 #include "utils/containers/hkring_buffer.h"
 
 #include <functional>
 // TODO: replace with Hikai internal implementations
-#include <vector>
 #include <unordered_map>
 
 namespace hk {
@@ -70,7 +70,7 @@ protected:
 	static EventSystem *singleton;
 
 private:
-    std::unordered_map<u32, std::vector<Subscriber>> subscribers;
+    std::unordered_map<u32, hk::vector<Subscriber>> subscribers;
     // TODO: make size customizable, maybe through init
     hk::ring_buffer<Event, 100, true> buffer;
 

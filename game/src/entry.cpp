@@ -19,12 +19,6 @@ public:
         // WARN: temp fix to silence warning
         // delete this when start using dt in your code
         (void)dt;
-
-    }
-
-    void render()
-    {
-
     }
 };
 // FIX: TO HERE

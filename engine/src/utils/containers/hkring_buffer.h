@@ -15,6 +15,7 @@ private:
 
     u32 size_;
     T buffer[N];
+
 public:
     ring_buffer() : tail(0), head(0), size_(0) {}
     ~ring_buffer() { clear(); }
@@ -25,7 +26,7 @@ public:
 		return buffer[index];
 	}
 
-	constexpr const T& operator[](size_t index) const noexcept
+	constexpr const T& operator[](u32 index) const noexcept
 	{
 		ALWAYS_ASSERT((size_ > 0 && index < size_), "Out of bounds");
 		return buffer[index];

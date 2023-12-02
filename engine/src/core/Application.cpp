@@ -1,4 +1,5 @@
 #include "Application.h"
+
 #include "input.h"
 
 #include <thread>
@@ -13,6 +14,8 @@ Application::Application(const AppDesc &desc)
     hk::input::init();
 
     clock.record();
+
+    renderer.init(desc.renderBackend);
 }
 
 void Application::run()
@@ -42,3 +45,4 @@ void Application::run()
         render();
     }
 }
+
