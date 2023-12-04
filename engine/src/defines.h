@@ -36,29 +36,6 @@ STATIC_ASSERT(sizeof(f32) == 4, "Type error: i32 should be 4 bytes");
 STATIC_ASSERT(sizeof(f64) == 8, "Type error: i64 should be 8 bytes");
 
 /***************************
- * DEBUG
- ***************************/
-#include "utils/Logger.h"
-
-#include <cstdlib>
-
-#define HKBREAK __debugbreak()
-
-#define ALWAYS_ASSERT(expression, ...) \
-	if (!(expression)) \
-	{ \
-		LOG_FATAL("Assertion failed:", __VA_ARGS__); \
-		HKBREAK; \
-		std::abort(); \
-	}
-
-#ifndef HKDEBUG
-#define DEV_ASSERT(...)
-#else
-#define DEV_ASSERT(expression, ...) ALWAYS_ASSERT(expression, __VA_ARGS__);
-#endif
-
-/***************************
  * DLL
  ***************************/
 #ifdef HKDLL_OUT
@@ -73,6 +50,42 @@ STATIC_ASSERT(sizeof(f64) == 8, "Type error: i64 should be 8 bytes");
 	#else
 	#define HKAPI
 	#endif
+#endif
+
+/***************************
+ * DEBUG
+ ***************************/
+#include "utils/Logger.h"
+
+#include <cstdlib>
+
+#define HKBREAK __debugbreak()
+
+#if _MSVC_TRADITIONAL
+	#define LOG_FATAL_HELPER(message, ...) \
+		LOG(Logger::Level::LVL_FATAL, message, __VA_ARGS__)
+
+	#define ALWAYS_ASSERT(expression, ...) \
+		if (!(expression)) \
+		{ \
+			LOG_FATAL_HELPER("Assertion failed:", __VA_ARGS__); \
+			HKBREAK; \
+			std::abort(); \
+		}
+#else
+	#define ALWAYS_ASSERT(expression, ...) \
+		if (!(expression)) \
+		{ \
+			LOG_FATAL("Assertion failed:", ##__VA_ARGS__); \
+			HKBREAK; \
+			std::abort(); \
+		}
+#endif
+
+#ifndef HKDEBUG
+#define DEV_ASSERT(...)
+#else
+#define DEV_ASSERT(expression, ...) ALWAYS_ASSERT(expression, __VA_ARGS__);
 #endif
 
 

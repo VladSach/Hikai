@@ -26,8 +26,7 @@ void Logger::deinit()
 
 void Logger::addMessageHandler(void *self, LoggerHandlerCallback callback)
 {
-	if (cntHandlers >= 5)
-	{
+	if (cntHandlers >= 5) {
 		LOG_WARN("Currently supported only up to 5 handlers");
 		return;
 	}
@@ -36,6 +35,8 @@ void Logger::addMessageHandler(void *self, LoggerHandlerCallback callback)
 
 void Logger::removeMessageHandler(void *self, LoggerHandlerCallback callback)
 {
+	// TODO: change handlers system
+	// using void pointer not going to work for functions
 	unsigned i;
 	for (i = 0; i < cntHandlers; ++i) {
 		if (handlers[i].self == self &&

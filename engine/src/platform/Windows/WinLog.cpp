@@ -63,7 +63,7 @@ void allocWinConsole()
 	// TODO: change all console settings related stuff to virtual terminal
 
     constexpr u16 maxBufferSize = 100;
-	// 95 char for info + 65 for message + 10 just in case
+	// 75 char for info + 85 for message + 10 just in case
 	constexpr u16 maxBufferLineSize = 170;
 
 	// Enable scrolling
@@ -119,6 +119,8 @@ void logWinConsole(void *self,
 	// Unused
 	(void)self;
 
+	if (!hConsole) { return; }
+
 	constexpr char const *lookup_color[static_cast<int>(Logger::Level::max_levels)] = {
 		"0;41m",
 		"1;31m",
@@ -146,18 +148,17 @@ void logWinConsole(void *self,
 			<< "\033[0;10m";
 	}
 
-	// New string with 95 empty spaces + delimiter
+	// New string with 75 empty spaces + delimiter
 	constexpr char const *filler = "\n"
 								   "                                          "
-								   "                                          "
-								   "           + ";
+								   "                                 + ";
     wss << "\033[1;97m";
     	// << std::setw(65) << (info.message + " " + info.args).c_str()
-		std::string message = info.message + " " + info.args;
-		if (message.length() > 65) {
-			u32 rows = static_cast<u32>(message.length()) / 65;
+		std::string message = info.args;
+		if (message.length() > 85) {
+			u32 rows = static_cast<u32>(message.length()) / 75;
 			for (u32 i = 0; i < rows; i++) {
-				message.insert((95 * i) + 65 * (i + 1), filler);
+				message.insert((75 * i) + 85 * (i + 1), filler);
 			}
 		}
 		wss << message.c_str();
@@ -186,6 +187,8 @@ void logWinFile(void *self,
 	// Unused
 	(void)self;
 
+	if (!hConsole) { return; }
+
 	// TODO: test and fix log to file
 	// No coloring
 	std::wstringstream wss;
@@ -195,7 +198,7 @@ void logWinFile(void *self,
 	wss << std::setw(Logger::MaxFuncNameLength) << misc.caller.c_str() << ' ';
 	// if (is_trace) { wss << "---" << ' '; }
     // wss << std::setw(40) << (info.message + " " + info.args).c_str() << ' ';
-    wss << std::setw(30) << (info.message + " " + info.args).c_str() << ' ';
+    wss << std::setw(30) << (info.args).c_str() << ' ';
 	wss << std::setw(12) << (misc.is_error ? misc.file.c_str() : "");
 	wss << std::setw(3)  << (misc.is_error ? info.lineNumber.c_str() : "") << ' ';
 	wss << '\n';

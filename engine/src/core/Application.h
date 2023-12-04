@@ -15,11 +15,10 @@ struct AppDesc {
     RenderBackend renderBackend = RenderBackend::VULKAN;
 };
 
-// TODO: find where to put deinits (window, logger, eventsystem, input, ...)
 class Application {
 public:
     HKAPI Application(const AppDesc &desc);
-    HKAPI virtual ~Application() {};
+    HKAPI virtual ~Application() { deinit(); };
 
     // Being called before anything else, right after app creation
     HKAPI virtual void init() {};
@@ -34,6 +33,11 @@ public:
 
     // Engine internal use
     HKAPI void run();
+
+    void deinit();
+
+    static void shutdown(hk::EventContext errorCode);
+    static b8 running;
 
 private:
     bool createRenderBackend(RenderBackend api);

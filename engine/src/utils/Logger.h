@@ -15,21 +15,21 @@
     #define FUNCTION_SIGNATURE __func__
 #endif
 
-#define LOG(level, message, ...) \
+#define LOG(level, ...) \
     Logger::getInstance()->log({level, FUNCTION_SIGNATURE, \
-                               std::strrchr("/" __FILE__, '/') + 1, STRINGIZE(__LINE__), message, \
+                               std::strrchr("/" __FILE__, '/') + 1, STRINGIZE(__LINE__), \
                                Logger::getInstance()->getArgs(__VA_ARGS__)}) \
 
-#define LOG_FATAL(message, ...) LOG(Logger::Level::LVL_FATAL, message, __VA_ARGS__)
-#define LOG_ERROR(message, ...) LOG(Logger::Level::LVL_ERROR, message, __VA_ARGS__)
-#define LOG_WARN(message, ...) LOG(Logger::Level::LVL_WARN, message, __VA_ARGS__)
-#define LOG_INFO(message, ...) LOG(Logger::Level::LVL_INFO, message, __VA_ARGS__)
+#define LOG_FATAL(...) LOG(Logger::Level::LVL_FATAL, __VA_ARGS__)
+#define LOG_ERROR(...) LOG(Logger::Level::LVL_ERROR, __VA_ARGS__)
+#define LOG_WARN(...) LOG(Logger::Level::LVL_WARN, __VA_ARGS__)
+#define LOG_INFO(...) LOG(Logger::Level::LVL_INFO, __VA_ARGS__)
 #ifndef HKDEBUG
-#define LOG_DEBUG(message, ...)
-#define LOG_TRACE(message, ...)
+#define LOG_DEBUG(...)
+#define LOG_TRACE(...)
 #else
-#define LOG_DEBUG(message, ...) LOG(Logger::Level::LVL_DEBUG, message, __VA_ARGS__)
-#define LOG_TRACE(message, ...) LOG(Logger::Level::LVL_TRACE, message, __VA_ARGS__)
+#define LOG_DEBUG(...) LOG(Logger::Level::LVL_DEBUG, __VA_ARGS__)
+#define LOG_TRACE(...) LOG(Logger::Level::LVL_TRACE, __VA_ARGS__)
 #endif
 
 // Since logger its own thing can't include here anything
@@ -79,7 +79,6 @@ public:
         const std::string &callerName;
 		const std::string &fileName;
     	const std::string &lineNumber;
-		const std::string &message;
 	    const std::string &args;
     };
 
@@ -101,7 +100,7 @@ public:
         LoggerHandlerCallback callback = nullptr;
     };
 
-    static constexpr int MaxFuncNameLength = 65;
+    static constexpr int MaxFuncNameLength = 45;
 
 private:
     unsigned cntHandlers = 0;

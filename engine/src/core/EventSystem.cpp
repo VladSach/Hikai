@@ -80,3 +80,14 @@ void EventSystem::dispatch()
 		}
 	}
 }
+
+const char* hk::getErrocodeStr(hk::ErrorCode error)
+{
+	constexpr char const *lookup_errors[hk::MAX_ERROR_CODES] = {
+		"Unknown error",
+
+        "Unsupported Graphics API",
+	};
+
+	return lookup_errors[error];
+}

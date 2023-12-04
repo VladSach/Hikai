@@ -3,11 +3,15 @@
 #include "hikai.h"
 #include "debug.h" // Temp test file
 
-class Blight : public Application {
+class Blight final : public Application {
 private:
 public:
     Blight(const AppDesc &desc)
         : Application(desc) {}
+
+    ~Blight() {
+        LOG_INFO("Blight is closed");
+    }
 
     void init()
     {

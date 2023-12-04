@@ -3,6 +3,8 @@
 
 #include "defines.h"
 #include "core/EventSystem.h"
+#include "platform/platform.h"
+
 #include "BackendVulkan.h"
 
 enum class RenderBackend {
@@ -14,12 +16,13 @@ enum class RenderBackend {
 
 class Renderer {
 public:
-    void init(RenderBackend api);
+    void init(RenderBackend api, const Window &window);
     void deinit();
 
     void render();
 
     static void onResize(hk::EventContext data);
+
 private:
     bool createRenderBackend(RenderBackend api);
 

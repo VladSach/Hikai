@@ -1,15 +1,26 @@
 #include "Renderer.h"
 
-void Renderer::init(RenderBackend api)
+void Renderer::init(RenderBackend api, const Window &window)
 {
     if (!createRenderBackend(api)) {
-        LOG_FATAL("Failed to create renderer");
+        EventSystem::instance()->fireEvent(hk::EVENT_APP_SHUTDOWN,
+                                    { hk::ERROR_UNSUPPORTED_GRAPHICS_API });
         return;
     }
 
-    backend->init();
+    backend->init(window);
 
     EventSystem::instance()->subscribe(hk::EVENT_WINDOW_RESIZE, onResize);
+}
+
+void Renderer::deinit()
+{
+    backend->deinit();
+}
+
+void Renderer::render()
+{
+    backend->draw();
 }
 
 bool Renderer::createRenderBackend(RenderBackend api)
@@ -29,5 +40,6 @@ bool Renderer::createRenderBackend(RenderBackend api)
 
 void Renderer::onResize(hk::EventContext data)
 {
+    // TODO: add resize event for backends
     return;
 }

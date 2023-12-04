@@ -18,7 +18,8 @@ REM /std: - Specifies c++ version
 REM /Z7   - Debug Information Format
 REM /LD   - Use Run-Time Library. Created DLL
 REM /MD   - Use RTL. Uses multithread and DLL version of the run-time library.
-set COMPILER_FLAGS=/EHsc /W4 /std:c++17 /Z7 /LDd /MD
+REM /Zc:preprocessor - MSVC new cross-platform compatible preprocessor
+set COMPILER_FLAGS=/EHsc /W4 /std:c++17 /Z7 /LDd /MD /Zc:preprocessor
 
 
 REM Sets environment variable "VCROOT" to  Drive:\Path\To\VS\VC.
@@ -47,6 +48,9 @@ for /R %1 %%G in (*.cpp) do (
     ) else (
         for %%H in ("!source!") do set "source_time=%%~tH"
         for %%H in ("!object!") do set "object_time=%%~tH"
+
+        for /f "tokens=1-6 delims=/: " %%a in ("!source_time!") do set "source_time=%%c%%a%%b%%d%%e"
+        for /f "tokens=1-6 delims=/: " %%a in ("!object_time!") do set "object_time=%%c%%a%%b%%d%%e"
 
         if "!source_time!" GTR "!object_time!" (
             set "recompile=true"

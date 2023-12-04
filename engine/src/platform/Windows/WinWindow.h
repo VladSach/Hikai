@@ -42,7 +42,8 @@ public:
 	u32 getHeight() const { return winHeight; }
 	b8  getIsVisible() const { return isVisible; }
 
-	HWND getHWnd() { return hWnd; }
+	HWND getHWnd() const { return hWnd; }
+	HINSTANCE getHInstance() const { return hInstance; }
 };
 
 #endif // HK_WINWINDOW_H

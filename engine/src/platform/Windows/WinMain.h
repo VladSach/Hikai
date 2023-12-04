@@ -21,10 +21,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     args.lpCmdLine = lpCmdLine;
     args.nShowCmd = nShowCmd;
 
-    Application &app = *create_app();
+    Application *app = create_app();
 
-    app.init();
-    app.run();
+    app->init();
+    app->run();
+
+    delete app;
 
 #ifdef HKDEBUG
     deallocWinConsole();

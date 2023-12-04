@@ -11,8 +11,12 @@
 
 namespace hk {
 
-// Codes from 0 to 100 reserved by system
+// INFO: Codes from 0 to 100 reserved by Hikai
 enum EventCode : u32;
+
+// INFO: Codes from 0 to 100 reserved by Hikai
+enum ErrorCode : u64;
+HKAPI const char* getErrocodeStr(hk::ErrorCode error);
 
 struct EventContext {
     union {
@@ -23,11 +27,12 @@ struct EventContext {
         i32 i32[2];
 
         f32 f32[2];
+
+        u64 u64;
     };
 };
 
-};
-
+}
 
 class EventSystem {
 public:
@@ -79,6 +84,9 @@ private:
 enum hk::EventCode : u32 {
     EVENT_EMPTY = 0,
 
+    // u64 = hk::ErrorCode
+    EVENT_APP_SHUTDOWN,
+
     // u16[0] = key, u16[1] = isPressed
     EVENT_KEY_PRESSED,
     EVENT_KEY_RELEASED,
@@ -97,6 +105,16 @@ enum hk::EventCode : u32 {
     EVENT_WINDOW_RESIZE,
 
     MAX_EVENT_CODES
+};
+
+enum hk::ErrorCode : u64 {
+    ERROR_UNKNOWN = 0,
+
+    // TODO: add error codes as needed
+
+    ERROR_UNSUPPORTED_GRAPHICS_API,
+
+    MAX_ERROR_CODES
 };
 
 #endif // HK_EVENTSYSTEM_H
