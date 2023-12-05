@@ -158,13 +158,16 @@ void logWinConsole(void *self,
         if (message.length() > 85) {
             u32 rows = static_cast<u32>(message.length()) / 75;
             for (u32 i = 0; i < rows; i++) {
-                message.insert((75 * i) + 85 * (i + 1), filler);
+                // message.insert((75 * i) + 85 * (i + 1), filler);
+                wss << message.substr((75 * i), 85).c_str();
+                wss << filler;
             }
+        } else {
+            wss << message.c_str();
         }
-        wss << message.c_str();
     wss << "\033[0;10m";
 
-    wss << (misc.is_error ? filler : "");
+    // wss << (misc.is_error ? filler : "");
 
     wss << "\033[1;31m"
         // << std::setw(12) << (misc.is_error ? misc.file.c_str() : "")
