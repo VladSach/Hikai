@@ -7,85 +7,85 @@ Logger *Logger::singleton = nullptr;
 
 Logger *Logger::getInstance()
 {
-	if (singleton == nullptr) {
-		singleton = new Logger();
-		singleton->init();
-	}
-	return singleton;
+    if (singleton == nullptr) {
+        singleton = new Logger();
+        singleton->init();
+    }
+    return singleton;
 }
 
 void Logger::init()
 {
-	LOG_INFO("Logger initialized");
+    LOG_INFO("Logger initialized");
 }
 
 void Logger::deinit()
 {
-	delete singleton;
+    delete singleton;
 }
 
 void Logger::addMessageHandler(void *self, LoggerHandlerCallback callback)
 {
-	if (cntHandlers >= 5) {
-		LOG_WARN("Currently supported only up to 5 handlers");
-		return;
-	}
-	handlers[cntHandlers++] = {self, callback};
+    if (cntHandlers >= 5) {
+        LOG_WARN("Currently supported only up to 5 handlers");
+        return;
+    }
+    handlers[cntHandlers++] = {self, callback};
 }
 
 void Logger::removeMessageHandler(void *self, LoggerHandlerCallback callback)
 {
-	// TODO: change handlers system
-	// using void pointer not going to work for functions
-	unsigned i;
-	for (i = 0; i < cntHandlers; ++i) {
-		if (handlers[i].self == self &&
-			handlers[i].callback == callback) { break; }
-	}
+    // TODO: change handlers system
+    // using void pointer not going to work for functions
+    unsigned i;
+    for (i = 0; i < cntHandlers; ++i) {
+        if (handlers[i].self == self &&
+            handlers[i].callback == callback) { break; }
+    }
 
-	memset(&handlers[i], 0, sizeof(handlers[i]));
+    memset(&handlers[i], 0, sizeof(handlers[i]));
 }
 
 void Logger::log(const MsgInfo &info)
 {
-	if (!cntHandlers) return;
+    if (!cntHandlers) return;
 
-	bool is_error = info.level < Level::LVL_WARN;
-	bool is_trace = info.level == Level::LVL_TRACE;
-	int log_lvl = static_cast<int>(info.level);
+    bool is_error = info.level < Level::LVL_WARN;
+    bool is_trace = info.level == Level::LVL_TRACE;
+    int log_lvl = static_cast<int>(info.level);
 
-	std::time_t now = std::time(nullptr);
-	std::tm tm;
-	char time_str[32];
-	localtime_s(&tm, &now);
+    std::time_t now = std::time(nullptr);
+    std::tm tm;
+    char time_str[32];
+    localtime_s(&tm, &now);
     std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
 
-	std::string caller = info.callerName;
+    std::string caller = info.callerName;
 #ifdef _MSC_VER
-	// Removes all __cdecl instances from __FUNCSIG__
-	std::string r = "__cdecl ";
+    // Removes all __cdecl instances from __FUNCSIG__
+    std::string r = "__cdecl ";
 
-	for (std::string::size_type i = caller.find(r);
-		 i != std::string::npos;
-		 i = caller.find(r))
-	{
-		caller.erase(i, r.length());
-	}
+    for (std::string::size_type i = caller.find(r);
+         i != std::string::npos;
+         i = caller.find(r))
+    {
+        caller.erase(i, r.length());
+    }
 #endif
 
-	if (caller.size() > MaxFuncNameLength) {
-		caller.erase(MaxFuncNameLength - 3, std::string::npos);
-		caller.append("...");
-	}
+    if (caller.size() > MaxFuncNameLength) {
+        caller.erase(MaxFuncNameLength - 3, std::string::npos);
+        caller.append("...");
+    }
 
-	// Obtaining only file name instead of full path
-	std::string file = info.fileName.substr(
-							info.fileName.find_last_of("/\\") + 1) + ":";
+    // Obtaining only file name instead of full path
+    std::string file = info.fileName.substr(
+                            info.fileName.find_last_of("/\\") + 1) + ":";
 
-	MsgAddInfo misc {is_error, is_trace, log_lvl, time_str, caller, file};
+    MsgAddInfo misc {is_error, is_trace, log_lvl, time_str, caller, file};
 
-	for (unsigned i = 0; i < cntHandlers; ++i) {
-		auto &handler = handlers[i];
-		handler.callback(handler.self, info, misc);
-	}
+    for (unsigned i = 0; i < cntHandlers; ++i) {
+        auto &handler = handlers[i];
+        handler.callback(handler.self, info, misc);
+    }
 }

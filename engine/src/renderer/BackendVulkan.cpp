@@ -1,6 +1,5 @@
 #include "BackendVulkan.h"
 
-#include "vendor/vulkan/vulkan.h"
 #include "vendor/vulkan/vulkan_win32.h"
 
 // TODO: change with hikai implementation
@@ -51,7 +50,7 @@ void BackendVulkan::deinit()
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
     vkDestroyRenderPass(device, renderPass, nullptr);
 
-    vkDestroySemaphore(device, aquireSemaphore, nullptr);
+    vkDestroySemaphore(device, acquireSemaphore, nullptr);
     vkDestroySemaphore(device, submitSemaphore, nullptr);
     vkDestroyFence(device, inFlightFence, nullptr);
 
@@ -77,7 +76,7 @@ void BackendVulkan::draw()
 
     u32 imageIndex;
     vkAcquireNextImageKHR(device, swapchain, 0,
-                          aquireSemaphore, 0, &imageIndex);
+                          acquireSemaphore, 0, &imageIndex);
 
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -113,7 +112,7 @@ void BackendVulkan::draw()
     submitInfo.pCommandBuffers = &commandBuffer;
     submitInfo.pSignalSemaphores = &submitSemaphore;
     submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &aquireSemaphore;
+    submitInfo.pWaitSemaphores = &acquireSemaphore;
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitDstStageMask = &waitStage;
     vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence);
@@ -137,28 +136,28 @@ void BackendVulkan::createInstance()
     appInfo.pApplicationName = "Blight"; // TODO: make configurable
     appInfo.pEngineName = "Hikai Engine";
 
-	u32 extensionCount = 0;
-	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+    u32 extensionCount = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 
-	hk::vector<VkExtensionProperties> availableExtensions(extensionCount);
-	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount,
-	                                       availableExtensions.data());
+    hk::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount,
+                                           availableExtensions.data());
 
-	hk::vector<const char*> extensions;
+    hk::vector<const char*> extensions;
 
-	for (auto& availableExtension : availableExtensions) {
-		if (strcmp(availableExtension.extensionName,
+    for (auto& availableExtension : availableExtensions) {
+        if (strcmp(availableExtension.extensionName,
                    VK_EXT_DEBUG_UTILS_EXTENSION_NAME) == 0) {
 #ifdef HKDEBUG
-			debugUtils = true;
-			extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            debugUtils = true;
+            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
-		} else if (strcmp(availableExtension.extensionName,
-		           VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME) == 0)
-		{
-			extensions.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
-		}
-	}
+        } else if (strcmp(availableExtension.extensionName,
+                   VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME) == 0)
+        {
+            extensions.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
+        }
+    }
 
     extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 
@@ -249,8 +248,8 @@ void BackendVulkan::createLogicalDevice()
 
     // Pick queue families
     u32 queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice,
-	                                         &queueFamilyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice,
+                                             &queueFamilyCount, nullptr);
 
     hk::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount,
@@ -259,41 +258,41 @@ void BackendVulkan::createLogicalDevice()
     for (u32 i = 0; i < queueFamilyCount; i++) {
         auto& queueFamily = queueFamilies[i];
 
-		if (graphicsFamily == VK_QUEUE_FAMILY_IGNORED &&
-		    queueFamily.queueCount > 0 &&
-		    queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-		{
-			graphicsFamily = i;
-		}
+        if (graphicsFamily == VK_QUEUE_FAMILY_IGNORED &&
+            queueFamily.queueCount > 0 &&
+            queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            graphicsFamily = i;
+        }
 
-		if (transferFamily == VK_QUEUE_FAMILY_IGNORED &&
-		    queueFamily.queueCount > 0 &&
-		    queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
-		{
-			transferFamily = i;
-		}
+        if (transferFamily == VK_QUEUE_FAMILY_IGNORED &&
+            queueFamily.queueCount > 0 &&
+            queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
+        {
+            transferFamily = i;
+        }
 
-		if (computeFamily == VK_QUEUE_FAMILY_IGNORED &&
-		    queueFamily.queueCount > 0 &&
-		    queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
-		{
-			computeFamily = i;
-		}
-	}
+        if (computeFamily == VK_QUEUE_FAMILY_IGNORED &&
+            queueFamily.queueCount > 0 &&
+            queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
+        {
+            computeFamily = i;
+        }
+    }
 
     // Create queue families
     f32 queuePriority = 1.f;
     hk::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::set<u32> uniqueQueueFamilies = { graphicsFamily, computeFamily,
                                           transferFamily };
-	for (u32 queueFamily : uniqueQueueFamilies) {
-		VkDeviceQueueCreateInfo queueCreateInfo = {};
-		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		queueCreateInfo.queueFamilyIndex = queueFamily;
-		queueCreateInfo.queueCount = 1;
-		queueCreateInfo.pQueuePriorities = &queuePriority;
-		queueCreateInfos.push_back(queueCreateInfo);
-	}
+    for (u32 queueFamily : uniqueQueueFamilies) {
+        VkDeviceQueueCreateInfo queueCreateInfo = {};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = queueFamily;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+        queueCreateInfos.push_back(queueCreateInfo);
+    }
 
     // Create logical device
     const char *extensionsLogic[] = {
@@ -319,20 +318,20 @@ void BackendVulkan::createLogicalDevice()
 
     VkBool32 presentSupport;
     for (u32 i = 0; i < queueFamilyCount; i++) {
-		presentSupport = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i,
-		                                     surface, &presentSupport);
-		if (presentFamily == VK_QUEUE_FAMILY_IGNORED &&
-		    queueFamilies[i].queueCount > 0 &&
-		    presentSupport)
-		{
-			presentFamily = i;
-			break;
-		}
-	}
+        presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i,
+                                             surface, &presentSupport);
+        if (presentFamily == VK_QUEUE_FAMILY_IGNORED &&
+            queueFamilies[i].queueCount > 0 &&
+            presentSupport)
+        {
+            presentFamily = i;
+            break;
+        }
+    }
 
-	ALWAYS_ASSERT(presentFamily != VK_QUEUE_FAMILY_IGNORED,
-	              "Failed to find present queue");
+    ALWAYS_ASSERT(presentFamily != VK_QUEUE_FAMILY_IGNORED,
+                  "Failed to find present queue");
     vkGetDeviceQueue(device, presentFamily,  0, &presentQueue);
 }
 
@@ -356,7 +355,7 @@ void BackendVulkan::createSwapchain()
 {
     VkResult err;
 
-	VkSurfaceCapabilitiesKHR surfaceCaps = {};
+    VkSurfaceCapabilitiesKHR surfaceCaps = {};
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface,
                                               &surfaceCaps);
 
@@ -567,7 +566,7 @@ void BackendVulkan::createFramebuffers()
 
         err = vkCreateFramebuffer(device, &framebufferInfo,
                                   nullptr, &scFramebuffers[i]);
-        ALWAYS_ASSERT(!err, "Failed to create Vulkan Frambuffer");
+        ALWAYS_ASSERT(!err, "Failed to create Vulkan Framebuffer");
     }
 }
 
@@ -605,7 +604,7 @@ void BackendVulkan::createSyncObjects()
     VkSemaphoreCreateInfo semaphoreInfo = {};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    err = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &aquireSemaphore);
+    err = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &acquireSemaphore);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Semaphore");
 
     err = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &submitSemaphore);

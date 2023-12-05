@@ -35,23 +35,23 @@
 // Since logger its own thing can't include here anything
 // maybe should come up with workaround for that
 #ifdef HKDLL_OUT
-	#ifdef _MSC_VER
-	#define HKAPI __declspec(dllexport)
-	#else
-	#define HKAPI
-	#endif
+    #ifdef _MSC_VER
+    #define HKAPI __declspec(dllexport)
+    #else
+    #define HKAPI
+    #endif
 #else
-	#ifdef _MSC_VER
-	#define HKAPI __declspec(dllimport)
-	#else
-	#define HKAPI
-	#endif
+    #ifdef _MSC_VER
+    #define HKAPI __declspec(dllimport)
+    #else
+    #define HKAPI
+    #endif
 #endif
 
 class HKAPI Logger {
 protected:
-	Logger() {}
-	static Logger *singleton;
+    Logger() {}
+    static Logger *singleton;
 
 public:
     enum class Level {
@@ -65,28 +65,28 @@ public:
         max_levels
     };
 
-	static constexpr char const *lookup_level[static_cast<int>(Level::max_levels)] = {
-		"[FATAL]:",
-		"[ERROR]:",
-		"[WARN]:",
-		"[INFO]:",
-		"[DEBUG]:",
-		"[TRACE]:"
-	};
+    static constexpr char const *lookup_level[static_cast<int>(Level::max_levels)] = {
+        "[FATAL]:",
+        "[ERROR]:",
+        "[WARN]:",
+        "[INFO]:",
+        "[DEBUG]:",
+        "[TRACE]:"
+    };
 
     struct MsgInfo {
         Level level;
         const std::string &callerName;
-		const std::string &fileName;
-    	const std::string &lineNumber;
-	    const std::string &args;
+        const std::string &fileName;
+        const std::string &lineNumber;
+        const std::string &args;
     };
 
     struct MsgAddInfo {
         bool is_error;
-	    bool is_trace;
+        bool is_trace;
         int log_lvl;
-	    std::string time;
+        std::string time;
         std::string caller;
         std::string file;
     };
@@ -107,12 +107,12 @@ private:
     Handler handlers[5];
 
 public:
-	Logger(Logger &other) = delete;
-	void operator=(const Logger&) = delete;
-	static Logger *getInstance();
+    Logger(Logger &other) = delete;
+    void operator=(const Logger&) = delete;
+    static Logger *getInstance();
 
     void init();
-	void deinit();
+    void deinit();
 
     void log(const MsgInfo &info);
 

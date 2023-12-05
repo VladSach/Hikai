@@ -39,16 +39,16 @@ public:
     }
 
     constexpr T& operator[](u32 index)
-	{
-		ALWAYS_ASSERT((size_ > 0 && index < size_), "Out of bounds");
-		return buffer_[index];
-	}
+    {
+        ALWAYS_ASSERT((size_ > 0 && index < size_), "Out of bounds");
+        return buffer_[index];
+    }
 
-	constexpr const T& operator[](u32 index) const
-	{
-		ALWAYS_ASSERT((size_ > 0 && index < size_), "Out of bounds");
-		return buffer_[index];
-	}
+    constexpr const T& operator[](u32 index) const
+    {
+        ALWAYS_ASSERT((size_ > 0 && index < size_), "Out of bounds");
+        return buffer_[index];
+    }
 
     constexpr void reserve(u32 capacity)
     {
@@ -104,10 +104,10 @@ public:
             reserve((capacity_ + 1) * 2);
         }
 
-	    new (buffer_ + size_) T(std::forward<Args>(args)...);
-	    ++size_;
+        new (buffer_ + size_) T(std::forward<Args>(args)...);
+        ++size_;
 
-	    return buffer_[size_ - 1];
+        return buffer_[size_ - 1];
     }
 
     constexpr void push_back(const T& value)
@@ -128,7 +128,7 @@ public:
 
     constexpr T *const erase(u32 index)
     {
-		return erase(buffer_[index]);
+        return erase(buffer_[index]);
     }
 
     constexpr T *const erase(T *const value)
@@ -144,40 +144,40 @@ public:
         return value;
     }
 
-	constexpr b8 empty() const { return size_ == 0; }
+    constexpr b8 empty() const { return size_ == 0; }
 
     constexpr u32 size() const { return size_; }
     constexpr u32 capacity() const { return capacity_; }
-	constexpr T* data() { return buffer_; }
-	constexpr const T* data() const { return buffer_; }
+    constexpr T* data() { return buffer_; }
+    constexpr const T* data() const { return buffer_; }
 
-	constexpr T& at(u32 index) { return buffer_[index]; }
-	constexpr const T& at(size_t index) const { return buffer_[index]; }
+    constexpr T& at(u32 index) { return buffer_[index]; }
+    constexpr const T& at(size_t index) const { return buffer_[index]; }
 
-	constexpr T& front()
-	{
-		ALWAYS_ASSERT(buffer_ && size_);
-		return buffer_[0];
-	}
-	constexpr const T& front() const
-	{
-		ALWAYS_ASSERT(buffer_ && size_);
-		return buffer_[0];
-	}
-	constexpr T& back()
-	{
-		ALWAYS_ASSERT(buffer_ && size_);
-		return buffer_[size_ - 1];
-	}
-	constexpr const T& back() const
-	{
-		ALWAYS_ASSERT(buffer_ && size_);
-		return buffer_[size_ - 1];
-	}
-	constexpr T* begin() { return buffer_; }
-	constexpr const T* begin() const { return buffer_; }
-	constexpr T* end() { return buffer_ + size_; }
-	constexpr const T* end() const { return buffer_ + size_; }
+    constexpr T& front()
+    {
+        ALWAYS_ASSERT(buffer_ && size_);
+        return buffer_[0];
+    }
+    constexpr const T& front() const
+    {
+        ALWAYS_ASSERT(buffer_ && size_);
+        return buffer_[0];
+    }
+    constexpr T& back()
+    {
+        ALWAYS_ASSERT(buffer_ && size_);
+        return buffer_[size_ - 1];
+    }
+    constexpr const T& back() const
+    {
+        ALWAYS_ASSERT(buffer_ && size_);
+        return buffer_[size_ - 1];
+    }
+    constexpr T* begin() { return buffer_; }
+    constexpr const T* begin() const { return buffer_; }
+    constexpr T* end() { return buffer_ + size_; }
+    constexpr const T* end() const { return buffer_ + size_; }
 
 private:
     constexpr void move(vector<T> &&other)

@@ -39,17 +39,17 @@ STATIC_ASSERT(sizeof(f64) == 8, "Type error: i64 should be 8 bytes");
  * DLL
  ***************************/
 #ifdef HKDLL_OUT
-	#ifdef _MSC_VER
-	#define HKAPI __declspec(dllexport)
-	#else
-	#define HKAPI
-	#endif
+    #ifdef _MSC_VER
+    #define HKAPI __declspec(dllexport)
+    #else
+    #define HKAPI
+    #endif
 #else
-	#ifdef _MSC_VER
-	#define HKAPI __declspec(dllimport)
-	#else
-	#define HKAPI
-	#endif
+    #ifdef _MSC_VER
+    #define HKAPI __declspec(dllimport)
+    #else
+    #define HKAPI
+    #endif
 #endif
 
 /***************************
@@ -62,24 +62,24 @@ STATIC_ASSERT(sizeof(f64) == 8, "Type error: i64 should be 8 bytes");
 #define HKBREAK __debugbreak()
 
 #if _MSVC_TRADITIONAL
-	#define LOG_FATAL_HELPER(message, ...) \
-		LOG(Logger::Level::LVL_FATAL, message, __VA_ARGS__)
+    #define LOG_FATAL_HELPER(message, ...) \
+        LOG(Logger::Level::LVL_FATAL, message, __VA_ARGS__)
 
-	#define ALWAYS_ASSERT(expression, ...) \
-		if (!(expression)) \
-		{ \
-			LOG_FATAL_HELPER("Assertion failed:", __VA_ARGS__); \
-			HKBREAK; \
-			std::abort(); \
-		}
+    #define ALWAYS_ASSERT(expression, ...) \
+        if (!(expression)) \
+        { \
+            LOG_FATAL_HELPER("Assertion failed:", __VA_ARGS__); \
+            HKBREAK; \
+            std::abort(); \
+        }
 #else
-	#define ALWAYS_ASSERT(expression, ...) \
-		if (!(expression)) \
-		{ \
-			LOG_FATAL("Assertion failed:", ##__VA_ARGS__); \
-			HKBREAK; \
-			std::abort(); \
-		}
+    #define ALWAYS_ASSERT(expression, ...) \
+        if (!(expression)) \
+        { \
+            LOG_FATAL("Assertion failed:", ##__VA_ARGS__); \
+            HKBREAK; \
+            std::abort(); \
+        }
 #endif
 
 #ifndef HKDEBUG

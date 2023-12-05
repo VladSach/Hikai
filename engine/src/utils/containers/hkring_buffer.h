@@ -21,16 +21,16 @@ public:
     ~ring_buffer() { clear(); }
 
     constexpr T& operator[](u32 index) noexcept
-	{
-		ALWAYS_ASSERT((size_ > 0 && index < size_), "Out of bounds");
-		return buffer[index];
-	}
+    {
+        ALWAYS_ASSERT((size_ > 0 && index < size_), "Out of bounds");
+        return buffer[index];
+    }
 
-	constexpr const T& operator[](u32 index) const noexcept
-	{
-		ALWAYS_ASSERT((size_ > 0 && index < size_), "Out of bounds");
-		return buffer[index];
-	}
+    constexpr const T& operator[](u32 index) const noexcept
+    {
+        ALWAYS_ASSERT((size_ > 0 && index < size_), "Out of bounds");
+        return buffer[index];
+    }
 
     inline bool push(const T &value)
     {

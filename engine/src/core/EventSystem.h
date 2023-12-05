@@ -38,7 +38,7 @@ class EventSystem {
 public:
     // TODO: change userdata to const &
     // using EventCallback = void(*)(EventContext userdata);
-	using EventCallback = std::function<void(hk::EventContext userdata)>;
+    using EventCallback = std::function<void(hk::EventContext userdata)>;
 
     struct Event {
         void *sender;
@@ -52,7 +52,7 @@ public:
     };
 
 public:
-	HKAPI static EventSystem *instance();
+    HKAPI static EventSystem *instance();
 
     HKAPI b8 subscribe(u32 code, EventCallback callback,
                        void *listener = nullptr);
@@ -67,12 +67,12 @@ public:
     void deinit();
     void dispatch();
 
-	EventSystem(EventSystem &other) = delete;
-	void operator=(const EventSystem&) = delete;
+    EventSystem(EventSystem &other) = delete;
+    void operator=(const EventSystem&) = delete;
 
 protected:
-	EventSystem() {}
-	static EventSystem *singleton;
+    EventSystem() {}
+    static EventSystem *singleton;
 
 private:
     std::unordered_map<u32, hk::vector<Subscriber>> subscribers;

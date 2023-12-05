@@ -9,13 +9,13 @@
 
 class HKAPI PlatformArgs {
 protected:
-	PlatformArgs() {}
-	static PlatformArgs *singleton;
+    PlatformArgs() {}
+    static PlatformArgs *singleton;
 
 public:
-	PlatformArgs(PlatformArgs &other) = delete;
-	void operator=(const PlatformArgs&) = delete;
-	static PlatformArgs *instance();
+    PlatformArgs(PlatformArgs &other) = delete;
+    void operator=(const PlatformArgs&) = delete;
+    static PlatformArgs *instance();
 
 public:
 #ifdef _WIN32

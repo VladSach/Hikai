@@ -39,14 +39,14 @@ private:
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
     VkDevice device                 = VK_NULL_HANDLE;
 
-	u32 graphicsFamily = VK_QUEUE_FAMILY_IGNORED;
-	u32 computeFamily  = VK_QUEUE_FAMILY_IGNORED;
-	u32 transferFamily = VK_QUEUE_FAMILY_IGNORED;
-	u32 presentFamily  = VK_QUEUE_FAMILY_IGNORED;
-	VkQueue graphicsQueue = VK_NULL_HANDLE;
-	VkQueue computeQueue  = VK_NULL_HANDLE;
-	VkQueue transferQueue = VK_NULL_HANDLE;
-	VkQueue presentQueue  = VK_NULL_HANDLE;
+    u32 graphicsFamily = VK_QUEUE_FAMILY_IGNORED;
+    u32 computeFamily  = VK_QUEUE_FAMILY_IGNORED;
+    u32 transferFamily = VK_QUEUE_FAMILY_IGNORED;
+    u32 presentFamily  = VK_QUEUE_FAMILY_IGNORED;
+    VkQueue graphicsQueue = VK_NULL_HANDLE;
+    VkQueue computeQueue  = VK_NULL_HANDLE;
+    VkQueue transferQueue = VK_NULL_HANDLE;
+    VkQueue presentQueue  = VK_NULL_HANDLE;
 
     VkSurfaceKHR surface;
     VkSurfaceFormatKHR surfaceFormat;
@@ -66,7 +66,7 @@ private:
     VkCommandPool commandPool;
     VkCommandBuffer commandBuffer;
 
-    VkSemaphore aquireSemaphore;
+    VkSemaphore acquireSemaphore;
     VkSemaphore submitSemaphore;
     VkFence inFlightFence;
 

@@ -3,12 +3,12 @@
 namespace hk::input {
 
 enum ButtonState {
-	JUST_PRESSED,
-	JUST_RELEASED,
-	STILL_PRESSED,
-	STILL_RELEASED,
+    JUST_PRESSED,
+    JUST_RELEASED,
+    STILL_PRESSED,
+    STILL_RELEASED,
 
-	MAX_BUTTON_STATES
+    MAX_BUTTON_STATES
 };
 
 struct KeyboardState {
@@ -43,20 +43,20 @@ void update()
 
 ButtonState getKeyState(Button button)
 {
-	if (keyboard.keys_prev[button]) {
-		return (keyboard.keys[button]) ? STILL_PRESSED : JUST_RELEASED;
-	}
-	
-	return (keyboard.keys[button]) ? JUST_PRESSED : STILL_RELEASED;
+    if (keyboard.keys_prev[button]) {
+        return (keyboard.keys[button]) ? STILL_PRESSED : JUST_RELEASED;
+    }
+
+    return (keyboard.keys[button]) ? JUST_PRESSED : STILL_RELEASED;
 }
 
 ButtonState getMouseState(Button button)
 {
-	if (mouse.buttons_prev[button]) {
-		return (mouse.buttons[button]) ? STILL_PRESSED : JUST_RELEASED;
-	}
-	
-	return (mouse.buttons[button]) ? JUST_PRESSED : STILL_RELEASED;
+    if (mouse.buttons_prev[button]) {
+        return (mouse.buttons[button]) ? STILL_PRESSED : JUST_RELEASED;
+    }
+
+    return (mouse.buttons[button]) ? JUST_PRESSED : STILL_RELEASED;
 }
 
 b8 isKeyPressed(Button button)
@@ -77,7 +77,7 @@ b8 isKeyDown(Button button)
     }
 
     return (getKeyState(button) == JUST_PRESSED ||
-			getKeyState(button) == STILL_PRESSED);
+            getKeyState(button) == STILL_PRESSED);
 }
 
 b8 isKeyReleased(Button button)
@@ -108,7 +108,7 @@ b8 isMouseDown(Button button)
     }
 
     return (getMouseState(button) == JUST_PRESSED ||
-			getMouseState(button) == STILL_PRESSED);
+            getMouseState(button) == STILL_PRESSED);
 }
 
 b8 isMouseReleased(Button button)
@@ -190,7 +190,7 @@ void registerKeyPress(hk::EventContext keyinfo)
     Button button = static_cast<Button>(keyinfo.u16[0]);
     b8 pressed = static_cast<b8>(keyinfo.u16[1]);
 
-	// LOG_DEBUG("Key pressed:", getKeycodeStr(button));
+    // LOG_DEBUG("Key pressed:", getKeycodeStr(button));
 
     if (keyboard.keys[button] == pressed) { return; }
 
@@ -227,7 +227,7 @@ void registerMousePress(EventContext mouseinfo)
     Button button = static_cast<Button>(mouseinfo.u16[0]);
     b8 pressed = static_cast<b8>(mouseinfo.u16[1]);
 
-	// LOG_DEBUG("Mouse button pressed:", getKeycodeStr(button));
+    // LOG_DEBUG("Mouse button pressed:", getKeycodeStr(button));
 
     if (mouse.buttons[button] == pressed) { return; }
 
@@ -249,41 +249,41 @@ void registerMouseWheel(EventContext mouseinfo)
 const char* getKeycodeStr(Button button)
 {
     constexpr char const *NDF = "Undefined";
-	constexpr char const *lookup_keys[MAX_KEYS] = {
-	    "Empty",
+    constexpr char const *lookup_keys[MAX_KEYS] = {
+        "Empty",
 
-	    "Mouse Left",
-	    "Mouse Right",
-	    NDF, // 0x03
-	    "Mouse Middle",
+        "Mouse Left",
+        "Mouse Right",
+        NDF, // 0x03
+        "Mouse Middle",
 
         // 0x05 - 0x07
-	    NDF, NDF, NDF,
+        NDF, NDF, NDF,
 
-	    "Backspace",
-	    "Tab",
+        "Backspace",
+        "Tab",
 
         // 0x0A - 0x0C
-	    NDF, NDF, NDF,
+        NDF, NDF, NDF,
 
-	    "Enter",
+        "Enter",
 
         // 0x0E - 0x0F
-	    NDF, NDF,
+        NDF, NDF,
 
-	    "Shift",
-	    "Ctrl",
-	    "Alt",
-	    "Pause",
-	    "Caps Lock",
+        "Shift",
+        "Ctrl",
+        "Alt",
+        "Pause",
+        "Caps Lock",
 
         // 0x15 - 0x1A
-	    NDF, NDF, NDF, NDF, NDF, NDF,
+        NDF, NDF, NDF, NDF, NDF, NDF,
 
         "Esc",
 
         // 0x1C - 0x1F
-	    NDF, NDF, NDF, NDF,
+        NDF, NDF, NDF, NDF,
 
         "Space",
         "Page Up",
@@ -394,7 +394,7 @@ const char* getKeycodeStr(Button button)
         "}]",
 
         "\'\"",
-	};
-	return lookup_keys[button];
+    };
+    return lookup_keys[button];
 }
-};
+}

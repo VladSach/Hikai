@@ -3,8 +3,8 @@ struct VertexInput {
 };
 
 struct VertexOutput {
-	float4 position : SV_Position;
-	float3 color : COLOR;
+    float4 position : SV_Position;
+    float3 color : COLOR;
 };
 
 VertexInput main(VertexOutput input) {

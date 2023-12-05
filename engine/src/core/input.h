@@ -213,7 +213,7 @@ enum Button : u16 {
     KEY_RBRACE = KEY_RBRACKET,
     KEY_PIPE = KEY_BACKSLASH,
 };
-};
 
+}
 
 #endif // HK_INPUT_H

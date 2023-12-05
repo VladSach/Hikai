@@ -16,34 +16,34 @@ private:
     u32 winHeight = 400;
     std::wstring winTitle = L"";
 
-	b8 isFullscreen = false;
-	b8 isVisible = false;
+    b8 isFullscreen = false;
+    b8 isVisible = false;
 
-	HWND hWnd = nullptr;
-	HINSTANCE hInstance = nullptr;
+    HWND hWnd = nullptr;
+    HINSTANCE hInstance = nullptr;
 
-	EventSystem *evs = nullptr;
-	
+    EventSystem *evs = nullptr;
+
 protected:
-	static LRESULT CALLBACK StaticWindowProc(HWND hWnd, UINT message,
-											 WPARAM wParam, LPARAM lParam);
-	LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
+    static LRESULT CALLBACK StaticWindowProc(HWND hWnd, UINT message,
+                                             WPARAM wParam, LPARAM lParam);
+    LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
 
 public:
-	Window() = default;
-	Window(const Window&) = delete;
+    Window() = default;
+    Window(const Window&) = delete;
 
-	void init(std::wstring title, u32 width, u32 height);
-	void deinit();
+    void init(std::wstring title, u32 width, u32 height);
+    void deinit();
 
-	b8 ProcessMessages();
+    b8 ProcessMessages();
 
-	u32 getWidth() const { return winWidth; }
-	u32 getHeight() const { return winHeight; }
-	b8  getIsVisible() const { return isVisible; }
+    u32 getWidth() const { return winWidth; }
+    u32 getHeight() const { return winHeight; }
+    b8  getIsVisible() const { return isVisible; }
 
-	HWND getHWnd() const { return hWnd; }
-	HINSTANCE getHInstance() const { return hInstance; }
+    HWND getHWnd() const { return hWnd; }
+    HINSTANCE getHInstance() const { return hInstance; }
 };
 
 #endif // HK_WINWINDOW_H
