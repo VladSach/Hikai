@@ -7,7 +7,7 @@ set OUT_DIR=bin
 set LIB_DIR=lib
 
 set INCLUDE_DIRS=/Isrc
-set LIBS=user32.lib /LIBPATH:"%LIB_DIR%" vulkan-1.lib
+set LIBS=user32.lib /LIBPATH:"%LIB_DIR%" vulkan-1.lib dxcompiler.lib
 set DEFINES=/D HKDEBUG /D HKDLL_OUT
 
 set DLL_NAME=hikai

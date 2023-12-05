@@ -14,7 +14,7 @@ public:
     constexpr vector(u32 size = 0) { resize(size); }
     constexpr vector(u32 size, const T &value) { resize(size, value); }
     constexpr vector(const vector<T> &other) { *this = other; }
-    constexpr vector(const vector<T> &&other) { move(std::move(other)); }
+    constexpr vector(vector<T> &&other) { move(std::move(other)); }
 
     inline ~vector()
     {
@@ -32,7 +32,7 @@ public:
         return *this;
     }
 
-    constexpr vector<T>& operator=(const vector<T> &&other)
+    constexpr vector<T>& operator=(vector<T> &&other)
     {
         move(static_cast<vector<T>&&>(other));
         return *this;

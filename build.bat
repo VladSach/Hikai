@@ -27,6 +27,9 @@ if not exist bin mkdir bin
 echo Copying hikai.dll...
 robocopy ".\engine\bin" ".\bin" hikai.dll /mt 2>&1 | findstr /i "ERROR"
 
+echo Copying dxcompiler.dll...
+robocopy ".\engine\lib" ".\bin" dxcompiler.dll /mt 2>&1 | findstr /i "ERROR"
+
 echo Copying blight.exe...
 robocopy ".\game\bin" ".\bin" blight.exe /mt 2>&1 | findstr /i "ERROR"
 

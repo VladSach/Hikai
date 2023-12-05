@@ -27,7 +27,7 @@ public:
     void createCommandBuffer();
     void createSyncObjects();
 
-    VkShaderModule createShaderModule(const std::vector<char>& code);
+    VkShaderModule createShaderModule(const hk::vector<u32>& code);
 
     /* TODO: add debug functionality
      * https://github.com/KhronosGroup/Vulkan-Samples/tree/main/

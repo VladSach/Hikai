@@ -2,10 +2,10 @@
 #define CURLESQUE 0
 #define PLASMA_PARTICLES 0
 
-cbuffer PerFrame : register(b0) {
-    float4 resolution;
-    float time;
-};
+//cbuffer PerFrame : register(b0) {
+//    float4 resolution;
+//    float time;
+//};
 
 struct PixelInput {
     float4 position : SV_Position;
