@@ -38,8 +38,7 @@ if not exist %BUILD_DIR% mkdir %BUILD_DIR%
 if not exist %OUT_DIR% mkdir %OUT_DIR%
 
 REM Function to compile a directory of .cpp files
-:compile_dir
-for /R %1 %%G in (*.cpp) do (
+for /R %SOURCE_DIR% %%G in (*.cpp) do (
     set "source=%%G"
     set "object=%BUILD_DIR%/%%~nG.obj"
 
@@ -49,8 +48,8 @@ for /R %1 %%G in (*.cpp) do (
         for %%H in ("!source!") do set "source_time=%%~tH"
         for %%H in ("!object!") do set "object_time=%%~tH"
 
-        for /f "tokens=1-6 delims=/: " %%a in ("!source_time!") do set "source_time=%%c%%a%%b%%d%%e"
-        for /f "tokens=1-6 delims=/: " %%a in ("!object_time!") do set "object_time=%%c%%a%%b%%d%%e"
+        REM for /f "delims=" %%i in ('dir /b /twc "!source!"') do set "source_time=%%~ti"
+        REM for /f "delims=" %%i in ('dir /b /twc "!object!"') do set "object_time=%%~ti"
 
         if "!source_time!" GTR "!object_time!" (
             set "recompile=true"
@@ -65,9 +64,6 @@ for /R %1 %%G in (*.cpp) do (
     )
 )
 goto :linking
-
-REM Compile each .cpp file in the source directory
-call :compile_dir %SOURCE_DIR%
 
 :linking
 REM Create an empty string to hold the list of .obj files

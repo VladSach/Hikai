@@ -132,6 +132,8 @@ LRESULT CALLBACK Window::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
             break;
         }
 
+        isVisible = true;
+
         RECT cr;
         GetClientRect(hWnd, &cr);
         u32 width = cr.right - cr.left;

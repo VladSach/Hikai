@@ -21,10 +21,10 @@ public:
 
     void render();
 
-    static void onResize(hk::EventContext data);
+    static void onResize(hk::EventContext size);
 
 private:
-    bool createRenderBackend(RenderBackend api);
+    bool createRenderBackend(RenderBackend api, const Window &window);
 
 private:
     Backend *backend;

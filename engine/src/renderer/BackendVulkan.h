@@ -7,7 +7,10 @@
 
 class BackendVulkan final : public Backend {
 public:
-    void init(const Window &window);
+    BackendVulkan(const Window &window)
+        : window_(window) {}
+
+    void init();
     void deinit();
 
     void draw();
@@ -15,7 +18,7 @@ public:
     void cleanupSwapchain();
 
     void createInstance();
-    void createSurface(const Window &window);
+    void createSurface();
     void createPhysicalDevice();
     void createLogicalDevice();
     void createSwapchain();
@@ -54,6 +57,7 @@ private:
 
     VkSwapchainKHR swapchain;
     VkFormat scImageFormat;
+    VkExtent2D scExtent;
     hk::vector<VkImage> scImages;
     hk::vector<VkImageView> scImageViews;
     hk::vector<VkFramebuffer> scFramebuffers;
@@ -74,6 +78,8 @@ private:
 
     b8 debugUtils = false;
     VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
+
+    const Window &window_;
 };
 
 #endif // HK_RENDERER_BACKEND_VULKAN_H

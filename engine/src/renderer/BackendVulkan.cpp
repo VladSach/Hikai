@@ -13,12 +13,12 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugCallback(
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData);
 
-void BackendVulkan::init(const Window &window)
+void BackendVulkan::init()
 {
     LOG_INFO("Initializing Vulkan Backend");
 
     createInstance();
-    createSurface(window);
+    createSurface();
     createPhysicalDevice();
     createLogicalDevice();
     createSwapchain();
@@ -33,6 +33,8 @@ void BackendVulkan::init(const Window &window)
 
 void BackendVulkan::cleanupSwapchain()
 {
+    vkDeviceWaitIdle(device);
+
     for (auto framebuffer : scFramebuffers) {
         vkDestroyFramebuffer(device, framebuffer, nullptr);
     }
@@ -46,6 +48,8 @@ void BackendVulkan::cleanupSwapchain()
 
 void BackendVulkan::deinit()
 {
+    vkDeviceWaitIdle(device);
+
     cleanupSwapchain();
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
@@ -73,12 +77,24 @@ void BackendVulkan::deinit()
 
 void BackendVulkan::draw()
 {
+    VkResult err;
+
     // TODO: rewrite this whole thing
     vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
 
     u32 imageIndex;
-    vkAcquireNextImageKHR(device, swapchain, 0,
-                          acquireSemaphore, 0, &imageIndex);
+    err = vkAcquireNextImageKHR(device, swapchain, 0,
+                                acquireSemaphore, 0, &imageIndex);
+
+    if (err == VK_ERROR_OUT_OF_DATE_KHR) {
+        cleanupSwapchain();
+        createSwapchain();
+        createImageViews();
+        createFramebuffers();
+        return;
+    }
+
+    vkResetFences(device, 1, &inFlightFence);
 
     vkResetCommandBuffer(commandBuffer, 0);
 
@@ -93,7 +109,7 @@ void BackendVulkan::draw()
     VkRenderPassBeginInfo rpBeginInfo = {};
     rpBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     rpBeginInfo.renderPass = renderPass;
-    rpBeginInfo.renderArea.extent = VkExtent2D{1020, 780};
+    rpBeginInfo.renderArea.extent = scExtent;
     rpBeginInfo.framebuffer = scFramebuffers[imageIndex];
     rpBeginInfo.pClearValues = &clearValue;
     rpBeginInfo.clearValueCount = 1;
@@ -105,22 +121,20 @@ void BackendVulkan::draw()
         VkViewport viewport = {};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = (float) 1020;
-        viewport.height = (float) 780;
+        viewport.width = (float) scExtent.width;
+        viewport.height = (float) scExtent.height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 
         VkRect2D scissor = {};
         scissor.offset = {0, 0};
-        scissor.extent = VkExtent2D{1020, 780};
+        scissor.extent = scExtent;
 
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
     }
     vkCmdEndRenderPass(commandBuffer);
     vkEndCommandBuffer(commandBuffer);
-
-    vkResetFences(device, 1, &inFlightFence);
 
     VkPipelineStageFlags waitStage =
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -134,7 +148,9 @@ void BackendVulkan::draw()
     submitInfo.pWaitSemaphores = &acquireSemaphore;
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitDstStageMask = &waitStage;
-    vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence);
+
+    err = vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence);
+    ALWAYS_ASSERT(!err, "Failed to submit Vulkan draw Command Buffer");
 
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -143,7 +159,14 @@ void BackendVulkan::draw()
     presentInfo.pImageIndices = &imageIndex;
     presentInfo.pWaitSemaphores = &submitSemaphore;
     presentInfo.waitSemaphoreCount = 1;
-    vkQueuePresentKHR(presentQueue, &presentInfo);
+
+    err = vkQueuePresentKHR(presentQueue, &presentInfo);
+    if (err == VK_ERROR_OUT_OF_DATE_KHR) {
+        cleanupSwapchain();
+        createSwapchain();
+        createImageViews();
+        createFramebuffers();
+    }
 }
 
 void BackendVulkan::createInstance()
@@ -354,7 +377,7 @@ void BackendVulkan::createLogicalDevice()
     vkGetDeviceQueue(device, presentFamily,  0, &presentQueue);
 }
 
-void BackendVulkan::createSurface(const Window &window)
+void BackendVulkan::createSurface()
 {
     VkResult err;
 
@@ -362,8 +385,8 @@ void BackendVulkan::createSurface(const Window &window)
 #ifdef _WIN32
     VkWin32SurfaceCreateInfoKHR surfaceInfo = {};
     surfaceInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    surfaceInfo.hwnd = window.getHWnd();
-    surfaceInfo.hinstance = window.getHInstance();
+    surfaceInfo.hwnd = window_.getHWnd();
+    surfaceInfo.hinstance = window_.getHInstance();
 #endif
 
     err = vkCreateWin32SurfaceKHR(instance, &surfaceInfo, 0, &surface);
@@ -392,6 +415,8 @@ void BackendVulkan::createSwapchain()
             break;
         }
     }
+
+    scExtent = {window_.getWidth(), window_.getHeight()};
 
     u32 presentModeCount;
     vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface,
@@ -580,14 +605,14 @@ void BackendVulkan::createGraphicsPipeline()
     VkViewport viewport = {};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float) 1020;
-    viewport.height = (float) 780;
+    viewport.width = static_cast<f32>(scExtent.width);
+    viewport.height = static_cast<f32>(scExtent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
     VkRect2D scissor = {};
     scissor.offset = {0, 0};
-    scissor.extent = VkExtent2D{1020, 780};
+    scissor.extent = scExtent;
 
 
     VkPipelineViewportStateCreateInfo viewportState = {};
@@ -678,11 +703,8 @@ void BackendVulkan::createFramebuffers()
         framebufferInfo.renderPass = renderPass;
         framebufferInfo.attachmentCount = 1;
         framebufferInfo.pAttachments = attachments;
-        // framebufferInfo.width = scExtent.width;
-        // framebufferInfo.height = scExtent.height;
-        // FIX: change to correct version
-        framebufferInfo.width = 1020;
-        framebufferInfo.height = 780;
+        framebufferInfo.width = scExtent.width;
+        framebufferInfo.height = scExtent.height;
         framebufferInfo.layers = 1;
 
         err = vkCreateFramebuffer(device, &framebufferInfo,

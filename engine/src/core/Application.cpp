@@ -28,7 +28,7 @@ Application::Application(const AppDesc &desc)
 void Application::run()
 {
     f32 dt = .0f;
-    const f32 frameRate = 1.0f / 60.f;
+    // const f32 frameRate = 1.0f / 60.f;
 
     while (running) {
 
@@ -36,11 +36,18 @@ void Application::run()
             running = false;
         }
 
-        dt += static_cast<f32>(clock.update());
-        if (!window.getIsVisible() || dt < frameRate) {
-            std::this_thread::yield();
-            dt += static_cast<f32>(clock.update());
+        dt = static_cast<f32>(clock.update());
+
+        if (!window.getIsVisible()) {
+            continue;
         }
+
+        // TODO: fix dt | now there is no point as it too low
+        // PERF: is spin loop faster then waiting for (frameRate - dt)
+        // while (dt < frameRate) {
+        //     std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+        //     dt += static_cast<f32>(clock.update());
+        // }
 
         evsys->dispatch();
 

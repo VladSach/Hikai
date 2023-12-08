@@ -6,7 +6,7 @@
 
 class Backend {
 public:
-    virtual void init(const Window &window) = 0;
+    virtual void init() = 0;
     virtual void deinit() = 0;
     virtual void draw() = 0;
 };

@@ -142,8 +142,8 @@ hk::vector<u32> loadShader(const ShaderDesc &desc)
     err = result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderObj), nullptr);
     ALWAYS_ASSERT(SUCCEEDED(err), "Failed to get shader");
 
-    hk::vector<u32> spirvBuffer;
-    spirvBuffer.resize(shaderObj->GetBufferSize() / sizeof(u32));
+    const u32 rsz = static_cast<u32>(shaderObj->GetBufferSize()) / sizeof(u32);
+    hk::vector<u32> spirvBuffer(rsz);
 
     for (u32 i = 0; i < spirvBuffer.size(); i++) {
         u32 spvByte = static_cast<u32*>(shaderObj->GetBufferPointer())[i];
