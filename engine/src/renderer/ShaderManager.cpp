@@ -1,79 +1,146 @@
 #include "ShaderManager.h"
 
-// FIX: this is a dirty solution just to get it up and running
-
+#ifdef _WIN32
 #include "Windows.h"
+#include <wrl/client.h>
+#define CComPtr Microsoft::WRL::ComPtr
+#else
+#include "vendor/dxc/WinAdapter.h"
+#endif
+
 #include "vendor/dxc/dxcapi.h"
 
-#include <fstream>
+#include "platform/platform.h"
 
-#include <wrl/client.h>
-using namespace Microsoft::WRL;
+namespace hk::dxc {
 
-hk::vector<u32> ShaderManager::loadShader(const std::string &path, const b8 type)
+static CComPtr<IDxcUtils> dxcUtils;
+static CComPtr<IDxcCompiler3> dxcCompiler;
+static b8 initialized = false;
+
+static struct intertnal_ {
+    CComPtr<IDxcUtils> dxcUtils;
+    CComPtr<IDxcCompiler3> dxcCompiler;
+    b8 initialized = false;
+} internal_;
+
+void init()
 {
-    std::ifstream file(path, std::ios::binary | std::ios::in | std::ios::ate);
-    ALWAYS_ASSERT(file.is_open(), "Failed to open a shader file:", path);
+    HRESULT err;
 
-    hk::vector<u8> shaderData;
+    err = DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(&dxcUtils));
+    ALWAYS_ASSERT(SUCCEEDED(err), "Failed to create IDxcUtils");
 
-    u32 size = file.tellg();
-    file.seekg(0, file.beg);
-    shaderData.resize(size);
-    file.read((char*)(shaderData.data()), size);
-    file.close();
+    err = DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler));
+    ALWAYS_ASSERT(SUCCEEDED(err), "Failed to create IDxcCompiler3");
 
-    ALWAYS_ASSERT(shaderData.size() > 0, "Failed to read file");
+    initialized = true;
+}
 
-    ComPtr<IDxcUtils> dxcUtils;
-    ComPtr<IDxcCompiler3> dxcCompiler;
-    DxcCreateInstance(CLSID_DxcUtils, IID_PPV_ARGS(dxcUtils.ReleaseAndGetAddressOf()));
-    DxcCreateInstance(CLSID_DxcCompiler, IID_PPV_ARGS(&dxcCompiler));
+void deinit()
+{
+    dxcCompiler->Release();
+    dxcCompiler = nullptr;
 
-    ComPtr<IDxcBlobEncoding> source;
-    dxcUtils->CreateBlob(shaderData.data(), shaderData.size(), CP_UTF8, source.GetAddressOf());
+    dxcUtils->Release();
+    dxcUtils = nullptr;
+}
 
-    hk::vector<LPCWSTR> arguments;
 
-    arguments.push_back(L"-Zpc");
-    arguments.push_back(L"-HV");
-    arguments.push_back(L"2021");
+hk::vector<u32> loadShader(const ShaderDesc &desc)
+{
+    if(!initialized) { init(); }
 
+    hk::vector<u8> shader;
+    if (!hk::platform::readFile(desc.path, shader)) {
+        LOG_ERROR("Failed to read from file:", desc.path);
+    }
+
+    HRESULT err;
+
+    CComPtr<IDxcBlobEncoding> source;
+    err = dxcUtils->CreateBlob(shader.data(), shader.size(), CP_UTF8, &source);
+    ALWAYS_ASSERT(SUCCEEDED(err), "Failed to create IDxcBlobEncoding");
+
+    hk::vector<LPCWSTR> args;
+    std::wstring wmain(desc.entry.begin(), desc.entry.end());
     // -E for the entry point (eg. 'main')
-    arguments.push_back(L"-E");
-    arguments.push_back(L"main");
+    args.push_back(L"-E");
+    args.push_back((LPCWSTR)wmain.c_str());
+
+    constexpr wchar_t const *types[] = {
+        L"vs_",
+        L"hs_",
+        L"ds_",
+        L"gs_",
+        L"ps_",
+        L"cs_"
+    };
+    constexpr wchar_t const *models[] = {
+        L"6_0",
+        L"6_1",
+        L"6_2",
+        L"6_3",
+        L"6_4",
+        L"6_5",
+        L"6_6",
+        L"6_7",
+    };
+
+    std::wstring target(types[static_cast<u8>(desc.type)]);
+    target += models[static_cast<u8>(desc.model)];
 
     // -T for the target profile (eg. 'ps_6_6')
-    arguments.push_back(L"-T");
-    arguments.push_back(type ? L"vs_5_0" : L"ps_5_0");
+    args.push_back(L"-T");
+    args.push_back((LPCWSTR)target.c_str());
 
-    arguments.push_back(L"-spirv");
-    arguments.push_back(L"-fspv-target-env=vulkan1.0");
+    switch (desc.ir) {
+    case ShaderIR::DXIL: {
+        args.push_back(L"-Wno-ignored-attributes");
+    } break;
+    case ShaderIR::SPIRV: {
+        args.push_back(L"-spirv");
+        args.push_back(L"-fspv-target-env=vulkan1.1");
+        args.push_back(L"-fvk-use-dx-layout");
+    } break;
+    }
 
-    // Strip reflection data and pdbs (see later)
-    // arguments.push_back(L"-Qstrip_debug");
-    // arguments.push_back(L"-Qstrip_reflect");
+    if (desc.debug) {
+        // Disable optimizations
+        args.push_back(L"-Od");
 
-    // arguments.push_back(DXC_ARG_WARNINGS_ARE_ERRORS); //-WX
-    // arguments.push_back(DXC_ARG_DEBUG); //-Zi
+        // Enable debug information
+        args.push_back(L"-Zi");
+
+        // Embed PDB in shader container (must be used with /Zi)
+        args.push_back(L"-Qembed_debug");
+    } else {
+        args.push_back(L"-O3");
+    }
+
+    // Pack matrices in Column-major order
+    // args.push_back(L"-Zpc");
 
     DxcBuffer sourceBuffer;
     sourceBuffer.Ptr = source->GetBufferPointer();
     sourceBuffer.Size = source->GetBufferSize();
     sourceBuffer.Encoding = 0;
 
-    ComPtr<IDxcResult> result;
-    dxcCompiler->Compile(&sourceBuffer, arguments.data(), (u32)arguments.size(), nullptr, IID_PPV_ARGS(result.GetAddressOf()));
+    CComPtr<IDxcResult> result;
+    err = dxcCompiler->Compile(&sourceBuffer, args.data(), (u32)args.size(),
+                               nullptr, IID_PPV_ARGS(&result));
+    ALWAYS_ASSERT(SUCCEEDED(err), "Failed to compile shader");
 
-    ComPtr<IDxcBlobUtf8> errors;
-    result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(errors.GetAddressOf()), nullptr);
-    if (errors && errors->GetStringLength() > 0)
-    {
+    CComPtr<IDxcBlobUtf8> errors;
+    err = result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr);
+    ALWAYS_ASSERT(SUCCEEDED(err), "Failed to get shader errors");
+    if (errors && errors->GetStringLength() > 0) {
         LOG_ERROR("Shader Error:", (char*)errors->GetBufferPointer());
     }
 
-    ComPtr<IDxcBlob> shaderObj;
-    result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(shaderObj.GetAddressOf()), nullptr);
+    CComPtr<IDxcBlob> shaderObj;
+    err = result->GetOutput(DXC_OUT_OBJECT, IID_PPV_ARGS(&shaderObj), nullptr);
+    ALWAYS_ASSERT(SUCCEEDED(err), "Failed to get shader");
 
     hk::vector<u32> spirvBuffer;
     spirvBuffer.resize(shaderObj->GetBufferSize() / sizeof(u32));
@@ -84,4 +151,6 @@ hk::vector<u32> ShaderManager::loadShader(const std::string &path, const b8 type
     }
 
     return spirvBuffer;
+}
+
 }

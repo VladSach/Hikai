@@ -516,9 +516,20 @@ void BackendVulkan::createGraphicsPipeline()
 {
     VkResult err;
 
-    ShaderManager manager;
-    auto vertShaderCode = manager.loadShader("D:\\Work\\blight\\engine\\assets\\shaders\\HelloTriangleVS.hlsl", true);
-    auto fragShaderCode = manager.loadShader("D:\\Work\\blight\\engine\\assets\\shaders\\HelloTrianglePS.hlsl", false);
+    std::string path = "D:\\Work\\blight\\engine\\assets\\shaders\\";
+    hk::dxc::ShaderDesc desc;
+    desc.path = path + "HelloTriangleVS.hlsl";
+    desc.entry = "main";
+    desc.type = ShaderType::Vertex;
+    desc.model = ShaderModel::SM_6_0;
+    desc.ir = ShaderIR::SPIRV;
+    desc.debug = true;
+
+    auto vertShaderCode = hk::dxc::loadShader(desc);
+
+    desc.path = path + "HelloTrianglePS.hlsl";
+    desc.type = ShaderType::Pixel;
+    auto fragShaderCode = hk::dxc::loadShader(desc);
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
