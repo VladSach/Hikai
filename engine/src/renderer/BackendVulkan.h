@@ -2,8 +2,10 @@
 #define HK_RENDERER_BACKEND_VULKAN_H
 
 #include "Backend.h"
-#include "utils/containers/hkvector.h"
 #include "vendor/vulkan/vulkan.h"
+
+#include "utils/containers/hkvector.h"
+#include "math/math.h"
 
 class BackendVulkan final : public Backend {
 public:
@@ -24,21 +26,35 @@ public:
     void createSwapchain();
     void createImageViews();
     void createRenderPass();
+    void createDescriptorSetLayout();
     void createGraphicsPipeline();
     void createFramebuffers();
     void createCommandPool();
     void createVertexBuffer();
     void createIndexBuffer();
+    void createUniformBuffers();
+    void createDescriptorPool();
+    void createDescriptorSets();
     void createCommandBuffer();
     void createSyncObjects();
 
     VkShaderModule createShaderModule(const hk::vector<u32>& code);
+
     void createBuffer(VkDeviceSize size,
                       VkBufferUsageFlags usage,
                       VkMemoryPropertyFlags properties,
                       VkBuffer& buffer,
                       VkDeviceMemory& bufferMemory);
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    void updateUniformBuffer(u32 currentImage);
+
+    // FIX: temp
+    struct UniformBuffer {
+        hkm::vec2f resolution;
+        f32 time;
+    };
+    UniformBuffer ubuffer;
+    void setUniformBuffer(const hkm::vec2f &res, f32 time);
 
     /* TODO: add debug functionality
      * https://github.com/KhronosGroup/Vulkan-Samples/tree/main/
@@ -71,6 +87,7 @@ private:
     hk::vector<VkFramebuffer> scFramebuffers;
 
     VkRenderPass renderPass;
+    VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout pipelineLayout;
 
     VkPipeline graphicsPipeline;
@@ -79,6 +96,12 @@ private:
     VkDeviceMemory vertexBufferMemory;
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
+    hk::vector<VkBuffer> uniformBuffers;
+    hk::vector<VkDeviceMemory> uniformBuffersMemory;
+    hk::vector<void*> uniformBuffersMapped;
+
+    VkDescriptorPool descriptorPool;
+    hk::vector<VkDescriptorSet> descriptorSets;
 
     VkCommandPool commandPool;
     VkCommandBuffer commandBuffer;
@@ -86,8 +109,6 @@ private:
     VkSemaphore acquireSemaphore;
     VkSemaphore submitSemaphore;
     VkFence inFlightFence;
-
-    VkDescriptorPool descriptorPool;
 
     b8 debugUtils = false;
     VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;

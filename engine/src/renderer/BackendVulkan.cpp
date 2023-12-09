@@ -3,7 +3,6 @@
 #include "vendor/vulkan/vulkan_win32.h"
 
 #include "ShaderManager.h"
-#include "math/math.h"
 
 // TODO: change with hikai implementation
 #include <set>
@@ -14,17 +13,30 @@ struct Vertex {
     hkm::vec3f color;
 };
 
+// const hk::vector<Vertex> vertices = {
+//     {{-0.5f, -0.5f, 0.f}, {1.0f, 0.0f, 0.0f}},
+//     {{ 0.5f, -0.5f, 0.f}, {0.0f, 1.0f, 0.0f}},
+//     {{ 0.5f,  0.5f, 0.f}, {0.0f, 0.0f, 1.0f}},
+//     {{-0.5f,  0.5f, 0.f}, {1.0f, 1.0f, 1.0f}}
+
+// fullscreen rectangle
 const hk::vector<Vertex> vertices = {
-    {{-0.5f, -0.5f, 0.f}, {1.0f, 0.0f, 0.0f}},
-    {{ 0.5f, -0.5f, 0.f}, {0.0f, 1.0f, 0.0f}},
-    {{ 0.5f,  0.5f, 0.f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f,  0.5f, 0.f}, {1.0f, 1.0f, 1.0f}}
+    {{-1.0f, -1.0f, 0.f}, {1.0f, 0.0f, 0.0f}},
+    {{ 1.0f, -1.0f, 0.f}, {0.0f, 1.0f, 0.0f}},
+    {{ 1.0f,  1.0f, 0.f}, {0.0f, 0.0f, 1.0f}},
+    {{-1.0f,  1.0f, 0.f}, {1.0f, 1.0f, 1.0f}}
 
 };
 
 const hk::vector<u32> indices = {
     0, 1, 2, 2, 3, 0
 };
+
+void BackendVulkan::setUniformBuffer(const hkm::vec2f &res, f32 time)
+{
+    ubuffer.resolution = res;
+    ubuffer.time = time;
+}
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -43,11 +55,15 @@ void BackendVulkan::init()
     createSwapchain();
     createImageViews();
     createRenderPass();
+    createDescriptorSetLayout();
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
     createVertexBuffer();
     createIndexBuffer();
+    createUniformBuffers();
+    createDescriptorPool();
+    createDescriptorSets();
     createCommandBuffer();
     createSyncObjects();
 }
@@ -72,6 +88,15 @@ void BackendVulkan::deinit()
     vkDeviceWaitIdle(device);
 
     cleanupSwapchain();
+
+    for (size_t i = 0; i < 1; i++) {
+        vkDestroyBuffer(device, uniformBuffers[i], nullptr);
+        vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
+    }
+
+    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+
+    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
     vkDestroyBuffer(device, indexBuffer, nullptr);
     vkFreeMemory(device, indexBufferMemory, nullptr);
@@ -121,6 +146,8 @@ void BackendVulkan::draw()
         return;
     }
 
+    updateUniformBuffer(0);
+
     vkResetFences(device, 1, &inFlightFence);
 
     vkResetCommandBuffer(commandBuffer, 0);
@@ -164,6 +191,11 @@ void BackendVulkan::draw()
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
         vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+        vkCmdBindDescriptorSets(commandBuffer,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                pipelineLayout, 0, 1,
+                                &descriptorSets[0], 0, nullptr);
 
         // vkCmdDraw(commandBuffer, static_cast<u32>(vertices.size()), 1, 0, 0);
         vkCmdDrawIndexed(commandBuffer, static_cast<u32>(indices.size()), 1, 0, 0, 0);
@@ -698,7 +730,7 @@ void BackendVulkan::createGraphicsPipeline()
     multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
 
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+    VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
     colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     colorBlendAttachment.blendEnable = VK_TRUE;
     colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -708,7 +740,7 @@ void BackendVulkan::createGraphicsPipeline()
     colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
     colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
-    VkPipelineColorBlendStateCreateInfo colorBlending{};
+    VkPipelineColorBlendStateCreateInfo colorBlending = {};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
     colorBlending.attachmentCount = 1;
@@ -717,6 +749,8 @@ void BackendVulkan::createGraphicsPipeline()
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 
     err = vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Pipeline Layout");
@@ -745,6 +779,26 @@ void BackendVulkan::createGraphicsPipeline()
 
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
+}
+
+void BackendVulkan::createDescriptorSetLayout()
+{
+    VkResult err;
+
+    VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &uboLayoutBinding;
+
+    err = vkCreateDescriptorSetLayout(device, &layoutInfo,
+                                      nullptr, &descriptorSetLayout);
+    ALWAYS_ASSERT(!err, "Failed to create Vulkan Descriptor Set Layout");
 }
 
 void BackendVulkan::createFramebuffers()
@@ -843,6 +897,81 @@ void BackendVulkan::createIndexBuffer()
 
     vkDestroyBuffer(device, stagingBuffer, nullptr);
     vkFreeMemory(device, stagingBufferMemory, nullptr);
+}
+
+void BackendVulkan::createUniformBuffers()
+{
+    VkDeviceSize bufferSize = sizeof(UniformBuffer);
+
+    constexpr u32 MAX_FRAMES_IN_FLIGHT = 1;
+    uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+    uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        createBuffer(bufferSize,
+                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     uniformBuffers[i],
+                     uniformBuffersMemory[i]);
+
+        vkMapMemory(device, uniformBuffersMemory[i], 0,
+                    bufferSize, 0, &uniformBuffersMapped[i]);
+    }
+}
+
+void BackendVulkan::createDescriptorPool()
+{
+    VkResult err;
+
+    VkDescriptorPoolSize poolSize = {};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    poolSize.descriptorCount = uniformBuffers.size();
+
+    VkDescriptorPoolCreateInfo poolInfo = {};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = uniformBuffers.size();
+
+    err = vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool);
+    ALWAYS_ASSERT(!err, "Failed to create Vulkan Descriptor Pool");
+}
+
+void BackendVulkan::createDescriptorSets()
+{
+    VkResult err;
+
+    hk::vector<VkDescriptorSetLayout> layouts(uniformBuffers.size(), descriptorSetLayout);
+
+    VkDescriptorSetAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = uniformBuffers.size();
+    allocInfo.pSetLayouts = layouts.data();
+
+    descriptorSets.resize(uniformBuffers.size());
+    err = vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data());
+    ALWAYS_ASSERT(!err, "Failed to allocate Vulkan Descriptor Sets");
+
+    for (u32 i = 0; i < uniformBuffers.size(); i++) {
+        VkDescriptorBufferInfo bufferInfo = {};
+        bufferInfo.buffer = uniformBuffers[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(UniformBuffer);
+
+        VkWriteDescriptorSet descriptorWrite = {};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = descriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+
+        vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+    }
 }
 
 void BackendVulkan::createCommandBuffer()
@@ -973,6 +1102,11 @@ void BackendVulkan::copyBuffer(VkBuffer srcBuffer,
     vkQueueWaitIdle(graphicsQueue);
 
     vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+}
+
+void BackendVulkan::updateUniformBuffer(u32 currentImage)
+{
+    memcpy(uniformBuffersMapped[currentImage], &ubuffer, sizeof(ubuffer));
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugCallback(

@@ -1,11 +1,11 @@
-#define HELLO_TRIANGLE 1
+#define HELLO_TRIANGLE 0
 #define CURLESQUE 0
-#define PLASMA_PARTICLES 0
+#define PLASMA_PARTICLES 1
 
-//cbuffer PerFrame : register(b0) {
-//    float4 resolution;
-//    float time;
-//};
+cbuffer PerFrame : register(b0) {
+    float2 resolution;
+    float time;
+};
 
 struct PixelInput {
     float4 position : SV_Position;
@@ -61,16 +61,14 @@ float3 duv(float2 uv)
     return float3(v, 0, (v*4.0 + a));
 }
 
-PixelOutput main(PixelInput pixelInput)
+float4 main(PixelInput pixelInput) : SV_Target0
 {
-    PixelOutput output;
     float2 uv = pixelInput.position.xy / resolution.x;
     float3 h = duv(uv);
     float sp = saw(h.z + time * 1.3);
     //sp=(sp>0.5)?0.3:1.0;
     sp = clamp((sp - 0.25)*2.0, 0.5, 1.0);
-    output.attachment0 = float4((h.x + 0.5)*sp, (0.3 + saw(h.x + 0.5)*0.6)*sp, (0.6 - h.x)*sp, 1.0);
-    return output;
+    return float4((h.x + 0.5)*sp, (0.3 + saw(h.x + 0.5)*0.6)*sp, (0.6 - h.x)*sp, 1.0);
 }
 #endif
 
@@ -80,7 +78,7 @@ float noise(float2 co)
     return frac(sin(dot(co.xy, float2(12.9898, 78.233))) * 43758.5453);
 }
 
-PixelOutput main(PixelInput pixelInput)
+float4 main(PixelInput pixelInput) : SV_Target0
 {
     float2 uv = pixelInput.position.xy / resolution.xy;
 
@@ -133,10 +131,7 @@ PixelOutput main(PixelInput pixelInput)
 
     float3 col = float3(a*25.5, 0.0, a*b) * 0.0001 * u_brightness;
 
-    PixelOutput output;
-    output.attachment0 = float4(col, 1.0);
-
     //fragColor = vec4(uv,0.5+0.5*sin(iTime),1.0);
-    return output;
+    return float4(col, 1.0);
 }
 #endif

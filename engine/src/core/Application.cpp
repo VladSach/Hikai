@@ -30,6 +30,8 @@ void Application::run()
     f32 dt = .0f;
     // const f32 frameRate = 1.0f / 60.f;
 
+    f32 time = .0f;
+
     while (running) {
 
         if (!window.ProcessMessages()) {
@@ -37,6 +39,7 @@ void Application::run()
         }
 
         dt = static_cast<f32>(clock.update());
+        time += dt;
 
         if (!window.getIsVisible()) {
             continue;
@@ -55,8 +58,12 @@ void Application::run()
 
         hk::input::update();
 
-        render();
+        renderer.setUniformBuffer({
+            static_cast<f32>(window.getWidth()),
+            static_cast<f32>(window.getHeight())},
+            time);
         renderer.render();
+        render();
     }
 }
 

@@ -21,6 +21,11 @@ public:
 
     void render();
 
+    void setUniformBuffer(const hkm::vec2f &res, f32 time)
+    {
+        backend->setUniformBuffer(res, time);
+    }
+
     static void onResize(hk::EventContext size);
 
 private:
