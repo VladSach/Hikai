@@ -27,10 +27,18 @@ public:
     void createGraphicsPipeline();
     void createFramebuffers();
     void createCommandPool();
+    void createVertexBuffer();
+    void createIndexBuffer();
     void createCommandBuffer();
     void createSyncObjects();
 
     VkShaderModule createShaderModule(const hk::vector<u32>& code);
+    void createBuffer(VkDeviceSize size,
+                      VkBufferUsageFlags usage,
+                      VkMemoryPropertyFlags properties,
+                      VkBuffer& buffer,
+                      VkDeviceMemory& bufferMemory);
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
     /* TODO: add debug functionality
      * https://github.com/KhronosGroup/Vulkan-Samples/tree/main/
@@ -66,6 +74,11 @@ private:
     VkPipelineLayout pipelineLayout;
 
     VkPipeline graphicsPipeline;
+
+    VkBuffer vertexBuffer;
+    VkDeviceMemory vertexBufferMemory;
+    VkBuffer indexBuffer;
+    VkDeviceMemory indexBufferMemory;
 
     VkCommandPool commandPool;
     VkCommandBuffer commandBuffer;

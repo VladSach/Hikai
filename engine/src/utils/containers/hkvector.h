@@ -3,6 +3,8 @@
 
 #include "defines.h"
 
+#include <initializer_list>
+
 // TODO: replace with custom allocators
 #include <memory>
 
@@ -15,6 +17,12 @@ public:
     constexpr vector(u32 size, const T &value) { resize(size, value); }
     constexpr vector(const vector<T> &other) { *this = other; }
     constexpr vector(vector<T> &&other) { move(std::move(other)); }
+    constexpr vector(std::initializer_list<T> list)
+    {
+        for (const auto &item : list) {
+            emplace_back(item);
+        }
+    }
 
     inline ~vector()
     {

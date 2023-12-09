@@ -1,27 +1,23 @@
-//struct VertexInput {
-//    float3 position : POS;
-//};
+struct VertexInput {
+    //[[vk::location(0)]]
+    float3 position : POSITION0;
+
+    //[[vk::location(1)]]
+    float3 color : COLOR0;
+};
 
 struct VertexOutput {
     float4 position : SV_Position;
+
+    //[[vk::location(0)]]
     float3 color : COLOR;
 };
 
-//VertexOutput main(VertexInput input) {
-VertexOutput main(uint index: SV_VertexID) {
+VertexOutput main(VertexInput input, uint index: SV_VertexID) {
     VertexOutput output;
-    float3 position[3] = {
-        {0.f, -0.5f, 0.f},
-        {0.5f, 0.5f, 0.f},
-        {-0.5f, 0.5, 0.f},
-    };
-    float3 color[3] = {
-        {1.f, 0.f, 0.f},
-        {0.f, 1.f, 0.f},
-        {0.f, 0.f, 1.f}
-    };
 
-    output.position = float4(position[index], 1.f);
-    output.color = float3(color[index]);
+    output.color = input.color;
+    output.position = float4(input.position, 1.f);
+
     return output;
 }
