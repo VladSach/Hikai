@@ -21,14 +21,14 @@ public:
 
     HKAPI inline f64 elapsed()
     {
-        auto result = std::chrono::duration_cast<std::chrono::seconds>(
+        auto result = std::chrono::duration_cast<std::chrono::duration<double>>(
                         highres_clock::now() - timestamp).count();
         return static_cast<f64>(result);
     }
 
     HKAPI inline f64 elapsed(std::chrono::time_point<highres_clock> time)
     {
-        auto result = std::chrono::duration_cast<std::chrono::seconds>(
+        auto result = std::chrono::duration_cast<std::chrono::duration<double>>(
                         time - timestamp).count();
         return static_cast<f64>(result);
     }

@@ -159,7 +159,7 @@ void logWinConsole(void *self,
             u32 rows = static_cast<u32>(message.length()) / 75;
             for (u32 i = 0; i < rows; i++) {
                 // message.insert((75 * i) + 85 * (i + 1), filler);
-                wss << message.substr((75 * i), 85).c_str();
+                wss << message.substr((75 * i), 75).c_str();
                 wss << filler;
             }
         } else {
