@@ -24,25 +24,23 @@ void Logger::deinit()
     delete singleton;
 }
 
-void Logger::addMessageHandler(void *self, LoggerHandlerCallback callback)
+void Logger::addMessageHandler(LoggerHandlerCallback callback)
 {
-    if (cntHandlers >= 5) {
-        LOG_WARN("Currently supported only up to 5 handlers");
+    if (cntHandlers >= maxHandlers) {
+        LOG_WARN("Currently supported only up to", maxHandlers, "handlers");
         return;
     }
-    handlers[cntHandlers++] = {self, callback};
+    handlers[cntHandlers++] = callback;
 }
 
-void Logger::removeMessageHandler(void *self, LoggerHandlerCallback callback)
+void Logger::removeMessageHandler(LoggerHandlerCallback callback)
 {
-    // TODO: change handlers system
-    // using void pointer not going to work for functions
     unsigned i;
     for (i = 0; i < cntHandlers; ++i) {
-        if (handlers[i].self == self &&
-            handlers[i].callback == callback) { break; }
+        if (handlers[i] == callback) { break; }
     }
 
+    --cntHandlers;
     memset(&handlers[i], 0, sizeof(handlers[i]));
 }
 
@@ -84,8 +82,9 @@ void Logger::log(const MsgInfo &info)
 
     MsgAddInfo misc {is_error, is_trace, log_lvl, time_str, caller, file};
 
-    for (unsigned i = 0; i < cntHandlers; ++i) {
-        auto &handler = handlers[i];
-        handler.callback(handler.self, info, misc);
+    for (unsigned i = 0; i < maxHandlers; ++i) {
+        if (!handlers[i]) { continue; }
+
+        handlers[i](info, misc);
     }
 }

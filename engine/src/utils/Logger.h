@@ -91,20 +91,15 @@ public:
         std::string file;
     };
 
-    using LoggerHandlerCallback = void (*)(void *self,
-                                           const Logger::MsgInfo& info,
+    using LoggerHandlerCallback = void (*)(const Logger::MsgInfo& info,
                                            const Logger::MsgAddInfo &misc);
-
-    struct Handler {
-        void *self = nullptr;
-        LoggerHandlerCallback callback = nullptr;
-    };
 
     static constexpr int MaxFuncNameLength = 45;
 
 private:
     unsigned cntHandlers = 0;
-    Handler handlers[5];
+    static constexpr unsigned maxHandlers = 5;
+    LoggerHandlerCallback handlers[maxHandlers];
 
 public:
     Logger(Logger &other) = delete;
@@ -116,8 +111,8 @@ public:
 
     void log(const MsgInfo &info);
 
-    void addMessageHandler(void *self, LoggerHandlerCallback callback);
-    void removeMessageHandler(void *self, LoggerHandlerCallback callback);
+    void addMessageHandler(LoggerHandlerCallback callback);
+    void removeMessageHandler(LoggerHandlerCallback callback);
 
     template <typename... Args>
     inline std::string getArgs(const Args& ...args) const

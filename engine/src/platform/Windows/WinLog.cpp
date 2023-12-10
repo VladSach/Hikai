@@ -9,11 +9,9 @@ static HANDLE hConsole = nullptr;
 static std::string logFile = "";
 
 bool setConsoleSize(i16 cols, i16 rows);
-void logWinConsole(void *self,
-                   const Logger::MsgInfo& info,
+void logWinConsole(const Logger::MsgInfo& info,
                    const Logger::MsgAddInfo &misc);
-void logWinFile(void *self,
-                const Logger::MsgInfo& info,
+void logWinFile(const Logger::MsgInfo& info,
                 const Logger::MsgAddInfo &misc);
 
 BOOL WINAPI HandlerRoutine(DWORD dwCtrlType)
@@ -77,7 +75,7 @@ void allocWinConsole()
     GetConsoleScreenBufferInfo(hConsole, &csbi);
     setConsoleSize(maxBufferLineSize, csbi.srWindow.Bottom);
 
-    Logger::getInstance()->addMessageHandler(nullptr, logWinConsole);
+    Logger::getInstance()->addMessageHandler(logWinConsole);
 }
 
 void deallocWinConsole()
@@ -89,7 +87,7 @@ void deallocWinConsole()
 
     FreeConsole();
 
-    Logger::getInstance()->removeMessageHandler(nullptr, logWinConsole);
+    Logger::getInstance()->removeMessageHandler(logWinConsole);
 }
 
 
@@ -98,16 +96,15 @@ void setLogFile(const std::string &file)
     logFile = file;
     if (logFile.empty()) { return; }
 
-    Logger::getInstance()->addMessageHandler(nullptr, logWinFile);
+    Logger::getInstance()->addMessageHandler(logWinFile);
 }
 
 void removeLogFile()
 {
-    Logger::getInstance()->removeMessageHandler(nullptr, logWinFile);
+    Logger::getInstance()->removeMessageHandler(logWinFile);
 }
 
-void logWinConsole(void *self,
-                   const Logger::MsgInfo& info,
+void logWinConsole(const Logger::MsgInfo& info,
                    const Logger::MsgAddInfo &misc)
 {
     /* Colored output
@@ -115,9 +112,6 @@ void logWinConsole(void *self,
      * gray diff cyan white white red red
      * More info about colors: https://ss64.com/nt/syntax-ansi.html
      * */
-
-    // Unused
-    (void)self;
 
     if (!hConsole) { return; }
 
@@ -183,15 +177,9 @@ void logWinConsole(void *self,
     WriteConsoleW(hConsole, wss.str().c_str(), length, &dwBytesWritten, NULL);
 }
 
-void logWinFile(void *self,
-                const Logger::MsgInfo& info,
+void logWinFile(const Logger::MsgInfo& info,
                 const Logger::MsgAddInfo &misc)
 {
-    // Unused
-    (void)self;
-
-    if (!hConsole) { return; }
-
     // TODO: test and fix log to file
     // No coloring
     std::wstringstream wss;

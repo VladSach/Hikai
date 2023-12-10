@@ -35,9 +35,9 @@ void Application::run()
     f32 time = .0f;
 
     while (running) {
-
         if (!window.ProcessMessages()) {
             running = false;
+            break;
         }
 
         dt = static_cast<f32>(clock.update());
