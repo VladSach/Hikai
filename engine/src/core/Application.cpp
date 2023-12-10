@@ -28,8 +28,10 @@ Application::Application(const AppDesc &desc)
 void Application::run()
 {
     f32 dt = .0f;
-    // const f32 frameRate = 1.0f / 60.f;
+    const f32 desiredFrameRate = 60.f; // TODO: configurable
+    const f32 msPerFrame = 1.0f / desiredFrameRate;
 
+    f32 fixedTimestamp = .0f;
     f32 time = .0f;
 
     while (running) {
@@ -39,29 +41,34 @@ void Application::run()
         }
 
         dt = static_cast<f32>(clock.update());
-        time += dt;
 
         if (!window.getIsVisible()) {
             continue;
         }
 
-        // TODO: fix dt | now there is no point as it too low
-        // PERF: is spin loop faster then waiting for (frameRate - dt)
-        // while (dt < frameRate) {
-        //     std::this_thread::sleep_for(std::chrono::nanoseconds(1));
-        //     dt += static_cast<f32>(clock.update());
-        // }
+        // PERF: is spin loop faster then waiting for (frameRate - dt)?
+        while (dt < msPerFrame) {
+            std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+            dt += static_cast<f32>(clock.update());
+        }
 
         evsys->dispatch();
 
         update(dt);
-
         hk::input::update();
 
+        fixedTimestamp += dt;
+        while (fixedTimestamp >= msPerFrame) {
+            fixedUpdate();
+            fixedTimestamp -= msPerFrame;
+        }
+
+        time += dt;
         renderer.setUniformBuffer({
             static_cast<f32>(window.getWidth()),
             static_cast<f32>(window.getHeight())},
             time);
+
         renderer.render();
         render();
     }
