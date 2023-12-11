@@ -14,13 +14,22 @@ Application::Application(const AppDesc &desc)
     evsys->init();
     evsys->subscribe(hk::EVENT_APP_SHUTDOWN, shutdown);
 
-    window.init(desc.title, desc.width, desc.height);
+    RenderBackend backend = desc.renderBackend;
+
+    window = desc.window;
+    if (!window) {
+        allocWinConsole();
+        window = new EmptyWindow();
+        backend = RenderBackend::NONE;
+    }
+
+    window->init(desc.title, desc.width, desc.height);
+
     hk::input::init();
 
     clock.record();
 
-    renderer.init(desc.renderBackend, window);
-
+    renderer.init(backend, *window);
 
     running = true;
 }
@@ -35,14 +44,14 @@ void Application::run()
     f32 time = .0f;
 
     while (running) {
-        if (!window.ProcessMessages()) {
+        if (!window->ProcessMessages()) {
             running = false;
             break;
         }
 
         dt = static_cast<f32>(clock.update());
 
-        if (!window.getIsVisible()) {
+        if (!window->getIsVisible()) {
             continue;
         }
 
@@ -65,8 +74,8 @@ void Application::run()
 
         time += dt;
         renderer.setUniformBuffer({
-            static_cast<f32>(window.getWidth()),
-            static_cast<f32>(window.getHeight())},
+            static_cast<f32>(window->getWidth()),
+            static_cast<f32>(window->getHeight())},
             time);
 
         renderer.render();
@@ -78,7 +87,7 @@ void Application::deinit()
 {
     renderer.deinit();
     hk::input::deinit();
-    window.deinit();
+    window->deinit();
     evsys->deinit();
 }
 

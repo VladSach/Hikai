@@ -35,6 +35,7 @@ Application* create_app()
     desc.title = L"Blight";
     desc.width = 1020;
     desc.height = 780;
+    desc.window = new WinWindow();
 
     return new Blight(desc);
 }

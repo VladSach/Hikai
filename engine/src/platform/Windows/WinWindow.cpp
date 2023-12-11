@@ -1,3 +1,4 @@
+#ifdef _WIN32
 #include "WinWindow.h"
 
 #include "defines.h"
@@ -7,7 +8,7 @@
 #include <winuser.h>
 #include <string>
 
-void Window::init(std::wstring title, u32 width, u32 height)
+void WinWindow::init(std::wstring title, u32 width, u32 height)
 {
     winTitle = title;
     winWidth = width;
@@ -21,7 +22,7 @@ void Window::init(std::wstring title, u32 width, u32 height)
 
     wc.cbSize = sizeof(WNDCLASSEX);
     wc.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
-    wc.lpfnWndProc = Window::StaticWindowProc;
+    wc.lpfnWndProc = WinWindow::StaticWindowProc;
     wc.hInstance = hInstance;
     wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
     wc.hIconSm = LoadIcon(NULL, IDI_WINLOGO);
@@ -65,12 +66,12 @@ void Window::init(std::wstring title, u32 width, u32 height)
     LOG_INFO("Window is successfully created");
 }
 
-void Window::deinit()
+void WinWindow::deinit()
 {
     UnregisterClassW(L"MainWinClass", hInstance);
 }
 
-bool Window::ProcessMessages()
+bool WinWindow::ProcessMessages()
 {
     MSG msg = { 0 };
 
@@ -88,17 +89,19 @@ bool Window::ProcessMessages()
     return true;
 }
 
-LRESULT CALLBACK Window::StaticWindowProc(HWND hWnd, UINT message,
+LRESULT CALLBACK WinWindow::StaticWindowProc(HWND hWnd, UINT message,
                                           WPARAM wParam, LPARAM lParam)
 {
-    Window *self;
+    WinWindow *self;
     if (message == WM_NCCREATE) {
         LPCREATESTRUCT lpcs = reinterpret_cast<LPCREATESTRUCT>(lParam);
-        self = static_cast<Window*>(lpcs->lpCreateParams);
+        self = static_cast<WinWindow*>(lpcs->lpCreateParams);
         self->hWnd = hWnd;
-        SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(self));
+        SetWindowLongPtr(hWnd, GWLP_USERDATA,
+                         reinterpret_cast<LONG_PTR>(self));
     } else {
-        self = reinterpret_cast<Window*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+        self = reinterpret_cast<WinWindow*>(
+            GetWindowLongPtr(hWnd, GWLP_USERDATA));
     }
 
     if (self) {
@@ -108,7 +111,9 @@ LRESULT CALLBACK Window::StaticWindowProc(HWND hWnd, UINT message,
     return DefWindowProc(hWnd, message, wParam, lParam);
 }
 
-LRESULT CALLBACK Window::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WinWindow::WindowProc(UINT message,
+                                       WPARAM wParam,
+                                       LPARAM lParam)
 {
     LRESULT result = 0;
 
@@ -251,3 +256,4 @@ LRESULT CALLBACK Window::WindowProc(UINT message, WPARAM wParam, LPARAM lParam)
 
     return result;
 }
+#endif // HKWINDOWS

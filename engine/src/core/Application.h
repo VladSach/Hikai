@@ -13,6 +13,8 @@ struct AppDesc {
     std::wstring title = L"Sandbox";
 
     RenderBackend renderBackend = RenderBackend::VULKAN;
+
+    Window *window = nullptr;
 };
 
 class Application {
@@ -46,7 +48,7 @@ private:
     b8 initialized = false;
 
     AppDesc desc;
-    Window window;
+    Window *window;
     EventSystem *evsys;
 
     hk::Timer clock;

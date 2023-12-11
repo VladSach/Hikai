@@ -5,12 +5,13 @@
 #include <windowsx.h>
 
 #include "defines.h"
+#include "platform/Window.h"
 #include "core/EventSystem.h"
 
 #include <functional>
 #include <string>
 
-class Window {
+class WinWindow final : public Window {
 private:
     u32 winWidth = 400;
     u32 winHeight = 400;
@@ -30,8 +31,10 @@ protected:
     LRESULT WindowProc(UINT message, WPARAM wParam, LPARAM lParam);
 
 public:
-    Window() = default;
-    Window(const Window&) = delete;
+    HKAPI WinWindow() = default;
+    WinWindow(const WinWindow&) = delete;
+
+    ~WinWindow() { deinit(); }
 
     void init(std::wstring title, u32 width, u32 height);
     void deinit();

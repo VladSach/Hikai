@@ -12,6 +12,8 @@ public:
     BackendVulkan(const Window &window)
         : window_(window) {}
 
+    ~BackendVulkan() { deinit(); }
+
     void init();
     void deinit();
 

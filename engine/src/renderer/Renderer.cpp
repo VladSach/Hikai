@@ -31,6 +31,12 @@ bool Renderer::createRenderBackend(RenderBackend api, const Window &window)
         backend = new BackendVulkan(window);
         return true;
     } break;
+    case RenderBackend::NONE:
+    {
+        backend = new EmptyBackend(window);
+        return true;
+    } break;
+
     case RenderBackend::DIRECTX12:
     case RenderBackend::DIRECTX11:
     default:

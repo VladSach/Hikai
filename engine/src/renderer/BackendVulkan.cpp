@@ -1,6 +1,8 @@
 #include "BackendVulkan.h"
 
+#ifdef HKWINDOWS
 #include "vendor/vulkan/vulkan_win32.h"
+#endif
 
 #include "ShaderManager.h"
 
@@ -270,7 +272,7 @@ void BackendVulkan::createInstance()
 
     extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 
-#ifdef _WIN32
+#ifdef HKWINDOWS
     extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #endif
 
@@ -450,14 +452,14 @@ void BackendVulkan::createSurface()
     VkResult err;
 
     // Create window surface
-#ifdef _WIN32
+#ifdef HKWINDOWS
     VkWin32SurfaceCreateInfoKHR surfaceInfo = {};
     surfaceInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    surfaceInfo.hwnd = window_.getHWnd();
-    surfaceInfo.hinstance = window_.getHInstance();
+    surfaceInfo.hwnd = static_cast<const WinWindow*>(&window_)->getHWnd();
+    surfaceInfo.hinstance = static_cast<const WinWindow*>(&window_)->getHInstance();
+    err = vkCreateWin32SurfaceKHR(instance, &surfaceInfo, 0, &surface);
 #endif
 
-    err = vkCreateWin32SurfaceKHR(instance, &surfaceInfo, 0, &surface);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Surface");
 }
 

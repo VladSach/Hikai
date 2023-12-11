@@ -63,9 +63,7 @@ for /R %SOURCE_DIR% %%G in (*.cpp) do (
         set "recompile="
     )
 )
-goto :linking
 
-:linking
 REM Create an empty string to hold the list of .obj files
 set OBJ_FILES=
 

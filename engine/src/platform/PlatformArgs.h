@@ -2,23 +2,27 @@
 #define HK_PLATFORMARGS_H
 
 #include "defines.h"
+#include "platform.h"
 
-#ifdef _WIN32
+#ifdef HKWINDOWS
 #include "Windows/win.h"
 #endif
 
 class HKAPI PlatformArgs {
 protected:
     PlatformArgs() {}
-    static PlatformArgs *singleton;
 
 public:
     PlatformArgs(PlatformArgs &other) = delete;
     void operator=(const PlatformArgs&) = delete;
-    static PlatformArgs *instance();
+
+    static PlatformArgs *instance() {
+        static PlatformArgs singleton;
+        return &singleton;
+    }
 
 public:
-#ifdef _WIN32
+#if defined(HKWINDOWS)
     HINSTANCE hInstance;
     HINSTANCE hPrevInstance;
     LPSTR lpCmdLine;
@@ -29,6 +33,9 @@ public:
     //     : hInstance(hInstance), hPrevInstance(hPrevInstance),
     //       lpCmdLine(lpCmdLine), nShowCmd(nShowCmd)
     // {}
+#else
+    int argc;
+    char **argv = nullptr;
 #endif
 };
 

@@ -1,16 +1,22 @@
 #ifndef HK_PLATFORM_H
 #define HK_PLATFORM_H
 
-// TODO: use better macros for conditional compilation
-#ifdef _WIN32
-#include "Windows/WinLog.h"
-#include "Windows/WinFile.h"
-#include "Windows/WinWindow.h"
+// Platform detection
+#if defined(_WIN32)
+    #define HKWINDOWS
+#else
+    #error "Unsupported platform"
+#endif
 
-// This, alongside PlatformArgs, is a complitly garbage way to do this
-// but at least it works so I let it be as it is till better days
-#define PLATFORM_MAIN "platform/Windows/WinMain.h"
-#endif // _WIN32
+// Platform dependent includes
+#if defined(HKWINDOWS)
+    #include "Windows/WinLog.h"
+    #include "Windows/WinFile.h"
+    #include "Windows/WinWindow.h"
 
+    // This, alongside PlatformArgs, is a complitly garbage way to do this
+    // but at least it works so I let it be as it is till better days
+    #define PLATFORM_MAIN "platform/Windows/WinMain.h"
+#endif // Platform dependent includes
 
 #endif // HK_PLATFORM_H
