@@ -194,7 +194,7 @@ void logWinFile(const Logger::MsgInfo& info,
     wss << std::setw(3)  << (misc.is_error ? info.lineNumber.c_str() : "") << ' ';
     wss << '\n';
 
-    std::wofstream file(logFile, std::ios::out | std::ios::app);
+    std::wofstream file(logFile, std::ios::app);
     if (file.is_open()) {
         file << wss.rdbuf();
         file.close();

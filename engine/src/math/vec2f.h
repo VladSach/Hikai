@@ -115,6 +115,11 @@ inline vec2f normalize(const vec2f &v) {
     return v / length;
 }
 
+constexpr f32 dot(const vec2f &u, const vec2f &v)
+{
+    return u.x * v.x + u.y * v.y;
+}
+
 constexpr vec2f clamp(const vec2f &v, f32 upper, f32 lower) {
     f32 x = (v.x > upper) ? upper : (v.x < lower) ? lower : v.x;
     f32 y = (v.y > upper) ? upper : (v.y < lower) ? lower : v.y;
