@@ -244,7 +244,7 @@ void BackendVulkan::createInstance()
 
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Blight"; // TODO: make configurable
+    appInfo.pApplicationName = "Sandbox"; // TODO: make configurable
     appInfo.pEngineName = "Hikai Engine";
 
     u32 extensionCount = 0;

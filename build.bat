@@ -1,25 +1,25 @@
 @echo off
 setlocal EnableDelayedExpansion
 
-echo ===========================
-echo     Hikai + Game Build
-echo ===========================
+echo ============================
+echo    Hikai + Sandbox Build
+echo ============================
 
 echo Building engine...
-echo ---------------------------
+echo ----------------------------
 
 pushd engine
 call build.bat
 popd
-echo ---------------------------
+echo ----------------------------
 
-echo Building game...
-echo ---------------------------
+echo Building sandbox...
+echo ----------------------------
 
-pushd game
+pushd sandbox
 call build.bat
 popd
-echo ---------------------------
+echo ----------------------------
 
 
 if not exist bin mkdir bin
@@ -30,10 +30,10 @@ robocopy ".\engine\bin" ".\bin" hikai.dll /mt 2>&1 | findstr /i "ERROR"
 echo Copying dxcompiler.dll...
 robocopy ".\engine\lib" ".\bin" dxcompiler.dll /mt 2>&1 | findstr /i "ERROR"
 
-echo Copying blight.exe...
-robocopy ".\game\bin" ".\bin" blight.exe /mt 2>&1 | findstr /i "ERROR"
+echo Copying sandbox.exe...
+robocopy ".\sandbox\bin" ".\bin" sandbox.exe /mt 2>&1 | findstr /i "ERROR"
 
-echo ===========================
+echo ============================
 echo Build successful
 
 endlocal

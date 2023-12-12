@@ -9,7 +9,7 @@ set INCLUDE_DIRS=/Isrc /I"../engine/src"
 set LIBS=/LIBPATH:"../engine/bin" hikai.lib
 set DEFINES=/D HKDEBUG /D DEBUG
 
-set EXE_NAME=blight.exe
+set EXE_NAME=sandbox.exe
 
 REM /Ehsc - Windows Structured Exception Handling
 REM /W4   - Sets output warning level. Displays all warnings
