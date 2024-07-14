@@ -8,7 +8,7 @@
 #include "core/Timer.h"
 #include "core/input.h"
 
-#include "math/math.h"
+#include "math/hkmath.h"
 
 #include "platform/platform.h"
 

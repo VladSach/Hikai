@@ -115,7 +115,9 @@ void logWinConsole(const Logger::MsgInfo& info,
 
     if (!hConsole) { return; }
 
-    constexpr char const *lookup_color[static_cast<int>(Logger::Level::max_levels)] = {
+    constexpr char const *
+        lookup_color[static_cast<int>(Logger::Level::max_levels)] =
+    {
         "0;41m",
         "1;31m",
         "1;33m",
@@ -142,33 +144,54 @@ void logWinConsole(const Logger::MsgInfo& info,
             << "\033[0;10m";
     }
 
-    // New string with 75 empty spaces + delimiter
-    constexpr char const *filler = "\n"
-                                   "                                          "
-                                   "                                 + ";
+    // Max message length is 160 chars
     wss << "\033[1;97m";
-        // << std::setw(65) << (info.message + " " + info.args).c_str()
         std::string message = info.args;
-        if (message.length() > 85) {
-            u32 rows = static_cast<u32>(message.length()) / 75;
-            for (u32 i = 0; i < rows; i++) {
-                // message.insert((75 * i) + 85 * (i + 1), filler);
-                wss << message.substr((75 * i), 75).c_str();
-                wss << filler;
+        u64 msg_length = message.length();
+        if (msg_length > 85) {
+            // std::string row, word;
+            // u32 row_length = 0;
+            // for (u32 i = 0; i < message.length(); i++) {
+            //     if (row_length <= 140 && message.at(i) != ' ') {
+            //         word.push_back(message.at(i));
+            //     } else if (row_length <= 140 && message.at(i) == ' ') {
+            //         word.push_back(message.at(i));
+            //         row.append(word);
+            //         word.clear();
+            //     } else if (row_length > 140) {
+            //         wss << "\n   + " << row.c_str();
+            //         row.clear();
+            //         word.push_back(message.at(i));
+            //         row_length = 0;
+            //     }
+            //
+            //     ++row_length;
+            // }
+
+            u64 pos = 0;
+            std::string row, token;
+            std::string delimiter = " ";
+            while ((pos = message.find(delimiter)) != std::string::npos) {
+                token = message.substr(0, pos);
+                if (row.length() + token.length() >= 150) {
+                    wss << "\n   + " << row.c_str();
+                    row.clear();
+                }
+                row.append(token);
+                row.push_back(' ');
+                message.erase(0, pos + delimiter.length());
             }
+            wss << "\n   + " << row.c_str();
         } else {
             wss << message.c_str();
         }
     wss << "\033[0;10m";
 
-    // wss << (misc.is_error ? filler : "");
-
     wss << "\033[1;31m"
-        // << std::setw(12) << (misc.is_error ? misc.file.c_str() : "")
-        // << std::setw(3) << (misc.is_error ? info.lineNumber.c_str() : "")
+        << (msg_length > 85 ? "\n   -> " : "")
         << (misc.is_error ? misc.file.c_str() : "")
         << (misc.is_error ? info.lineNumber.c_str() : "")
-        << "\033[0;10m" << ' ';
+    << "\033[0;10m" << ' ';
 
     wss << '\n';
 

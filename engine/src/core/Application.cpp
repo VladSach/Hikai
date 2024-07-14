@@ -14,13 +14,10 @@ Application::Application(const AppDesc &desc)
     evsys->init();
     evsys->subscribe(hk::EVENT_APP_SHUTDOWN, shutdown);
 
-    RenderBackend backend = desc.renderBackend;
-
     window = desc.window;
     if (!window) {
         allocWinConsole();
         window = new EmptyWindow();
-        backend = RenderBackend::NONE;
     }
 
     window->init(desc.title, desc.width, desc.height);
@@ -29,7 +26,8 @@ Application::Application(const AppDesc &desc)
 
     clock.record();
 
-    renderer.init(backend, *window);
+    renderer = new BackendVulkan(*window);
+    renderer->init();
 
     running = true;
 }
@@ -73,19 +71,20 @@ void Application::run()
         }
 
         time += dt;
-        renderer.setUniformBuffer({
+        // FIX: temp
+        renderer->setUniformBuffer({
             static_cast<f32>(window->getWidth()),
             static_cast<f32>(window->getHeight())},
             time);
 
-        renderer.render();
+        renderer->draw();
         render();
     }
 }
 
 void Application::deinit()
 {
-    renderer.deinit();
+    renderer->deinit();
     hk::input::deinit();
     window->deinit();
     evsys->deinit();

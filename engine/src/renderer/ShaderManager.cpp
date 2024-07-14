@@ -18,12 +18,6 @@ static CComPtr<IDxcUtils> dxcUtils;
 static CComPtr<IDxcCompiler3> dxcCompiler;
 static b8 initialized = false;
 
-static struct intertnal_ {
-    CComPtr<IDxcUtils> dxcUtils;
-    CComPtr<IDxcCompiler3> dxcCompiler;
-    b8 initialized = false;
-} internal_;
-
 void init()
 {
     HRESULT err;
@@ -45,7 +39,6 @@ void deinit()
     dxcUtils->Release();
     dxcUtils = nullptr;
 }
-
 
 hk::vector<u32> loadShader(const ShaderDesc &desc)
 {

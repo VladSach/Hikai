@@ -38,29 +38,34 @@ if not exist %BUILD_DIR% mkdir %BUILD_DIR%
 if not exist %OUT_DIR% mkdir %OUT_DIR%
 
 REM Function to compile a directory of .cpp files
-for /R %SOURCE_DIR% %%G in (*.cpp) do (
-    set "source=%%G"
-    set "object=%BUILD_DIR%/%%~nG.obj"
 
-    if not exist "!object!" (
-        set "recompile=true"
-    ) else (
-        for %%H in ("!source!") do set "source_time=%%~tH"
-        for %%H in ("!object!") do set "object_time=%%~tH"
+REM I hate cppm
+REM for /R %SOURCE_DIR% %%G in (*.cpp) do (
+for /R %SOURCE_DIR% %%G in (*) do (
+    if "%%~xG"==".cpp" (
+        set "source=%%G"
+        set "object=%BUILD_DIR%/%%~nG.obj"
 
-        REM for /f "delims=" %%i in ('dir /b /twc "!source!"') do set "source_time=%%~ti"
-        REM for /f "delims=" %%i in ('dir /b /twc "!object!"') do set "object_time=%%~ti"
-
-        if "!source_time!" GTR "!object_time!" (
+        if not exist "!object!" (
             set "recompile=true"
-        )
-    )
+        ) else (
+            for %%H in ("!source!") do set "source_time=%%~tH"
+            for %%H in ("!object!") do set "object_time=%%~tH"
 
-    if defined recompile (
-        echo Recompiling !source!
-        @%COMPILER% %DEFINES% %COMPILER_FLAGS% %INCLUDE_DIRS% /c "!source!" ^
-            /Fo:"!object!" 2>&1 | findstr /i "error warning"
-        set "recompile="
+            REM for /f "delims=" %%i in ('dir /b /twc "!source!"') do set "source_time=%%~ti"
+            REM for /f "delims=" %%i in ('dir /b /twc "!object!"') do set "object_time=%%~ti"
+
+            if "!source_time!" GTR "!object_time!" (
+                set "recompile=true"
+            )
+        )
+
+        if defined recompile (
+            echo Recompiling !source!
+            @%COMPILER% %DEFINES% %COMPILER_FLAGS% %INCLUDE_DIRS% /c "!source!" ^
+                /Fo:"!object!" 2>&1 | findstr /i "error warning"
+            set "recompile="
+        )
     )
 )
 

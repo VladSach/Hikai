@@ -114,8 +114,12 @@ void Tests::mathTests()
         hkm::vec3f a(.4f, .22f, .37f);
         hkm::vec3f b(.64f, .92f, .02f);
 
-        f32 result = hkm::dot(a, b);
+        f32 dot = hkm::dot(a, b);
 
-        EXPECT_EQ(result, .4658f);
+        constexpr f32 expectedDot = .4658f;
+        f32 diff = expectedDot - dot;
+        b8 result = (diff < epsilon) && (-diff < epsilon);
+
+        EXPECT_EQ(result, true);
     });
 }

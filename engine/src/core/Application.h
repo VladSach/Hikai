@@ -5,14 +5,12 @@
 #include "Timer.h"
 #include "EventSystem.h"
 #include "platform/platform.h"
-#include "renderer/Renderer.h"
+#include "renderer/BackendVulkan.h"
 
 struct AppDesc {
     u32 width = 400;
     u32 height = 400;
     std::wstring title = L"Sandbox";
-
-    RenderBackend renderBackend = RenderBackend::VULKAN;
 
     Window *window = nullptr;
 };
@@ -42,9 +40,6 @@ public:
     static b8 running;
 
 private:
-    bool createRenderBackend(RenderBackend api);
-
-private:
     b8 initialized = false;
 
     AppDesc desc;
@@ -52,7 +47,7 @@ private:
     EventSystem *evsys;
 
     hk::Timer clock;
-    Renderer renderer;
+    BackendVulkan *renderer;
 };
 
 // Defined by user

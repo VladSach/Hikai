@@ -17,7 +17,8 @@
 
 #define LOG(level, ...) \
     Logger::getInstance()->log({level, FUNCTION_SIGNATURE, \
-                               std::strrchr("/" __FILE__, '/') + 1, STRINGIZE(__LINE__), \
+                               std::strrchr("/" __FILE__, '/') + 1, \
+                               STRINGIZE(__LINE__), \
                                Logger::getInstance()->getArgs(__VA_ARGS__)}) \
 
 #define LOG_FATAL(...) LOG(Logger::Level::LVL_FATAL, __VA_ARGS__)
@@ -32,7 +33,7 @@
 #define LOG_TRACE(...) LOG(Logger::Level::LVL_TRACE, __VA_ARGS__)
 #endif
 
-// Since logger its own thing can't include here anything
+// NOTE: Since logger is its own thing can't include here anything
 // maybe should come up with workaround for that
 #ifdef HKDLL_OUT
     #ifdef _MSC_VER
@@ -65,7 +66,9 @@ public:
         max_levels
     };
 
-    static constexpr char const *lookup_level[static_cast<int>(Level::max_levels)] = {
+    static constexpr char const *
+        lookup_level[static_cast<int> (Level::max_levels)] =
+    {
         "[FATAL]:",
         "[ERROR]:",
         "[WARN]:",

@@ -33,6 +33,10 @@ robocopy ".\engine\lib" ".\bin" dxcompiler.dll /mt 2>&1 | findstr /i "ERROR"
 echo Copying sandbox.exe...
 robocopy ".\sandbox\bin" ".\bin" sandbox.exe /mt 2>&1 | findstr /i "ERROR"
 
+
+echo Copying assets...
+robocopy ".\engine\assets" ".\bin\assets" /s /mt 2>&1 | findstr /i "ERROR"
+
 echo ============================
 echo Build successful
 

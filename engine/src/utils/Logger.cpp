@@ -82,7 +82,7 @@ void Logger::log(const MsgInfo &info)
 
     MsgAddInfo misc {is_error, is_trace, log_lvl, time_str, caller, file};
 
-    for (unsigned i = 0; i < maxHandlers; ++i) {
+    for (unsigned i = 0; i < cntHandlers; ++i) {
         if (!handlers[i]) { continue; }
 
         handlers[i](info, misc);
