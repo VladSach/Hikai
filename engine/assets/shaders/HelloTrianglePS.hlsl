@@ -12,7 +12,6 @@ struct PixelInput {
     float3 color : COLOR;
 };
 
-
 #if HELLO_TRIANGLE
 float4 main(PixelInput pixelInput) : SV_Target0
 {

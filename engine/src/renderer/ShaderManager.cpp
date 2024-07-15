@@ -107,6 +107,8 @@ hk::vector<u32> loadShader(const ShaderDesc &desc)
 
         // Embed PDB in shader container (must be used with /Zi)
         args.push_back(L"-Qembed_debug");
+
+        // args.push_back(L"-fspv-debug=vulkan-with-source");
     } else {
         args.push_back(L"-O3");
     }

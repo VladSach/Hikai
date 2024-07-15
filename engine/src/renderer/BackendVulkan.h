@@ -6,8 +6,8 @@
 
 #include "utils/containers/hkvector.h"
 
-// FIX: temp
-#include "math/vec2f.h"
+#include "renderer/Buffer.h"
+#include "renderer/Vertex.h"
 
 class BackendVulkan {
 public:
@@ -31,10 +31,16 @@ public:
         f32 time;
     } ubuffer;
     void setUniformBuffer(const hkm::vec2f &res, f32 time);
-    void updateUniformBuffer(u32 currentImage);
 
 private:
     const Window &window_;
+
+    static constexpr u32 MAX_FRAMES_IN_FLIGHT = 2;
+
+    struct FrameData {
+        VkSemaphore swapchainSemaphore, renderSemaphore;
+        VkFence inFlightFence; // rendering fence
+    } frames[MAX_FRAMES_IN_FLIGHT];
 
     VkInstance instance = VK_NULL_HANDLE;
 
@@ -75,14 +81,9 @@ private:
     VkSemaphore submitSemaphore  = VK_NULL_HANDLE;
     VkFence inFlightFence        = VK_NULL_HANDLE;
 
-    VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
-    VkBuffer indexBuffer;
-    VkDeviceMemory indexBufferMemory;
-
-    hk::vector<VkBuffer> uniformBuffers;
-    hk::vector<VkDeviceMemory> uniformBuffersMemory;
-    hk::vector<void*> uniformBuffersMapped;
+    Buffer vertexBuffer;
+    Buffer indexBuffer;
+    Buffer uniformBuffer;
 
     VkDescriptorPool descriptorPool;
     hk::vector<VkDescriptorSet> descriptorSets;
@@ -106,9 +107,6 @@ private:
     void createGraphicsPipeline();
     void createFramebuffers();
     void createCommandPool();
-    void createVertexBuffer();
-    void createIndexBuffer();
-    void createUniformBuffers();
     void createDescriptorPool();
     void createDescriptorSets();
     void createCommandBuffer();

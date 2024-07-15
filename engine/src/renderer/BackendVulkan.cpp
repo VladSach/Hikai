@@ -2,6 +2,7 @@
 
 #include "platform/platform.h"
 #include "renderer/ShaderManager.h"
+#include "renderer/VertexLayout.h"
 
 #ifdef HKWINDOWS
 #include "vendor/vulkan/vulkan_win32.h"
@@ -13,12 +14,6 @@
 
 
 // FIX: temp
-#include "math/vec3f.h"
-struct Vertex {
-    hkm::vec3f pos;
-    hkm::vec3f color;
-};
-
 const hk::vector<Vertex> vertices = {
     {{-0.5f, -0.5f, 0.f}, {1.0f, 0.0f, 0.0f}},
     {{ 0.5f, -0.5f, 0.f}, {0.0f, 1.0f, 0.0f}},
@@ -45,11 +40,6 @@ void BackendVulkan::setUniformBuffer(const hkm::vec2f &res, f32 time)
     ubuffer.time = time;
 }
 
-void BackendVulkan::updateUniformBuffer(u32 currentImage)
-{
-    memcpy(uniformBuffersMapped[currentImage], &ubuffer, sizeof(ubuffer));
-}
-
 static VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -71,9 +61,17 @@ void BackendVulkan::init()
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
-    createVertexBuffer();
-    createIndexBuffer();
-    createUniformBuffers();
+
+    vertexBuffer.init(device, physicalDevice,
+                      vertices.size(), sizeof(Vertex),
+                      Buffer::Type::VERTEX_BUFFER);
+    indexBuffer.init(device, physicalDevice,
+                     indices.size(), sizeof(indices[0]),
+                     Buffer::Type::INDEX_BUFFER);
+    uniformBuffer.init(device, physicalDevice,
+                       MAX_FRAMES_IN_FLIGHT, sizeof(ubuffer),
+                       Buffer::Type::UNIFORM_BUFFER);
+
     createDescriptorPool();
     createDescriptorSets();
     createCommandBuffer();
@@ -99,18 +97,13 @@ void BackendVulkan::deinit()
 {
     cleanupSwapchain();
 
-    for (u32 i = 0; i < 1; i++) {
-        vkDestroyBuffer(device, uniformBuffers[i], nullptr);
-        vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
-    }
+    uniformBuffer.deinit();
 
     vkDestroyDescriptorPool(device, descriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
-    vkDestroyBuffer(device, indexBuffer, nullptr);
-    vkFreeMemory(device, indexBufferMemory, nullptr);
-    vkDestroyBuffer(device, vertexBuffer, nullptr);
-    vkFreeMemory(device, vertexBufferMemory, nullptr);
+    indexBuffer.deinit();
+    vertexBuffer.deinit();
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
@@ -154,7 +147,10 @@ void BackendVulkan::draw()
         return;
     }
 
-    updateUniformBuffer(0);
+    vertexBuffer.update(vertices.data(), commandPool, graphicsQueue);
+    indexBuffer.update(indices.data(), commandPool, graphicsQueue);
+    uniformBuffer.update(&ubuffer, commandPool, graphicsQueue);
+
     vkResetFences(device, 1, &inFlightFence);
     vkResetCommandBuffer(commandBuffer, 0);
 
@@ -197,11 +193,11 @@ void BackendVulkan::draw()
         scissor.extent = scExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        VkBuffer vertexBuffers[] = {vertexBuffer};
+        VkBuffer vertexBuffers[] = {vertexBuffer.buffer()};
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
 
-        vkCmdBindIndexBuffer(commandBuffer, indexBuffer,
+        vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer(),
                              0, VK_INDEX_TYPE_UINT32);
 
         vkCmdBindDescriptorSets(commandBuffer,
@@ -673,7 +669,11 @@ void BackendVulkan::createGraphicsPipeline()
     desc.type = ShaderType::Vertex;
     desc.model = ShaderModel::SM_6_0;
     desc.ir = ShaderIR::SPIRV;
+#ifdef HKDEBUG
     desc.debug = true;
+#else
+    desc.debug = false;
+#endif
 
     auto vertShaderCode = hk::dxc::loadShader(desc);
 
@@ -711,32 +711,31 @@ void BackendVulkan::createGraphicsPipeline()
     dynamicState.dynamicStateCount = static_cast<u32>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
-    // FIX:temp
     VkVertexInputBindingDescription bindingDescription = {};
     bindingDescription.binding = 0;
     bindingDescription.stride = sizeof(Vertex);
     bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    VkVertexInputAttributeDescription attributeDescs[2] = {};
+    hk::vector<hk::Format> layout = {
+        // position
+        hk::Format::SIGNED | hk::Format::FLOAT |
+        hk::Format::VEC3 | hk::Format::B32,
 
-    attributeDescs[0].binding = 0;
-    attributeDescs[0].location = 0;
-    attributeDescs[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescs[0].offset = offsetof(Vertex, pos);
+        // color
+        hk::Format::SIGNED | hk::Format::FLOAT |
+        hk::Format::VEC3 | hk::Format::B32
+    };
 
-    attributeDescs[1].binding = 0;
-    attributeDescs[1].location = 1;
-    attributeDescs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescs[1].offset = offsetof(Vertex, color);
+    hk::vector<VkVertexInputAttributeDescription> attributeDescs =
+        hk::createVertexLayout(layout);
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
     vertexInputInfo.sType =
         VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputInfo.vertexBindingDescriptionCount = 1;
     vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-    vertexInputInfo.vertexAttributeDescriptionCount = 2; //attributeDescs size
-    vertexInputInfo.pVertexAttributeDescriptions = attributeDescs;
-    // FIX: temp close
+    vertexInputInfo.vertexAttributeDescriptionCount = attributeDescs.size();
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescs.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
     inputAssembly.sType =
@@ -873,102 +872,19 @@ void BackendVulkan::createCommandPool()
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Command Pool");
 }
 
-void BackendVulkan::createVertexBuffer()
-{
-    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-
-    createBuffer(bufferSize,
-                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 stagingBuffer, stagingBufferMemory);
-
-    void* data;
-    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-        memcpy(data, vertices.data(), bufferSize);
-    vkUnmapMemory(device, stagingBufferMemory);
-
-    createBuffer(bufferSize,
-                 VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 vertexBuffer, vertexBufferMemory);
-
-    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
-}
-
-void BackendVulkan::createIndexBuffer()
-{
-    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize,
-                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 stagingBuffer,
-                 stagingBufferMemory);
-
-    void* data;
-    vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-        memcpy(data, indices.data(), (size_t) bufferSize);
-    vkUnmapMemory(device, stagingBufferMemory);
-
-    createBuffer(bufferSize,
-                 VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                 VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 indexBuffer,
-                 indexBufferMemory);
-
-    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-    vkDestroyBuffer(device, stagingBuffer, nullptr);
-    vkFreeMemory(device, stagingBufferMemory, nullptr);
-}
-
-void BackendVulkan::createUniformBuffers()
-{
-    VkDeviceSize bufferSize = sizeof(UniformBuffer);
-
-    constexpr u32 MAX_FRAMES_IN_FLIGHT = 1;
-    uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-    uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
-
-    for (u32 i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        createBuffer(bufferSize,
-                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     uniformBuffers[i],
-                     uniformBuffersMemory[i]);
-
-        vkMapMemory(device, uniformBuffersMemory[i], 0,
-                    bufferSize, 0, &uniformBuffersMapped[i]);
-    }
-}
-
 void BackendVulkan::createDescriptorPool()
 {
     VkResult err;
 
     VkDescriptorPoolSize poolSize = {};
     poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSize.descriptorCount = uniformBuffers.size();
+    poolSize.descriptorCount = uniformBuffer.count();
 
     VkDescriptorPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount = 1;
     poolInfo.pPoolSizes = &poolSize;
-    poolInfo.maxSets = uniformBuffers.size();
+    poolInfo.maxSets = uniformBuffer.count();
 
     err = vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Descriptor Pool");
@@ -978,22 +894,22 @@ void BackendVulkan::createDescriptorSets()
 {
     VkResult err;
 
-    hk::vector<VkDescriptorSetLayout> layouts(uniformBuffers.size(),
+    hk::vector<VkDescriptorSetLayout> layouts(uniformBuffer.count(),
                                               descriptorSetLayout);
 
     VkDescriptorSetAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = uniformBuffers.size();
+    allocInfo.descriptorSetCount = uniformBuffer.count();
     allocInfo.pSetLayouts = layouts.data();
 
-    descriptorSets.resize(uniformBuffers.size());
+    descriptorSets.resize(uniformBuffer.count());
     err = vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data());
     ALWAYS_ASSERT(!err, "Failed to allocate Vulkan Descriptor Sets");
 
-    for (u32 i = 0; i < uniformBuffers.size(); i++) {
+    for (u32 i = 0; i < uniformBuffer.count(); i++) {
         VkDescriptorBufferInfo bufferInfo = {};
-        bufferInfo.buffer = uniformBuffers[i];
+        bufferInfo.buffer = uniformBuffer.buffer();
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(UniformBuffer);
 
