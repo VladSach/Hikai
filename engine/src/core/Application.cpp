@@ -2,6 +2,8 @@
 
 #include "input.h"
 
+#include "renderer/UBManager.h"
+
 #include <thread>
 
 b8 Application::running = false;
@@ -26,8 +28,8 @@ Application::Application(const AppDesc &desc)
 
     clock.record();
 
-    renderer = new BackendVulkan(*window);
-    renderer->init();
+    renderer = hk::device();
+    renderer->init(window);
 
     running = true;
 }
@@ -71,11 +73,13 @@ void Application::run()
         }
 
         time += dt;
-        // FIX: temp
-        renderer->setUniformBuffer({
-            static_cast<f32>(window->getWidth()),
-            static_cast<f32>(window->getHeight())},
-            time);
+        hk::ubo::setFrameData({
+            {
+                static_cast<f32>(window->getWidth()),
+                static_cast<f32>(window->getHeight())
+            },
+            time
+        });
 
         renderer->draw();
         render();

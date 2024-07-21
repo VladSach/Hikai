@@ -68,13 +68,11 @@ struct vec3f {
 
     constexpr b8 operator ==(const vec3f &other) const
     {
-        if (this->x == other.x &&
+        return (
+            this->x == other.x &&
             this->y == other.y &&
-            this->z == other.z)
-        {
-            return true;
-        }
-        return false;
+            this->z == other.z
+        );
     }
 
     constexpr b8 operator !=(const vec3f &other) const

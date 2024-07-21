@@ -1,5 +1,5 @@
 #define HELLO_TRIANGLE 0
-#define CURLESQUE 1
+#define CURLESQUE 0
 #define PLASMA_PARTICLES 0
 
 cbuffer PerFrame : register(b0) {

@@ -1,101 +1,89 @@
 #include "Buffer.h"
 
-void Buffer::init(const VkDevice device,
-                  const VkPhysicalDevice physical,
-                  u32 count, u32 stride,
-                  Buffer::Type type)
+void Buffer::init(const BufferDesc &desc)
 {
     if (buffer_ != VK_NULL_HANDLE) {
         LOG_WARN("Buffer is already initialized");
         return;
     }
 
-    device_ = device;
-    physical_ = physical;
-    type_ = type;
+    type_ = desc.type;
+    usage_ = desc.usage;
+    property_ = desc.property;
 
-    ALWAYS_ASSERT(static_cast<u32>(type_), "Buffer Type can not be NONE");
-    ALWAYS_ASSERT(device_ != VK_NULL_HANDLE,
-                  "Can not create buffer without logical device");
-    ALWAYS_ASSERT(physical_ != VK_NULL_HANDLE,
-                  "Can not create buffer without physical device");
+    size_ = desc.size;
+    stride_ = desc.stride;
 
-    stride_ = stride;
-    size_ =  stride_ * count;
+    RenderDevice::BufferDesc deviceBufferDesc = getDeviceBufferDesc();
+    RenderDevice::DeviceBuffer deviceBuffer =
+        hk::device()->createBuffer(deviceBufferDesc);
 
-    u32 usage;
-    u32 properties;
-    switch(type_) {
-    case Buffer::Type::VERTEX_BUFFER: {
-        usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-        // properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    } break;
+    buffer_ = deviceBuffer.buffer;
+    memory_ = deviceBuffer.bufferMemory;
 
-    case Buffer::Type::INDEX_BUFFER: {
-        usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-        // properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-        properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    } break;
-
-    case Buffer::Type::UNIFORM_BUFFER: {
-        usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-        properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    } break;
-
-    case Buffer::Type::STAGING_BUFFER: {
-        usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-
-    } break;
-
-    default:
-        usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
-    }
-
-    createBuffer(buffer_, memory_,
-                 static_cast<VkBufferUsageFlags>(usage),
-                 static_cast<VkMemoryPropertyFlagBits>(properties));
+    device_ = hk::device()->logical();
 }
 
 void Buffer::deinit()
 {
+    if (mapped) {
+        LOG_WARN("Buffer should be unmapped before deinitialization");
+        return;
+    }
+
     if (buffer_ != VK_NULL_HANDLE)
         vkDestroyBuffer(device_, buffer_, nullptr);
     if (memory_ != VK_NULL_HANDLE)
         vkFreeMemory(device_, memory_, nullptr);
+
+    buffer_ = VK_NULL_HANDLE;
+    memory_ = VK_NULL_HANDLE;
+    device_ = VK_NULL_HANDLE;
+
+    type_ = Type::NONE;
+    usage_ = Usage::NONE;
+    property_ = Property::NONE;
+
+    size_ = 0;
+    stride_ = 0;
+
+    mapped = nullptr;
 }
 
-void Buffer::update(const void *data,
-                    const VkCommandPool commandPool, const VkQueue queue)
+void Buffer::update(const void *data)
 {
-    // TODO: fix staging buffers
-    // Buffer stagingBuffer;
-    // stagingBuffer.init(device_, physical_,
-    //                    count(), stride_,
-    //                    Type::STAGING_BUFFER);
-    //
-    // stagingBuffer.map();
-    //     stagingBuffer.write(data);
-    // stagingBuffer.unmap();
-    //
-    // copyBuffer(stagingBuffer, *this, commandPool, queue);
-    //
+    if (property_ & Property::CPU_ACESSIBLE) {
+        map();
+            write(data);
+        unmap();
+
+        return;
+    }
+
+    BufferDesc desc = {
+        Type::STAGING_BUFFER,
+        Usage::TRANSFER_SRC,
+        Property::CPU_ACESSIBLE | Property::CPU_COHERENT,
+        size_,
+        stride_
+    };
+
+    Buffer stagingBuffer;
+    stagingBuffer.init(desc);
+
+    stagingBuffer.map();
+        stagingBuffer.write(data);
+    stagingBuffer.unmap();
+
+    hk::device()->copyBuffer(stagingBuffer.buffer(), buffer_, memsize());
+
     // stagingBuffer.deinit();
-    //
-    map();
-    write(data);
-    unmap();
 }
 
 void Buffer::map()
 {
     ALWAYS_ASSERT(!mapped, "Memory already mapped");
-    vkMapMemory(device_, memory_, 0, size_, 0, &mapped);
+    vkMapMemory(device_, memory_, 0, memsize(), 0, &mapped);
 }
 
 void Buffer::unmap()
@@ -109,85 +97,82 @@ void Buffer::write(const void *data)
 {
     ALWAYS_ASSERT(mapped,
                   "Memory should be mapped before writing to the buffer");
-    memcpy(mapped, data, size_);
+    memcpy(mapped, data, memsize());
 }
 
-void Buffer::createBuffer(VkBuffer &buffer, VkDeviceMemory &bufferMemory,
-                          VkBufferUsageFlags usage,
-                          VkMemoryPropertyFlags properties)
+void Buffer::bind(VkCommandBuffer commandBuffer)
 {
-    VkResult err;
+    switch(type_) {
+    case Type::VERTEX_BUFFER: {
+        VkBuffer vertexBuffers[] = { buffer_ };
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    } break;
 
-    VkBufferCreateInfo bufferInfo = {};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size_;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    case Type::INDEX_BUFFER: {
+        vkCmdBindIndexBuffer(commandBuffer, buffer_, 0, VK_INDEX_TYPE_UINT32);
+    } break;
 
-    err = vkCreateBuffer(device_, &bufferInfo, nullptr, &buffer);
-    ALWAYS_ASSERT(!err, "Failed to create Vulkan Buffer");
+    default: return;
 
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device_, buffer, &memRequirements);
-
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(physical_, &memProperties);
-
-    u32 memIndex = 0;
-    for (; memIndex < memProperties.memoryTypeCount; memIndex++) {
-        if ((memRequirements.memoryTypeBits & (1 << memIndex)) &&
-            (memProperties.memoryTypes[memIndex].propertyFlags & properties)
-            == properties)
-        {
-            break;
-        }
     }
-
-    VkMemoryAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memIndex;
-
-    err = vkAllocateMemory(device_, &allocInfo, nullptr, &bufferMemory);
-    ALWAYS_ASSERT(!err, "Failed to allocate Vulkan Buffer Memory");
-
-    vkBindBufferMemory(device_, buffer, bufferMemory, 0);
 }
 
-void copyBuffer(Buffer srcBuffer, Buffer dstBuffer,
-                VkCommandPool commandPool, VkQueue queue)
+RenderDevice::BufferDesc Buffer::getDeviceBufferDesc() const
 {
-    VkCommandBufferAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = commandPool;
-    allocInfo.commandBufferCount = 1;
+    ALWAYS_ASSERT(
+        static_cast<u32>(type_) &&
+        static_cast<u32>(property_),
+        "Buffer should be initialized"
+    );
 
-    VkCommandBuffer tmpBuffer;
-    vkAllocateCommandBuffers(srcBuffer.device(), &allocInfo, &tmpBuffer);
+    RenderDevice::BufferDesc desc = {};
+    desc.size = memsize();
 
-    VkCommandBufferBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    switch(type_) {
+    case Buffer::Type::VERTEX_BUFFER: {
+        desc.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    } break;
 
-    vkBeginCommandBuffer(tmpBuffer, &beginInfo);
-    {
-        VkBufferCopy copyRegion = {};
-        copyRegion.size = srcBuffer.size();
-        vkCmdCopyBuffer(tmpBuffer,
-                        srcBuffer.buffer(),
-                        dstBuffer.buffer(),
-                        1, &copyRegion);
+    case Buffer::Type::INDEX_BUFFER: {
+        desc.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+    } break;
+
+    case Buffer::Type::UNIFORM_BUFFER: {
+        desc.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    } break;
+
+    case Buffer::Type::STAGING_BUFFER: break;
+
+    default:
+        LOG_ERROR("Unsupported Buffer Type:", static_cast<u32>(type_));
     }
-    vkEndCommandBuffer(tmpBuffer);
 
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &tmpBuffer;
+    switch(usage_) {
+    case Usage::TRANSFER_SRC: {
+        desc.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    } break;
 
-    vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(queue);
+    case Usage::TRANSFER_DST: {
+        desc.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    } break;
 
-    vkFreeCommandBuffers(srcBuffer.device(), commandPool, 1, &tmpBuffer);
+    case Usage::NONE: break;
+
+    default:
+        LOG_ERROR("Unsupported Buffer Usage:", static_cast<u32>(usage_));
+    }
+
+    if (property_ & Property::GPU_LOCAL)
+        desc.properties |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    if (property_ & Property::CPU_ACESSIBLE)
+        desc.properties |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    if (property_ & Property::CPU_COHERENT)
+        desc.properties |= VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    if (property_ & Property::CPU_CACHED)
+        desc.properties |= VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+
+    // LOG_ERROR("Unsupported Buffer Property");
+
+    return desc;
 }

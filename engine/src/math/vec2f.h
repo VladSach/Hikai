@@ -63,12 +63,7 @@ struct vec2f {
 
     constexpr b8 operator ==(const vec2f &other) const
     {
-        if (this->x == other.x &&
-            this->y == other.y)
-        {
-            return true;
-        }
-        return false;
+        return this->x == other.x && this->y == other.y;
     }
 
     constexpr b8 operator !=(const vec2f &other) const

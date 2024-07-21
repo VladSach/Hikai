@@ -5,7 +5,7 @@
 #include "Timer.h"
 #include "EventSystem.h"
 #include "platform/platform.h"
-#include "renderer/BackendVulkan.h"
+#include "renderer/RenderDevice.h"
 
 struct AppDesc {
     u32 width = 400;
@@ -47,7 +47,7 @@ private:
     EventSystem *evsys;
 
     hk::Timer clock;
-    BackendVulkan *renderer;
+    RenderDevice *renderer;
 };
 
 // Defined by user

@@ -9,7 +9,7 @@ enum class AllFormats : u16;
 constexpr VkFormat getVkFormat(AllFormats value);
 
 hk::vector<VkVertexInputAttributeDescription>
-createVertexLayout(hk::vector<Format> formats)
+createVertexLayout(const hk::vector<Format> &formats)
 {
     u32 offset = 0;
     u32 bits = 0;

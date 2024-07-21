@@ -26,12 +26,10 @@ enum class Format : u16 {
     VEC2       = 1 << 12,
     VEC3       = 1 << 13,
     VEC4       = 1 << 14,
-
-    MAX_FORMAT
 };
 
 hk::vector<VkVertexInputAttributeDescription>
-createVertexLayout(hk::vector<Format> formats);
+createVertexLayout(const hk::vector<Format> &formats);
 
 constexpr Format operator |(const Format a, const Format b)
 {
