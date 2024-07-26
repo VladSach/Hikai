@@ -42,6 +42,8 @@ void registerMouseMove(EventContext mouseinfo);
 void registerMousePress(EventContext mouseinfo);
 void registerMouseWheel(EventContext mouseinfo);
 
+void registerRawMouseMove(EventContext mouseinfo);
+
 #ifdef KEY_EXECUTE // If defined in Windows
     #undef KEY_EXECUTE
 #endif // KEY_EXECUTE

@@ -156,10 +156,11 @@ void init()
     evsys.subscribe(EVENT_KEY_PRESSED, registerKeyPress);
     evsys.subscribe(EVENT_KEY_RELEASED, registerKeyPress);
 
-    evsys.subscribe(EVENT_MOUSE_MOVED, registerMouseMove);
-    evsys.subscribe(EVENT_MOUSE_PRESSED, registerMousePress);
-    evsys.subscribe(EVENT_MOUSE_RELEASED, registerMousePress);
-    evsys.subscribe(EVENT_MOUSE_WHEEL, registerMouseWheel);
+    evsys.subscribe(EVENT_MOUSE_MOVED,     registerMouseMove);
+    evsys.subscribe(EVENT_RAW_MOUSE_MOVED, registerRawMouseMove);
+    evsys.subscribe(EVENT_MOUSE_PRESSED,   registerMousePress);
+    evsys.subscribe(EVENT_MOUSE_RELEASED,  registerMousePress);
+    evsys.subscribe(EVENT_MOUSE_WHEEL,     registerMouseWheel);
 
     LOG_INFO("Input Subsystem initialized");
 }
@@ -214,6 +215,22 @@ void registerMouseMove(EventContext mouseinfo)
     mouse.y_delta = y - mouse.y;
     mouse.x = x;
     mouse.y = y;
+}
+
+void registerRawMouseMove(EventContext mouseinfo)
+{
+    if (!initialized) {
+        LOG_WARN("Input Subsystem was not initialized");
+        return;
+    }
+
+    i32 x_delta = mouseinfo.i32[0];
+    i32 y_delta = mouseinfo.i32[1];
+
+    mouse.x_delta = x_delta;
+    mouse.y_delta = y_delta;
+    // mouse.x += x_delta;
+    // mouse.y += y_delta;
 }
 
 void registerMousePress(EventContext mouseinfo)

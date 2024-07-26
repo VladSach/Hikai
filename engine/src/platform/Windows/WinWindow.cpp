@@ -6,6 +6,8 @@
 #include "platform/PlatformArgs.h"
 
 #include <winuser.h>
+#include <hidusage.h>
+
 #include <string>
 
 void WinWindow::init(std::wstring title, u32 width, u32 height)
@@ -95,14 +97,12 @@ void WinWindow::showCursor()
 {
     cursorEnabled = true;
     while(ShowCursor(TRUE) < 0);
-    unlockCursor();
 }
 
 void WinWindow::hideCursor()
 {
     cursorEnabled = false;
     while(ShowCursor(FALSE) >= 0);
-    lockCursor();
 }
 
 void WinWindow::lockCursor()
@@ -115,6 +115,34 @@ void WinWindow::lockCursor()
 void WinWindow::unlockCursor()
 {
     ClipCursor(nullptr);
+}
+
+void WinWindow::enableRawMouseInput()
+{
+    if (rawMouseInputEnabled) return;
+
+    rawMouseInputEnabled = true;
+
+    BOOL result;
+
+    RAWINPUTDEVICE rid[1];
+    rid[0].usUsagePage = HID_USAGE_PAGE_GENERIC;
+    rid[0].usUsage = HID_USAGE_GENERIC_MOUSE;
+    // RIDEV_INPUTSINK - Enables the caller to receive the input
+    // even when the caller is not in the foreground
+    rid[0].dwFlags = RIDEV_INPUTSINK;
+    rid[0].hwndTarget = hWnd;
+    result = RegisterRawInputDevices(rid, 1, sizeof(rid[0]));
+
+    if (result == FALSE) {
+        LOG_WARN("Failed to register raw mouse input");
+    }
+}
+
+void WinWindow::disableRawMouseInput()
+{
+    // TODO: unregister device
+    rawMouseInputEnabled = false;
 }
 
 LRESULT CALLBACK WinWindow::StaticWindowProc(HWND hWnd, UINT message,
@@ -179,9 +207,12 @@ LRESULT CALLBACK WinWindow::WindowProc(UINT message,
         context.u32[0] = width;
         context.u32[1] = height;
         evs->fireEvent(hk::EVENT_WINDOW_RESIZE, context);
-
-        LOG_INFO("Window's size set to:", width, "x", height);
     } break;
+
+    // case WM_EXITSIZEMOVE:
+    // {
+    //     LOG_INFO("Window's size set to:", winWidth, "x", winHeight);
+    // }
 
     case WM_KEYUP:
     case WM_SYSKEYUP:
@@ -221,8 +252,32 @@ LRESULT CALLBACK WinWindow::WindowProc(UINT message,
         return 0;
     } break;
 
+    case WM_INPUT:
+    {
+        if(!rawMouseInputEnabled) break;
+
+        UINT size;
+        GetRawInputData((HRAWINPUT)lParam, RID_INPUT,
+                        nullptr, &size, sizeof(RAWINPUTHEADER));
+
+        hk::vector<RAWINPUT> rawInputs(size);
+        GetRawInputData((HRAWINPUT)lParam, RID_INPUT,
+                        rawInputs.data(), &size, sizeof(RAWINPUTHEADER));
+
+        RAWINPUT* raw = reinterpret_cast<RAWINPUT*>(rawInputs.data());
+
+        if (raw->header.dwType == RIM_TYPEMOUSE) {
+            hk::EventContext context;
+            context.i32[0] = raw->data.mouse.lLastX;
+            context.i32[1] = raw->data.mouse.lLastY;
+            evs->fireEvent(hk::EVENT_RAW_MOUSE_MOVED, context);
+        }
+    } break;
+
     case WM_MOUSEMOVE:
     {
+        if (rawMouseInputEnabled) break;
+
         hk::EventContext context;
         context.i32[0] = GET_X_LPARAM(lParam);
         context.i32[1] = GET_Y_LPARAM(lParam);
@@ -243,6 +298,12 @@ LRESULT CALLBACK WinWindow::WindowProc(UINT message,
     case WM_RBUTTONDOWN:
     {
         b8 pressed = (message == WM_RBUTTONDOWN);
+
+        if (pressed) {
+            SetCapture(hWnd);
+        } else {
+            ReleaseCapture();
+        }
 
         hk::EventContext context;
         context.u16[0] = VK_RBUTTON;
@@ -270,11 +331,18 @@ LRESULT CALLBACK WinWindow::WindowProc(UINT message,
     {
         b8 pressed = (message == WM_LBUTTONDOWN);
 
+        if (pressed) {
+            SetCapture(hWnd);
+        } else {
+            ReleaseCapture();
+        }
+
         hk::EventContext context;
         context.u16[0] = VK_LBUTTON;
         context.u16[1] = static_cast<u16>(pressed);
-        evs->fireEvent(pressed ? hk::EVENT_MOUSE_PRESSED :
-                                 hk::EVENT_MOUSE_RELEASED,
+        evs->fireEvent(pressed ?
+                            hk::EVENT_MOUSE_PRESSED :
+                            hk::EVENT_MOUSE_RELEASED,
                        context);
     } break;
 

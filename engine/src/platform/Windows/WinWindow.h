@@ -19,7 +19,9 @@ private:
 
     b8 isFullscreen = false;
     b8 isVisible = false;
+
     b8 cursorEnabled = true;
+    b8 rawMouseInputEnabled = false;
 
     HWND hWnd = nullptr;
     HINSTANCE hInstance = nullptr;
@@ -42,15 +44,20 @@ public:
 
     b8 ProcessMessages();
 
-    u32 getWidth() const { return winWidth; }
-    u32 getHeight() const { return winHeight; }
-    b8  getIsVisible() const { return isVisible; }
-
+    /* Mouse settings */
     void hideCursor();
     void showCursor();
 
     void lockCursor();
     void unlockCursor();
+
+    void enableRawMouseInput();
+    void disableRawMouseInput();
+
+public:
+    u32 getWidth() const { return winWidth; }
+    u32 getHeight() const { return winHeight; }
+    b8  getIsVisible() const { return isVisible; }
 
     HWND getHWnd() const { return hWnd; }
     HINSTANCE getHInstance() const { return hInstance; }

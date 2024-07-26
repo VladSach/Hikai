@@ -21,6 +21,10 @@ public:
 
     virtual void showCursor() = 0;
     virtual void hideCursor() = 0;
+    virtual void lockCursor() = 0;
+    virtual void unlockCursor() = 0;
+    virtual void enableRawMouseInput() = 0;
+    virtual void disableRawMouseInput() = 0;
 };
 
 // Used for rendering without Window or
@@ -47,6 +51,10 @@ public:
 
     void showCursor() { return; };
     void hideCursor() { return; };
+    void lockCursor() { return; };
+    void unlockCursor() { return; };
+    void enableRawMouseInput() { return; };
+    void disableRawMouseInput() { return; };
 
 private:
     u32 winWidth = 0;

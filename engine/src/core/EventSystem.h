@@ -97,6 +97,9 @@ enum hk::EventCode : u32 {
     // i32[0] = x, i32[1] = y
     EVENT_MOUSE_MOVED,
 
+    // i32[0] = delta x, i32[1] = delta y
+    EVENT_RAW_MOUSE_MOVED,
+
     // i16[0] = delta
     EVENT_MOUSE_WHEEL,
 

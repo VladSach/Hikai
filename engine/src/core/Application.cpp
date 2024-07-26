@@ -27,6 +27,7 @@ Application::Application(const AppDesc &desc)
     }
 
     window->init(desc.title, desc.width, desc.height);
+    window->enableRawMouseInput();
 
     hk::input::init();
 
@@ -93,17 +94,17 @@ void Application::run()
         hkm::vec3f angles;
         hkm::vec3f direction;
         if (hk::input::isKeyDown(hk::input::Button::KEY_A))
-            offset = {-1.f, 0.f, 0.f};
+            offset += {-1.f, 0.f, 0.f};
         if (hk::input::isKeyDown(hk::input::Button::KEY_D))
-            offset = {1.f, 0.f, 0.f};
+            offset += {1.f, 0.f, 0.f};
         if (hk::input::isKeyDown(hk::input::Button::KEY_W))
-            offset = {0.f, 0.f, 1.f};
+            offset += {0.f, 0.f, 1.f};
         if (hk::input::isKeyDown(hk::input::Button::KEY_S))
-            offset = {0.f, 0.f, -1.f};
+            offset += {0.f, 0.f, -1.f};
         if (hk::input::isKeyDown(hk::input::Button::KEY_SPACE))
-            offset = {0.f, 1.f, 0.f};
+            offset += {0.f, 1.f, 0.f};
         if (hk::input::isKeyDown(hk::input::Button::KEY_LCTRL))
-            offset = {0.f, -1.f, 0.f};
+            offset += {0.f, -1.f, 0.f};
 
         if (hk::input::isKeyDown(hk::input::Button::KEY_Q))
             angles = {0.f, 0.f, 1.f};
@@ -112,47 +113,50 @@ void Application::run()
 
         if (hk::input::isMouseDown(hk::input::Button::BUTTON_LEFT)) {
             window->hideCursor();
+            window->lockCursor();
 
-            // i32 pitch, yaw;
-            // hk::input::getMouseDelta(yaw, pitch);
-            // if (pitch != 0 || yaw != 0) {
-            //     pitch = hkm::clamp(pitch, -1, 1);
-            //     yaw = hkm::clamp(yaw, -1, 1);
+            i32 pitch, yaw;
+            hk::input::getMouseDelta(yaw, pitch);
+            if (pitch != 0 || yaw != 0) {
+                pitch = hkm::clamp(pitch, -1, 1);
+                yaw = hkm::clamp(yaw, -1, 1);
+
+                angles = {
+                    static_cast<f32>(-yaw),
+                    static_cast<f32>(pitch), 0
+                };
+
+            }
+
+            // i32 x, y;
+            // hk::input::getMousePosition(x, y);
             //
-            //     angles = {
-            //         static_cast<f32>(-yaw),
-            //         static_cast<f32>(pitch), 0
-            //     };
+            // f32 width  = static_cast<f32>(window->getWidth());
+            // f32 height = static_cast<f32>(window->getHeight());
+            // f32 u = (static_cast<f32>(x) + .5f) / width;
+            // f32 v = (static_cast<f32>(y) + .5f) / height;
             //
-            // }
-
-            i32 x, y;
-            hk::input::getMousePosition(x, y);
-
-            f32 width  = static_cast<f32>(window->getWidth());
-            f32 height = static_cast<f32>(window->getHeight());
-            f32 u = (static_cast<f32>(x) + .5f) / width;
-            f32 v = (static_cast<f32>(y) + .5f) / height;
-
-            u = 2.f * u - 1.f;
-            v = 2.f * v - 1.f;
-
-            direction = normalize(
-                transformPoint(
-                    mainCamera.getInvViewProjection(),
-                    {u, v, 0}
-                )
-            );
-
-            mainCamera.lookAt(direction);
+            // u = 2.f * u - 1.f;
+            // v = 2.f * v - 1.f;
+            //
+            // direction = normalize(
+            //     transformPoint(
+            //         mainCamera.getInvViewProjection(),
+            //         {u, v, 0}
+            //     )
+            // );
+            //
+            // mainCamera.lookAt(direction);
         }
 
         if (hk::input::isMouseReleased(hk::input::Button::BUTTON_LEFT)) {
             window->showCursor();
+            window->unlockCursor();
         }
 
-        mainCamera.addRelativeAngles(angles);
-        mainCamera.addRelativeOffset(offset * 0.05f);
+        constexpr f32 rotationSpeed = 30.f;
+        mainCamera.addRelativeAngles(angles * dt * rotationSpeed);
+        mainCamera.addRelativeOffset(offset * dt);
         mainCamera.update();
 
         time += dt;
