@@ -1,9 +1,5 @@
 #include "UnitTest.h"
 
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-
 void UnitTest::addTest(const std::string &group,
                        const std::string &name,
                        const std::function<bool()> &test)
@@ -82,7 +78,6 @@ void UnitTest::runAllTests()
     log << "Passed: " << totalPassed;
     log << ", Failed: " << totalFailed;
     log << ", Time: " << totalTime << "s\n";
-
 
     std::ofstream file("results.txt");
     if (file.is_open()) {

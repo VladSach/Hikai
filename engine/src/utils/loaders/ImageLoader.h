@@ -1,0 +1,13 @@
+#ifndef HK_IMAGE_LOADER_H
+#define HK_IMAGE_LOADER_H
+
+#include "defines.h"
+#include "renderer/Image.h"
+
+namespace hk::loader {
+
+HKAPI Image* loadImage(const std::string &path);
+
+}
+
+#endif // HK_IMAGE_LOADER_H

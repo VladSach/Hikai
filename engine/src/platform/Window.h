@@ -18,6 +18,9 @@ public:
     virtual u32 getWidth() const = 0;
     virtual u32 getHeight() const = 0;
     virtual b8  getIsVisible() const = 0;
+
+    virtual void showCursor() = 0;
+    virtual void hideCursor() = 0;
 };
 
 // Used for rendering without Window or
@@ -41,6 +44,9 @@ public:
     u32 getWidth() const { return winWidth; };
     u32 getHeight() const { return winHeight; };
     b8  getIsVisible() const { return isVisible; };
+
+    void showCursor() { return; };
+    void hideCursor() { return; };
 
 private:
     u32 winWidth = 0;

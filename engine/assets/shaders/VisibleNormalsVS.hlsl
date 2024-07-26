@@ -1,3 +1,9 @@
+cbuffer PerFrame : register(b0) {
+    float2 resolution;
+    float time;
+    float4x4 viewProj;
+};
+
 struct VertexInput {
     float3 pos : POSITION0;
     float3 normal : COLOR0;
@@ -13,7 +19,8 @@ struct VertexOutput {
 VertexOutput main(VertexInput input) {
     VertexOutput output;
 
-    output.position = float4(input.pos, 1.f);
+    output.position = mul(viewProj, float4(input.pos, 1.f));
+    //output.position = float4(input.pos, 1.f);
     output.normal = input.normal;
     output.tc = input.tc;
 

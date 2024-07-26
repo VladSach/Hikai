@@ -111,7 +111,10 @@ inline DescriptorAllocator *pool()
 
         hk::vector<hk::DescriptorAllocator::TypeSize> sizes =
         {
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 }
+            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
+            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
+            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
+            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
         };
         globalDescriptorPool->init(10, sizes);
     }

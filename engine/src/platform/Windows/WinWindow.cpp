@@ -42,9 +42,11 @@ void WinWindow::init(std::wstring title, u32 width, u32 height)
     }
 
     // set the size, but not the position
-    RECT wr = { 0, 0,
-                static_cast<LONG>(winWidth),
-                static_cast<LONG>(winHeight) };
+    RECT wr = {
+        0, 0,
+        static_cast<LONG>(winWidth),
+        static_cast<LONG>(winHeight)
+    };
     AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);
 
     hWnd = CreateWindowExW(
@@ -87,6 +89,32 @@ bool WinWindow::ProcessMessages()
     }
 
     return true;
+}
+
+void WinWindow::showCursor()
+{
+    cursorEnabled = true;
+    while(ShowCursor(TRUE) < 0);
+    unlockCursor();
+}
+
+void WinWindow::hideCursor()
+{
+    cursorEnabled = false;
+    while(ShowCursor(FALSE) >= 0);
+    lockCursor();
+}
+
+void WinWindow::lockCursor()
+{
+    RECT r;
+    GetWindowRect(hWnd, &r);
+    ClipCursor(&r);
+}
+
+void WinWindow::unlockCursor()
+{
+    ClipCursor(nullptr);
 }
 
 LRESULT CALLBACK WinWindow::StaticWindowProc(HWND hWnd, UINT message,

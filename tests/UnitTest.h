@@ -29,9 +29,47 @@
 #include <functional>
 #include <unordered_map>
 #include <sstream>
+#include <iostream>
+#include <fstream>
+#include <iomanip>
 
 #include "core/Timer.h"
+#include "math/hkmath.h"
 
+inline std::ostream& operator<<(std::ostream& out, const hkm::mat4f& m)
+{
+    return out << '\n'
+        << m(0, 0) << " " << m(0, 1) << " " << m(0, 2) << " " << m(0, 3) << '\n'
+        << m(1, 0) << " " << m(1, 1) << " " << m(1, 2) << " " << m(1, 3) << '\n'
+        << m(2, 2) << " " << m(2, 1) << " " << m(2, 2) << " " << m(2, 3) << '\n'
+        << m(3, 3) << " " << m(3, 1) << " " << m(3, 2) << " " << m(3, 3) <<'\n';
+}
+
+inline std::ostream& operator<<(std::ostream& out, const hkm::mat3f& m)
+{
+    constexpr u32 width = 7;
+    return out << '\n'
+        << std::setw(width) << m(0, 0) << " "
+        << std::setw(width) << m(0, 1) << " "
+        << std::setw(width) << m(0, 2) << " "
+        << '\n'
+
+        << std::setw(width) << m(1, 0) << " "
+        << std::setw(width) << m(1, 1) << " "
+        << std::setw(width) << m(1, 2) << " "
+        << '\n'
+
+        << std::setw(width) << m(2, 0) << " "
+        << std::setw(width) << m(2, 1) << " "
+        << std::setw(width) << m(2, 2) << " "
+        << '\n';
+}
+
+inline std::ostream& operator<<(std::ostream& out, const hkm::quaternion& quat)
+{
+    return out
+        << quat.x << " " << quat.y << " " << quat.z << " " << quat.w << '\n';
+}
 
 class UnitTest {
 protected:
@@ -63,8 +101,8 @@ public:
 
         if (!result) {
             failedLog << "- failed: " << getCurrentTestName() << '\n';
-            failedLog << "Actual: " << arg1;
-            failedLog << " vs Expected: " << arg2 << "\n\n";
+            failedLog << "Actual:   " << arg1;
+            failedLog << "Expected: " << arg2 << "\n\n";
         }
 
         return result;

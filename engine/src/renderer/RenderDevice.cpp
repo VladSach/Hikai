@@ -18,8 +18,8 @@
 #include "utils/loaders/ModelLoader.h"
 static hk::Model *model;
 
-#include "utils/loaders/TextureLoader.h"
-static hk::Texture *texture;
+#include "utils/loaders/ImageLoader.h"
+static hk::Image *texture;
 
 namespace hk {
 
@@ -58,7 +58,11 @@ void RenderDevice::init(const Window *window)
     createCommandBuffer();
 
     createSwapchain();
+
+    createDepthResources();
+
     createImageViews();
+
     createRenderPass();
 
     hk::ubo::init();
@@ -66,12 +70,12 @@ void RenderDevice::init(const Window *window)
     createGraphicsPipeline();
     createFramebuffers();
 
-    model = hk::loader::loadModel("assets/models/cube.obj");
+
+    model = hk::loader::loadModel("assets/models/smooth_vase.obj");
     model->populateBuffers();
 
     texture =
-        hk::loader::loadTexture("assets/textures/prototype/PNG/Dark/texture_01.png");
-    texture->writeToBuffer();
+        hk::loader::loadImage("assets/textures/prototype/PNG/Dark/texture_01.png");
 }
 
 void RenderDevice::cleanupSwapchain()
@@ -94,6 +98,8 @@ void RenderDevice::deinit()
     cleanupSwapchain();
 
     model->deinit();
+
+    depthImage.deinit();
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
@@ -137,6 +143,7 @@ void RenderDevice::draw()
         cleanupSwapchain();
         createSwapchain();
         createImageViews();
+        createDepthResources();
         createFramebuffers();
         return;
     }
@@ -151,17 +158,18 @@ void RenderDevice::draw()
     err = vkBeginCommandBuffer(commandBuffer, &beginInfo);
     ALWAYS_ASSERT(!err, "Failed to begin Command Buffer");
 
-    VkClearValue clearValue = {};
-    clearValue.color = { 0.f, 0.f, 0.f, 1.f };
+    VkClearValue clearValue[2] = {};
+    clearValue[0].color = { 0.f, 0.f, 0.f, 1.f };
+    clearValue[1].depthStencil = { 0.f, 0 };
 
     VkRenderPassBeginInfo rpBeginInfo = {};
     rpBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     rpBeginInfo.renderPass = renderPass;
-    rpBeginInfo.renderArea.offset = {0, 0};
+    rpBeginInfo.renderArea.offset = { 0, 0 };
     rpBeginInfo.renderArea.extent = scExtent;
     rpBeginInfo.framebuffer = scFramebuffers[imageIndex];
-    rpBeginInfo.clearValueCount = 1;
-    rpBeginInfo.pClearValues = &clearValue;
+    rpBeginInfo.clearValueCount = 2;
+    rpBeginInfo.pClearValues = clearValue;
 
     vkCmdBeginRenderPass(commandBuffer, &rpBeginInfo,
                          VK_SUBPASS_CONTENTS_INLINE);
@@ -227,6 +235,7 @@ void RenderDevice::draw()
         cleanupSwapchain();
         createSwapchain();
         createImageViews();
+        createDepthResources();
         createFramebuffers();
     }
 }
@@ -610,17 +619,53 @@ void RenderDevice::createRenderPass()
     colorAttachmentRef.attachment = 0;
     colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+    VkAttachmentDescription depthAttachment = {};
+    depthAttachment.format = depthImage.format();
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout =
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthAttachmentRef = {};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout =
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
     VkSubpassDescription subpass = {};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
+    subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+    VkAttachmentDescription attachments[] = {
+        colorAttachment, depthAttachment
+    };
+
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask =
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstStageMask =
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstAccessMask =
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+        VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
     VkRenderPassCreateInfo renderPassInfo = {};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.attachmentCount = 2;
+    renderPassInfo.pAttachments = attachments;
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies = &dependency;
 
     err = vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Render Pass");
@@ -787,6 +832,19 @@ void RenderDevice::createGraphicsPipeline()
                                  nullptr, &pipelineLayout);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Pipeline Layout");
 
+    VkPipelineDepthStencilStateCreateInfo depthStencil = {};
+    depthStencil.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = VK_TRUE;
+    depthStencil.depthWriteEnable = VK_TRUE;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.minDepthBounds = 0.0f; // Optional
+    depthStencil.maxDepthBounds = 1.0f; // Optional
+    depthStencil.stencilTestEnable = VK_FALSE;
+    depthStencil.front = {}; // Optional
+    depthStencil.back = {}; // Optional
+
     VkGraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = 2;
@@ -802,6 +860,7 @@ void RenderDevice::createGraphicsPipeline()
     pipelineInfo.layout = pipelineLayout;
     pipelineInfo.renderPass = renderPass;
     pipelineInfo.subpass = 0;
+    pipelineInfo.pDepthStencilState = &depthStencil;
 
     err = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1,
                                     &pipelineInfo, nullptr, &graphicsPipeline);
@@ -818,13 +877,14 @@ void RenderDevice::createFramebuffers()
     scFramebuffers.resize(scImageViews.size());
     for (u32 i = 0; i < scImageViews.size(); i++) {
         VkImageView attachments[] = {
-            scImageViews[i]
+            scImageViews[i],
+            depthImage.view()
         };
 
         VkFramebufferCreateInfo framebufferInfo = {};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass = renderPass;
-        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.attachmentCount = 2;
         framebufferInfo.pAttachments = attachments;
         framebufferInfo.width = scExtent.width;
         framebufferInfo.height = scExtent.height;
@@ -891,6 +951,17 @@ void RenderDevice::createSyncObjects()
 
     err = vkCreateFence(device, &fenceInfo, nullptr, &immCommandFence_);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Fence");
+}
+
+void RenderDevice::createDepthResources()
+{
+    depthImage.init({
+        hk::Image::Usage::DEPTH_STENCIL_ATTACHMENT,
+        VK_FORMAT_D32_SFLOAT,
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_ASPECT_DEPTH_BIT,
+        scExtent.width, scExtent.height, 1,
+    });
 }
 
 VkShaderModule RenderDevice::createShaderModule(const hk::vector<u32> &code)
@@ -1102,8 +1173,30 @@ void RenderDevice::transitionImageLayout(
 
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    } else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED &&
+               newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+    {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask =
+            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+            VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     } else {
         LOG_ERROR("Unsupported layout transition");
+    }
+
+    if (newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+
+        if (format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
+            format == VK_FORMAT_D24_UNORM_S8_UINT)
+        {
+            barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+        }
+    } else {
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     }
 
     submitImmCmd([&](VkCommandBuffer cmd) {

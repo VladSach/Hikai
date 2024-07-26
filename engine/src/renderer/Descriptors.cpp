@@ -206,10 +206,12 @@ void DescriptorWriter::writeImage(
     VkImageLayout layout,
     VkDescriptorType type)
 {
-    VkDescriptorImageInfo info = {};
-    info.imageLayout = layout;
-    info.imageView = image;
-    info.sampler = sampler;
+    VkDescriptorImageInfo imageInfo = {};
+    imageInfo.imageLayout = layout;
+    imageInfo.imageView = image;
+    imageInfo.sampler = sampler;
+
+    VkDescriptorImageInfo &info = imageInfos.emplace_back(imageInfo);
 
     VkWriteDescriptorSet write = {};
     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

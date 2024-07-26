@@ -210,9 +210,8 @@ void registerMouseMove(EventContext mouseinfo)
     if (mouse.x == x && mouse.y == y) { return; }
 
     // LOG_DEBUG("Mouse current pos:", x, y);
-
-    mouse.x_delta = mouse.x - x;
-    mouse.y_delta = mouse.y - y;
+    mouse.x_delta = x - mouse.x;
+    mouse.y_delta = y - mouse.y;
     mouse.x = x;
     mouse.y = y;
 }

@@ -19,6 +19,7 @@ private:
 
     b8 isFullscreen = false;
     b8 isVisible = false;
+    b8 cursorEnabled = true;
 
     HWND hWnd = nullptr;
     HINSTANCE hInstance = nullptr;
@@ -44,6 +45,12 @@ public:
     u32 getWidth() const { return winWidth; }
     u32 getHeight() const { return winHeight; }
     b8  getIsVisible() const { return isVisible; }
+
+    void hideCursor();
+    void showCursor();
+
+    void lockCursor();
+    void unlockCursor();
 
     HWND getHWnd() const { return hWnd; }
     HINSTANCE getHInstance() const { return hInstance; }

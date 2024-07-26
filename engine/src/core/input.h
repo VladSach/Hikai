@@ -45,7 +45,7 @@ void registerMouseWheel(EventContext mouseinfo);
 #ifdef KEY_EXECUTE // If defined in Windows
     #undef KEY_EXECUTE
 #endif // KEY_EXECUTE
-//
+
 enum Button : u16 {
     /* Keys are lined up with Win Virtual Keys -> ASCII for letters and numbers
      *https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes

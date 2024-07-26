@@ -76,8 +76,9 @@ void setFrameData(const SceneData &ubo)
     frameDataBuffer.update(&frameData);
 
     // hk::DescriptorWriter writer;
-    globalDsWriter->writeBuffer(0, frameDataBuffer.buffer(), sizeof(SceneData), 0,
-                       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    globalDsWriter->writeBuffer(0, frameDataBuffer.buffer(),
+                                sizeof(SceneData), 0,
+                                VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     // globalDsWriter->updateSet(sceneDataDescriptor);
 }
 

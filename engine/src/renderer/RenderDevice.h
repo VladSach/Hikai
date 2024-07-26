@@ -4,6 +4,8 @@
 #include "platform/Window.h"
 #include "vendor/vulkan/vulkan.h"
 
+#include "renderer/Image.h"
+
 #include "utils/containers/hkvector.h"
 
 class RenderDevice {
@@ -14,8 +16,6 @@ public:
     void deinit();
 
     void draw();
-
-    void cleanupSwapchain();
 
     VkShaderModule createShaderModule(const hk::vector<u32> &code);
 
@@ -79,6 +79,12 @@ private:
     VkSemaphore submitSemaphore  = VK_NULL_HANDLE;
     VkFence inFlightFence        = VK_NULL_HANDLE;
 
+    // VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
+    // VkImage depthImage;
+    // VkDeviceMemory depthImageMemory;
+    // VkImageView depthImageView;
+    hk::Image depthImage;
+
     /* TODO: add debug functionality
      * https://github.com/KhronosGroup/Vulkan-Samples/tree/main/
        samples/extensions/debug_utils
@@ -99,6 +105,9 @@ private:
     void createCommandPool();
     void createCommandBuffer();
     void createSyncObjects();
+    void createDepthResources();
+
+    void cleanupSwapchain();
 
 public:
     struct BufferDesc {
