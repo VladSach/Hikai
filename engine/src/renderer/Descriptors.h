@@ -2,8 +2,10 @@
 #define HK_DESCRIPTOR_SET_LAYOUT_H
 
 #include "vendor/vulkan/vulkan.h"
+
+#include "renderer/VulkanContext.h"
+
 #include "utils/containers/hkvector.h"
-#include "renderer/RenderDevice.h"
 
 // TODO: replace
 #include <deque>
@@ -15,7 +17,6 @@ class DescriptorLayout {
 public:
     class Builder {
     public:
-
         Builder& addBinding(u32 binding,
                             VkDescriptorType type,
                             VkShaderStageFlags stages);
@@ -41,7 +42,7 @@ public:
 private:
     VkDescriptorSetLayout layout_ = VK_NULL_HANDLE;
 
-    VkDevice device_ = hk::device()->logical();
+    VkDevice device_ = hk::context()->device();
 };
 
 
@@ -71,7 +72,7 @@ private:
     hk::vector<VkDescriptorPool> fullPools;
     hk::vector<VkDescriptorPool> readyPools;
 
-    VkDevice device_ = hk::device()->logical();
+    VkDevice device_ = hk::context()->device();
 };
 
 class DescriptorWriter {
@@ -95,7 +96,7 @@ private:
     std::deque<VkDescriptorBufferInfo> bufferInfos;
     hk::vector<VkWriteDescriptorSet> writes;
 
-    VkDevice device_ = hk::device()->logical();
+    VkDevice device_ = hk::context()->device();
 };
 
 }

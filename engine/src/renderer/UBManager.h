@@ -1,14 +1,14 @@
 #ifndef HK_UB_MANAGER_H
 #define HK_UB_MANAGER_H
 
-#include "math/hkmath.h"
-
 // FIX: temp
 #include "vendor/vulkan/vulkan.h"
 VkDescriptorSet *getGlobalDescriptorSet();
 VkDescriptorSetLayout getGlobalDescriptorSetLayout();
 #include "Descriptors.h"
 hk::DescriptorWriter *getGlobalDescriptorWriter();
+
+#include "math/hkmath.h"
 
 namespace hk::ubo {
 
@@ -30,7 +30,7 @@ struct SceneData {
 void init();
 void deinit();
 
-void setFrameData(const SceneData &ubo);
+HKAPI void setFrameData(const SceneData &ubo);
 
 }
 

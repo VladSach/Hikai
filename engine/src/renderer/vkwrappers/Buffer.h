@@ -1,8 +1,9 @@
 #ifndef HK_BUFFER_H
 #define HK_BUFFER_H
 
+#include "vendor/vulkan/vulkan.h"
+
 #include "defines.h"
-#include "renderer/RenderDevice.h"
 
 class Buffer {
 public:
@@ -44,6 +45,12 @@ public:
         u32 stride;
     };
 
+    struct VulkanBufferDesc {
+        VkDeviceSize size;
+        VkBufferUsageFlags usage;
+        VkMemoryPropertyFlags properties;
+    };
+
 public:
     Buffer() = default;
     ~Buffer() { deinit(); }
@@ -67,7 +74,10 @@ public:
     VkBuffer buffer() { return buffer_; }
     const VkBuffer& buffer() const { return buffer_; }
 
-    RenderDevice::BufferDesc getDeviceBufferDesc() const;
+    VulkanBufferDesc getDeviceBufferDesc() const;
+
+private:
+    void allocateBuffer(const VulkanBufferDesc &desc);
 
 private:
     Type type_ = Type::NONE;
@@ -81,6 +91,7 @@ private:
 
     VkBuffer buffer_ = VK_NULL_HANDLE;
     VkDeviceMemory memory_ = VK_NULL_HANDLE;
+
     VkDevice device_ = VK_NULL_HANDLE;
 };
 

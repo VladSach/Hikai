@@ -238,6 +238,9 @@ void DescriptorWriter::updateSet(VkDescriptorSet set)
         write.dstSet = set;
     }
 
+    // FIX: why is it bigger with every call
+    // LOG_DEBUG(writes.size());
+
     vkUpdateDescriptorSets(device_, writes.size(), writes.data(), 0, nullptr);
 }
 

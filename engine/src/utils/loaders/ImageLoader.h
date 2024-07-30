@@ -2,7 +2,7 @@
 #define HK_IMAGE_LOADER_H
 
 #include "defines.h"
-#include "renderer/Image.h"
+#include "renderer/vkwrappers/Image.h"
 
 namespace hk::loader {
 

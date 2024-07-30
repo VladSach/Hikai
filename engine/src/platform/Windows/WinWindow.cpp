@@ -4,6 +4,7 @@
 #include "defines.h"
 #include "utils/Logger.h"
 #include "platform/PlatformArgs.h"
+#include "vendor/imgui/imgui_impl_win32.h"
 
 #include <winuser.h>
 #include <hidusage.h>
@@ -145,9 +146,19 @@ void WinWindow::disableRawMouseInput()
     rawMouseInputEnabled = false;
 }
 
+// Forward declare message handler from imgui_impl_win32.cpp
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(
+    HWND hWnd,
+    UINT msg,
+    WPARAM wParam,
+    LPARAM lParam);
+
 LRESULT CALLBACK WinWindow::StaticWindowProc(HWND hWnd, UINT message,
                                           WPARAM wParam, LPARAM lParam)
 {
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, message, wParam, lParam))
+        return true;
+
     WinWindow *self;
     if (message == WM_NCCREATE) {
         LPCREATESTRUCT lpcs = reinterpret_cast<LPCREATESTRUCT>(lParam);

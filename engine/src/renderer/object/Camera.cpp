@@ -10,10 +10,10 @@ void Camera::setPerspective(f32 fov, f32 aspectRatio, f32 nearPlane, f32 farPlan
     f32 remap_z1 = nearPlane / (nearPlane - farPlane);
     f32 remap_z2 = farPlane * nearPlane / (nearPlane - farPlane);
 
-    proj = { scale/aspectRatio, 0.f,    0.f,       0.f,
-             0.f,               scale,  0.f,       0.f,
-             0.f,               0.f,    remap_z1,  1.f,
-             0.f,               0.f,   -remap_z2,  0.f };
+    proj = { scale/aspectRatio,  0.f,    0.f,       0.f,
+             0.f,               -scale,  0.f,       0.f,
+             0.f,                0.f,    remap_z1,  1.f,
+             0.f,                0.f,   -remap_z2,  0.f };
 
     projInv = inverse(proj);
 

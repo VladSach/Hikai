@@ -37,7 +37,8 @@ struct EventContext {
 class EventSystem {
 public:
     // using EventCallback = void(*)(EventContext userdata);
-    using EventCallback = std::function<void(const hk::EventContext &userdata)>;
+    using EventCallback =
+        std::function<void(const hk::EventContext &userdata, void *listener)>;
 
     struct Event {
         void *sender;

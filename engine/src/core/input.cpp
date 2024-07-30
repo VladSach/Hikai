@@ -181,7 +181,7 @@ void deinit()
     LOG_INFO("Input Subsystem deinitialized");
 }
 
-void registerKeyPress(hk::EventContext keyinfo)
+void registerKeyPress(hk::EventContext keyinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");
@@ -198,7 +198,7 @@ void registerKeyPress(hk::EventContext keyinfo)
     keyboard.keys[button] = pressed;
 }
 
-void registerMouseMove(EventContext mouseinfo)
+void registerMouseMove(EventContext mouseinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");
@@ -217,7 +217,7 @@ void registerMouseMove(EventContext mouseinfo)
     mouse.y = y;
 }
 
-void registerRawMouseMove(EventContext mouseinfo)
+void registerRawMouseMove(EventContext mouseinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");
@@ -233,7 +233,7 @@ void registerRawMouseMove(EventContext mouseinfo)
     // mouse.y += y_delta;
 }
 
-void registerMousePress(EventContext mouseinfo)
+void registerMousePress(EventContext mouseinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");
@@ -250,7 +250,7 @@ void registerMousePress(EventContext mouseinfo)
     mouse.buttons[button] = pressed;
 }
 
-void registerMouseWheel(EventContext mouseinfo)
+void registerMouseWheel(EventContext mouseinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");

@@ -3,7 +3,7 @@
 
 #include "math/hkmath.h"
 
-class Camera {
+class HKAPI Camera {
 public:
     void setPerspective(f32 fov, f32 aspect, f32 nearPlane, f32 farPlane);
     void lookAt(const hkm::vec3f &direction);

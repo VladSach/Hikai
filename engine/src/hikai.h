@@ -16,4 +16,7 @@
 #include "utils/containers/hkvector.h"
 #include "utils/containers/hkring_buffer.h"
 
+#include "renderer/UBManager.h"
+#include "renderer/object/Camera.h"
+
 #endif // HIKAI_H

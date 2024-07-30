@@ -5,7 +5,7 @@
 #include "Timer.h"
 #include "EventSystem.h"
 #include "platform/platform.h"
-#include "renderer/RenderDevice.h"
+#include "renderer/Renderer.h"
 
 struct AppDesc {
     u32 width = 400;
@@ -36,7 +36,7 @@ public:
 
     void deinit();
 
-    static void shutdown(hk::EventContext errorCode);
+    static void shutdown(hk::EventContext errorCode, void*);
     static b8 running;
 
 private:
@@ -47,7 +47,7 @@ private:
     EventSystem *evsys;
 
     hk::Timer clock;
-    RenderDevice *renderer;
+    Renderer *renderer;
 };
 
 // Defined by user

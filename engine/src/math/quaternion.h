@@ -142,8 +142,8 @@ inline quaternion fromAxisAngle(const vec3f &v, f32 angle) {
 }
 
 inline quaternion fromEulerAngles(const vec3f &angles) {
-    f32 pitch = angles.x;
-    f32 yaw   = angles.y;
+    f32 yaw   = angles.x;
+    f32 pitch = angles.y;
     f32 roll  = angles.z;
 
     f32 cy = std::cos(yaw   * .5f);

@@ -13,6 +13,14 @@ call build.bat
 popd
 echo ----------------------------
 
+echo Building editor...
+echo ----------------------------
+
+pushd editor
+call build.bat
+popd
+echo ----------------------------
+
 echo Building sandbox...
 echo ----------------------------
 
@@ -30,9 +38,11 @@ robocopy ".\engine\bin" ".\bin" hikai.dll /mt 2>&1 | findstr /i "ERROR"
 echo Copying dxcompiler.dll...
 robocopy ".\engine\lib" ".\bin" dxcompiler.dll /mt 2>&1 | findstr /i "ERROR"
 
+echo Copying editor.exe...
+robocopy ".\editor\bin" ".\bin" hikai.exe /mt 2>&1 | findstr /i "ERROR"
+
 echo Copying sandbox.exe...
 robocopy ".\sandbox\bin" ".\bin" sandbox.exe /mt 2>&1 | findstr /i "ERROR"
-
 
 echo Copying assets...
 robocopy ".\engine\assets" ".\bin\assets" /s /mt 2>&1 | findstr /i "ERROR"

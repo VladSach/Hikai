@@ -1,7 +1,8 @@
 #include "UBManager.h"
 
-#include "renderer/Buffer.h"
 #include "renderer/Descriptors.h"
+
+#include "renderer/vkwrappers/Buffer.h"
 
 // FIX: temp
 static VkDescriptorSet sceneDataDescriptor = VK_NULL_HANDLE;
@@ -31,7 +32,7 @@ void init()
     uniformDisc.type = Buffer::Type::UNIFORM_BUFFER;
     uniformDisc.usage = Buffer::Usage::NONE;
     uniformDisc.property = Buffer::Property::CPU_ACESSIBLE;
-    uniformDisc.size = hk::device()->getFrameBufferCount();
+    uniformDisc.size = 2; // FIX: temp, make depend on framebuffers size
     uniformDisc.stride = sizeof(frameData);
 
     frameDataBuffer.init(uniformDisc);

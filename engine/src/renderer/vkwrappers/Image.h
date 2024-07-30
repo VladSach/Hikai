@@ -1,8 +1,9 @@
 #ifndef HK_IMAGE_H
 #define HK_IMAGE_H
 
-#include "defines.h"
 #include "vendor/vulkan/vulkan.h"
+
+#include "defines.h"
 
 namespace hk {
 
@@ -32,6 +33,14 @@ public:
         u32 channels;
     };
 
+    struct VulkanImageDesc {
+        u32 width, height;
+        VkFormat format;
+        VkImageTiling tiling;
+        VkImageUsageFlags usage;
+        VkMemoryPropertyFlags properties;
+    };
+
 public:
     Image() = default;
     Image(const ImageDesc &desc) { init(desc); }
@@ -47,10 +56,14 @@ public:
 public:
     constexpr u32 width() const { return width_; }
     constexpr u32 height() const { return height_; }
-
     constexpr VkFormat format() const { return format_; }
-
     constexpr VkImageView view() const { return view_; }
+
+private:
+    void allocateImage(const VulkanImageDesc &desc);
+    void transitionImageLayout(
+        VkImageLayout oldLayout,
+        VkImageLayout newLayout);
 
 private:
     u32 width_    = 0;
@@ -59,7 +72,7 @@ private:
 
     Usage usage_ = Usage::NONE;
 
-    VkImage texture_       = VK_NULL_HANDLE;
+    VkImage image_         = VK_NULL_HANDLE;
     VkImageView view_      = VK_NULL_HANDLE;
     VkSampler sampler_     = VK_NULL_HANDLE;
     VkDeviceMemory memory_ = VK_NULL_HANDLE;
@@ -67,7 +80,6 @@ private:
     VkFormat format_ = VK_FORMAT_UNDEFINED;
     VkImageLayout layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
     VkImageAspectFlags aspectMask_ = VK_IMAGE_ASPECT_NONE;
-
 };
 
 constexpr Image::Usage operator |(const Image::Usage a, const Image::Usage b)

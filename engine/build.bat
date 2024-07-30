@@ -6,7 +6,7 @@ set BUILD_DIR=build
 set OUT_DIR=bin
 set LIB_DIR=lib
 
-set INCLUDE_DIRS=/Isrc
+set INCLUDE_DIRS=/Isrc /Isrc/vendor/
 set LIBS=user32.lib /LIBPATH:"%LIB_DIR%" vulkan-1.lib dxcompiler.lib
 set DEFINES=/D HKDEBUG /D HKDLL_OUT
 
@@ -47,6 +47,7 @@ for /R %SOURCE_DIR% %%G in (*) do (
         set "object=%BUILD_DIR%/%%~nG.obj"
 
         if not exist "!object!" (
+            echo Compiling !source!
             set "recompile=true"
         ) else (
             for %%H in ("!source!") do set "source_time=%%~tH"
@@ -56,12 +57,14 @@ for /R %SOURCE_DIR% %%G in (*) do (
             REM for /f "delims=" %%i in ('dir /b /twc "!object!"') do set "object_time=%%~ti"
 
             if "!source_time!" GTR "!object_time!" (
+                echo Recompiling !source!
                 set "recompile=true"
+            ) else (
+                set "recompile="
             )
         )
 
         if defined recompile (
-            echo Recompiling !source!
             @%COMPILER% %DEFINES% %COMPILER_FLAGS% %INCLUDE_DIRS% /c "!source!" ^
                 /Fo:"!object!" 2>&1 | findstr /i "error warning"
             set "recompile="

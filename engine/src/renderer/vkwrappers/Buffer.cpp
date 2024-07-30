@@ -1,5 +1,7 @@
 #include "Buffer.h"
 
+#include "renderer/VulkanContext.h"
+
 void Buffer::init(const BufferDesc &desc)
 {
     if (buffer_ != VK_NULL_HANDLE) {
@@ -14,14 +16,10 @@ void Buffer::init(const BufferDesc &desc)
     size_ = desc.size;
     stride_ = desc.stride;
 
-    RenderDevice::BufferDesc deviceBufferDesc = getDeviceBufferDesc();
-    RenderDevice::DeviceBuffer deviceBuffer =
-        hk::device()->createBuffer(deviceBufferDesc);
+    device_ = hk::context()->device();
 
-    buffer_ = deviceBuffer.buffer;
-    memory_ = deviceBuffer.bufferMemory;
-
-    device_ = hk::device()->logical();
+    VulkanBufferDesc allocDesc = getDeviceBufferDesc();
+    allocateBuffer(allocDesc);
 }
 
 void Buffer::deinit()
@@ -75,7 +73,12 @@ void Buffer::update(const void *data)
         stagingBuffer.write(data);
     stagingBuffer.unmap();
 
-    hk::device()->copyBuffer(stagingBuffer.buffer(), buffer_, memsize());
+    // hk::device()->copyBuffer(stagingBuffer.buffer(), buffer_, memsize());
+    hk::context()->submitImmCmd([&](VkCommandBuffer cmd) {
+        VkBufferCopy copyRegion = {};
+        copyRegion.size = memsize();
+        vkCmdCopyBuffer(cmd, stagingBuffer.buffer(), buffer_, 1, &copyRegion);
+    });
 
     // stagingBuffer.deinit();
 }
@@ -118,7 +121,7 @@ void Buffer::bind(VkCommandBuffer commandBuffer)
     }
 }
 
-RenderDevice::BufferDesc Buffer::getDeviceBufferDesc() const
+Buffer::VulkanBufferDesc Buffer::getDeviceBufferDesc() const
 {
     ALWAYS_ASSERT(
         static_cast<u32>(type_) &&
@@ -126,7 +129,7 @@ RenderDevice::BufferDesc Buffer::getDeviceBufferDesc() const
         "Buffer should be initialized"
     );
 
-    RenderDevice::BufferDesc desc = {};
+    Buffer::VulkanBufferDesc desc = {};
     desc.size = memsize();
 
     switch(type_) {
@@ -175,4 +178,46 @@ RenderDevice::BufferDesc Buffer::getDeviceBufferDesc() const
     // LOG_ERROR("Unsupported Buffer Property");
 
     return desc;
+}
+
+void Buffer::allocateBuffer(const VulkanBufferDesc &desc)
+{
+    VkResult err;
+
+    VkPhysicalDevice physical = hk::context()->physical(); 
+
+    VkBufferCreateInfo bufferInfo = {};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = desc.size;
+    bufferInfo.usage = desc.usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    err = vkCreateBuffer(device_, &bufferInfo, nullptr, &buffer_);
+    ALWAYS_ASSERT(!err, "Failed to create Vulkan Buffer");
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(device_, buffer_, &memRequirements);
+
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(physical, &memProperties);
+
+    u32 memIndex = 0;
+    for (; memIndex < memProperties.memoryTypeCount; ++memIndex) {
+        if ((memRequirements.memoryTypeBits & (1 << memIndex)) &&
+            (memProperties.memoryTypes[memIndex].propertyFlags &
+            desc.properties) == desc.properties)
+        {
+            break;
+        }
+    }
+
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = memIndex;
+
+    err = vkAllocateMemory(device_, &allocInfo, nullptr, &memory_);
+    ALWAYS_ASSERT(!err, "Failed to allocate Vulkan Buffer Memory");
+
+    vkBindBufferMemory(device_, buffer_, memory_, 0);
 }

@@ -27,7 +27,6 @@ enum class ShaderModel : u8 {
     SM_6_7,
 };
 
-
 enum class ShaderIR {
     DXIL,
     SPIRV,

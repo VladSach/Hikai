@@ -1,8 +1,9 @@
 #ifndef HK_VERTEX_LAYOUT_H
 #define HK_VERTEX_LAYOUT_H
 
-#include "utils/containers/hkvector.h"
 #include "vendor/vulkan/vulkan.h"
+
+#include "utils/containers/hkvector.h"
 
 namespace hk {
 

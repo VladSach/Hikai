@@ -76,7 +76,7 @@ void EventSystem::dispatch()
     Event event;
     while (buffer.pop(event)) {
         for (auto &sub : subscribers[event.code]) {
-            sub.callback(event.userdata);
+            sub.callback(event.userdata, sub.listener);
         }
     }
 }

@@ -45,14 +45,14 @@ public:
     b8 ProcessMessages();
 
     /* Mouse settings */
-    void hideCursor();
-    void showCursor();
+    HKAPI void hideCursor();
+    HKAPI void showCursor();
 
-    void lockCursor();
-    void unlockCursor();
+    HKAPI void lockCursor();
+    HKAPI void unlockCursor();
 
-    void enableRawMouseInput();
-    void disableRawMouseInput();
+    HKAPI void enableRawMouseInput();
+    HKAPI void disableRawMouseInput();
 
 public:
     u32 getWidth() const { return winWidth; }

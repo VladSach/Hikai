@@ -1,4 +1,5 @@
 #include "VertexLayout.h"
+
 #include "math/hkmath.h"
 
 #include <utility>

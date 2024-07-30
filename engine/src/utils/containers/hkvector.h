@@ -27,7 +27,7 @@ public:
     inline ~vector()
     {
         clear();
-        if (buffer_) { free(buffer_); }
+        if (buffer_) { delete (buffer_); }
     }
 
     constexpr vector<T>& operator=(const vector<T> &other)

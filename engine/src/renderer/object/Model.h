@@ -2,7 +2,8 @@
 #define HK_MODEL_H
 
 #include "renderer/object/Vertex.h"
-#include "renderer/Buffer.h"
+#include "renderer/vkwrappers/Buffer.h"
+
 #include "utils/containers/hkvector.h"
 
 namespace hk {
