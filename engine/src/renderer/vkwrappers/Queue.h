@@ -4,13 +4,15 @@
 #include "vendor/vulkan/vulkan.h"
 
 #include "defines.h"
+#include "utils/containers/hkvector.h"
 
 namespace hk {
 
 struct QueueFamily {
     u32 index_ = VK_QUEUE_FAMILY_IGNORED;
+    VkQueueFamilyProperties properties;
 
-    operator bool() const
+    constexpr operator bool() const
     {
         return index_ != VK_QUEUE_FAMILY_IGNORED;
     }

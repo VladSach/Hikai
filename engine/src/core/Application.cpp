@@ -86,6 +86,8 @@ void Application::deinit()
 
 void Application::shutdown(hk::EventContext errorCode, void* listener)
 {
+    (void)listener;
+
     if (errorCode.u64) {
         hk::ErrorCode err = static_cast<hk::ErrorCode>(errorCode.u64);
         LOG_FATAL("Error:", err, "-", hk::getErrocodeStr(err));

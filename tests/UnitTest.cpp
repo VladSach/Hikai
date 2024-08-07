@@ -37,7 +37,7 @@ void UnitTest::runTests(const std::string &group)
         std::string str = tmp.str();
 
         int len = static_cast<int>(str.length());
-        if(width < len) { return str; }
+        if (width < len) { return str; }
 
         int diff = width - len;
         int pad1 = diff/2;

@@ -8,7 +8,8 @@
 
 namespace hkm {
 
-struct mat4f {
+// FIX: temp, before Camera is fixed, so it can be header only
+struct HKAPI mat4f {
     f32 n[4][4];
 
     constexpr mat4f() : n{0} {};

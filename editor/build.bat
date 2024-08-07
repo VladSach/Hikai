@@ -34,28 +34,71 @@ if not exist %OUT_DIR% mkdir %OUT_DIR%
 
 REM Function to compile a directory of .cpp files
 for /R %SOURCE_DIR% %%G in (*.cpp) do (
-    set "source=%%G"
-    set "object=%BUILD_DIR%/%%~nG.obj"
+    if "%%~xG"==".cpp" (
+        set "source=%%G"
+        set "object=%BUILD_DIR%/%%~nG.obj"
 
-    if not exist "!object!" (
-        set "recompile=true"
-    ) else (
-        for %%H in ("!source!") do set "source_time=%%~tH"
-        for %%H in ("!object!") do set "object_time=%%~tH"
-
-        REM for /f "delims=" %%i in ('dir /b /twc "!source!"') do set "source_time=%%~ti"
-        REM for /f "delims=" %%i in ('dir /b /twc "!object!"') do set "object_time=%%~ti"
-
-        if "!source_time!" GTR "!object_time!" (
+        if not exist "!object!" (
+            echo Compiling !source!
             set "recompile=true"
-        )
-    )
+        ) else (
+            for %%H in ("!source!") do set "sdate=%%~tH"
+            for %%H in ("!object!") do set "odate=%%~tH"
 
-    if defined recompile (
-        echo Recompiling !source!
-        @%COMPILER% %DEFINES% %COMPILER_FLAGS% %INCLUDE_DIRS% /c "!source!" ^
-            /Fo:"!object!" 2>&1 | findstr /i "error warning"
-        set "recompile="
+            REM Extract just the filename from the full path
+            for %%N in ("!source!") do set "sfilename=%%~nxN"
+
+            REM Change directory to where the source file is located
+            pushd "%%~dpG"
+            for /f "delims=" %%i in ('forfiles /m "!sfilename!" /c "cmd /c echo @ftime"') do set stime=%%i
+            popd
+            pushd "%BUILD_DIR%"
+            for /f "delims=" %%i in ('forfiles /m "%%~nG.obj" /c "cmd /c echo @ftime"') do set otime=%%i
+            popd
+
+            REM FIX: nonportable solution
+            for /F "tokens=1-3 delims=/ " %%T in ("!sdate!") do (
+                set "sday=%%T"
+                set "smonth=%%U"
+                set "syear=%%V"
+            )
+            for /F "tokens=1-3 delims=/ " %%T in ("!odate!") do (
+                set "oday=%%T"
+                set "omonth=%%U"
+                set "oyear=%%V"
+            )
+
+            for /F "tokens=1-3 delims=:" %%T in ("!stime!") do (
+                set "shour=%%T"
+                set "sminute=%%U"
+                set "ssec=%%V"
+            )
+            for /F "tokens=1-3 delims=:" %%T in ("!otime!") do (
+                set "ohour=%%T"
+                set "ominute=%%U"
+                set "osec=%%V"
+            )
+
+            pushd %~dp0..\engine\tools
+            call DateToSecs.bat DateToSecs ^
+            !syear! !smonth! !sday! !shour! !sminute! !ssec! ssecs
+            call DateToSecs.bat DateToSecs ^
+            !oyear! !omonth! !oday! !ohour! !ominute! !osec! osecs
+            popd
+
+            if "!ssecs!" GTR "!osecs!" (
+                echo Recompiling !source!
+                set "recompile=true"
+            ) else (
+                set "recompile="
+            )
+        )
+
+        if defined recompile (
+            @%COMPILER% %DEFINES% %COMPILER_FLAGS% %INCLUDE_DIRS% /c "!source!" ^
+                /Fo:"!object!" 2>&1 | findstr /i "error warning"
+            set "recompile="
+        )
     )
 )
 

@@ -43,13 +43,15 @@ void DescriptorLayout::init(hk::vector<VkDescriptorSetLayoutBinding> bindings)
     // info.pNext = nullptr;
     // info.flags = 0;
 
-    err = vkCreateDescriptorSetLayout(device_, &info, nullptr, &layout_);
+    VkDevice device = hk::context()->device();
+    err = vkCreateDescriptorSetLayout(device, &info, nullptr, &layout_);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Descriptor Set Layout");
 }
 
 void DescriptorLayout::deinit()
 {
-    vkDestroyDescriptorSetLayout(device_, layout_, nullptr);
+    VkDevice device = hk::context()->device();
+    vkDestroyDescriptorSetLayout(device, layout_, nullptr);
     layout_ = VK_NULL_HANDLE;
 }
 
@@ -73,25 +75,27 @@ void DescriptorAllocator::init(
 
 void DescriptorAllocator::deinit()
 {
+    VkDevice device = hk::context()->device();
     for (auto pool : readyPools) {
-        vkDestroyDescriptorPool(device_, pool, nullptr);
+        vkDestroyDescriptorPool(device, pool, nullptr);
     }
     readyPools.clear();
 
     for (auto pool : fullPools) {
-        vkDestroyDescriptorPool(device_, pool, nullptr);
+        vkDestroyDescriptorPool(device, pool, nullptr);
     }
     fullPools.clear();
 }
 
 void DescriptorAllocator::clear()
 {
+    VkDevice device = hk::context()->device();
     for (auto pool : readyPools) {
-        vkResetDescriptorPool(device_, pool, 0);
+        vkResetDescriptorPool(device, pool, 0);
     }
 
     for (auto pool : fullPools) {
-        vkResetDescriptorPool(device_, pool, 0);
+        vkResetDescriptorPool(device, pool, 0);
         readyPools.push_back(pool);
     }
 
@@ -104,6 +108,8 @@ VkDescriptorSet DescriptorAllocator::allocate(
 {
     VkResult err;
 
+    VkDevice device = hk::context()->device();
+
     // Get or create a pool to allocate from
     VkDescriptorPool poolToUse = getPool();
 
@@ -115,7 +121,7 @@ VkDescriptorSet DescriptorAllocator::allocate(
     allocInfo.pSetLayouts = &layout;
 
     VkDescriptorSet descriptorSet;
-    err = vkAllocateDescriptorSets(device_, &allocInfo, &descriptorSet);
+    err = vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet);
 
     if (err == VK_ERROR_OUT_OF_POOL_MEMORY || err == VK_ERROR_FRAGMENTED_POOL) {
         fullPools.push_back(poolToUse);
@@ -123,7 +129,7 @@ VkDescriptorSet DescriptorAllocator::allocate(
         poolToUse = getPool();
         allocInfo.descriptorPool = poolToUse;
 
-        err = vkAllocateDescriptorSets(device_, &allocInfo, &descriptorSet);
+        err = vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet);
         ALWAYS_ASSERT(!err, "Failed to allocate Vulkan Descriptor Set");
     }
 
@@ -155,6 +161,8 @@ VkDescriptorPool DescriptorAllocator::createPool(
     u32 maxSets,
     const hk::vector<TypeSize> &sizes)
 {
+    VkDevice device = hk::context()->device();
+
     hk::vector<VkDescriptorPoolSize> poolSizes;
     for (const TypeSize &size : sizes) {
         poolSizes.push_back({ size.type, size.size });
@@ -168,7 +176,7 @@ VkDescriptorPool DescriptorAllocator::createPool(
     poolInfo.pPoolSizes = poolSizes.data();
 
     VkDescriptorPool pool;
-    vkCreateDescriptorPool(device_, &poolInfo, nullptr, &pool);
+    vkCreateDescriptorPool(device, &poolInfo, nullptr, &pool);
 
     return pool;
 }
@@ -238,10 +246,8 @@ void DescriptorWriter::updateSet(VkDescriptorSet set)
         write.dstSet = set;
     }
 
-    // FIX: why is it bigger with every call
-    // LOG_DEBUG(writes.size());
-
-    vkUpdateDescriptorSets(device_, writes.size(), writes.data(), 0, nullptr);
+    VkDevice device = hk::context()->device();
+    vkUpdateDescriptorSets(device, writes.size(), writes.data(), 0, nullptr);
 }
 
 }

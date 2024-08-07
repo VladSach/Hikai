@@ -7,7 +7,8 @@
 
 namespace hkm {
 
-struct quaternion {
+// FIX: temp, before Camera is fixed, so it can be header only
+struct HKAPI quaternion {
     f32 x, y, z, w;
 
     constexpr quaternion() : x(0), y(0), z(0), w(1) {}

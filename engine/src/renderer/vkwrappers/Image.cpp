@@ -27,6 +27,8 @@ void Image::init(const ImageDesc &desc)
         flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     if (usage_ & Usage::SAMPLED)
         flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+    // if (usage_ & Usage::COLOR_ATTACHMENT)
+    //     flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     if (usage_ & Usage::DEPTH_STENCIL_ATTACHMENT)
         flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
@@ -79,8 +81,6 @@ void Image::deinit()
 
     VkDevice device = hk::context()->device();
 
-    if (sampler_)
-        vkDestroySampler(device, sampler_, nullptr);
     if (view_)
         vkDestroyImageView(device, view_, nullptr);
 
@@ -138,41 +138,6 @@ void Image::write(const void *pixels)
     transitionImageLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layout_);
 
     // stagingBuffer.deinit();
-}
-
-void Image::bind()
-{
-    VkResult err;
-    VkDevice device = hk::context()->device();
-
-    VkSamplerCreateInfo samplerInfo = {};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-
-    VkPhysicalDeviceProperties properties = {};
-    vkGetPhysicalDeviceProperties(hk::context()->physical(), &properties);
-
-    samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerInfo.mipLodBias = 0.0f;
-    samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
-
-    err = vkCreateSampler(device, &samplerInfo, nullptr, &sampler_);
-
-    // FIX: temp
-    hk::DescriptorWriter *writer = getGlobalDescriptorWriter();
-    writer->writeImage(1, view_, sampler_, layout_,
-                       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 }
 
 void Image::allocateImage(const VulkanImageDesc &desc)

@@ -16,6 +16,7 @@ public:
         TRANSFER_DST,
 
         SAMPLED,
+        // COLOR_ATTACHMENT,
         DEPTH_STENCIL_ATTACHMENT,
 
         MAX_IMAGE_USAGE
@@ -51,13 +52,12 @@ public:
 
     void write(const void *pixels);
 
-    void bind();
-
 public:
     constexpr u32 width() const { return width_; }
     constexpr u32 height() const { return height_; }
     constexpr VkFormat format() const { return format_; }
     constexpr VkImageView view() const { return view_; }
+    constexpr VkImageLayout layout() const { return layout_; }
 
 private:
     void allocateImage(const VulkanImageDesc &desc);
@@ -74,7 +74,6 @@ private:
 
     VkImage image_         = VK_NULL_HANDLE;
     VkImageView view_      = VK_NULL_HANDLE;
-    VkSampler sampler_     = VK_NULL_HANDLE;
     VkDeviceMemory memory_ = VK_NULL_HANDLE;
 
     VkFormat format_ = VK_FORMAT_UNDEFINED;

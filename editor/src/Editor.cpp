@@ -25,6 +25,7 @@ void Editor::update(f32 dt)
             static_cast<f32>(window_->getHeight())
         },
         time,
+        {},
         mat,
     });
 
@@ -33,6 +34,14 @@ void Editor::update(f32 dt)
 
 void Editor::processInput(f32 dt)
 {
+    if (hk::input::isKeyDown(hk::input::Button::KEY_F11))
+        renderer->toggleUIMode();
+
+    // FIX: temp
+    if (renderer->ui().isInputLocked()) {
+        return;
+    }
+
     hkm::vec3f offset;
     hkm::vec3f angles;
     hkm::vec3f direction;

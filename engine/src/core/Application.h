@@ -47,6 +47,7 @@ private:
     EventSystem *evsys;
 
     hk::Timer clock;
+public: // FIX: temp, delete public
     Renderer *renderer;
 };
 

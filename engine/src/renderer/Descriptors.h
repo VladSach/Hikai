@@ -41,8 +41,6 @@ public:
 
 private:
     VkDescriptorSetLayout layout_ = VK_NULL_HANDLE;
-
-    VkDevice device_ = hk::context()->device();
 };
 
 
@@ -71,8 +69,6 @@ private:
     hk::vector<TypeSize> sizes_;
     hk::vector<VkDescriptorPool> fullPools;
     hk::vector<VkDescriptorPool> readyPools;
-
-    VkDevice device_ = hk::context()->device();
 };
 
 class DescriptorWriter {
@@ -95,32 +91,8 @@ private:
     std::deque<VkDescriptorImageInfo> imageInfos;
     std::deque<VkDescriptorBufferInfo> bufferInfos;
     hk::vector<VkWriteDescriptorSet> writes;
-
-    VkDevice device_ = hk::context()->device();
 };
 
-}
-
-// FIX: Find a better way to manage global objects and place them together
-namespace hk {
-inline DescriptorAllocator *pool()
-{
-    static DescriptorAllocator *globalDescriptorPool = nullptr;
-
-    if (globalDescriptorPool == nullptr) {
-        globalDescriptorPool = new DescriptorAllocator();
-
-        hk::vector<hk::DescriptorAllocator::TypeSize> sizes =
-        {
-            { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
-            { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
-            { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
-            { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
-        };
-        globalDescriptorPool->init(10, sizes);
-    }
-    return globalDescriptorPool;
-}
 }
 
 #endif // HK_DESCRIPTOR_SET_LAYOUT_H

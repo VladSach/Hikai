@@ -1,10 +1,14 @@
 #ifdef _WIN32
 #include "WinWindow.h"
 
-#include "defines.h"
-#include "utils/Logger.h"
-#include "platform/PlatformArgs.h"
 #include "vendor/imgui/imgui_impl_win32.h"
+
+#include "defines.h"
+
+#include "utils/Logger.h"
+
+#include "platform/Monitor.h"
+#include "platform/PlatformArgs.h"
 
 #include <winuser.h>
 #include <hidusage.h>
@@ -16,6 +20,12 @@ void WinWindow::init(std::wstring title, u32 width, u32 height)
     winTitle = title;
     winWidth = width;
     winHeight = height;
+
+    // TODO: Find a way to tie them together:
+    // resolution, window size, window resizing, scaling
+    // hk::platform::MonitorInfo &info = hk::platform::getMonitorInfos()[0];
+    // winWidth /= info.dpi;
+    // winHeight /= info.dpi;
 
     hInstance = PlatformArgs::instance()->hInstance;
     evs = EventSystem::instance();
@@ -38,6 +48,24 @@ void WinWindow::init(std::wstring title, u32 width, u32 height)
 
     u32 screenWidth = GetSystemMetrics(SM_CXSCREEN);
     u32 screenHeight = GetSystemMetrics(SM_CYSCREEN);
+    LOG_DEBUG("Effective screen size:", screenWidth, "x", screenHeight);
+
+    if (winWidth > screenWidth) {
+        winWidth = screenWidth;
+        LOG_WARN("Window width can not be bigger then screen width:",
+                 width, "vs", screenWidth);
+    }
+    if (winHeight > screenHeight) {
+        winHeight = screenHeight;
+        LOG_WARN("Window height can not be bigger then screen height:",
+                 height, "vs", screenHeight);
+    }
+
+    // Screen size minus taskbar
+    RECT workArea;
+    SystemParametersInfo(SPI_GETWORKAREA, 0, &workArea, 0);
+    u32 workareaWidth = workArea.right - workArea.left;
+    u32 workareaHeight = workArea.bottom - workArea.top;
 
     if (isFullscreen) {
 
@@ -57,8 +85,8 @@ void WinWindow::init(std::wstring title, u32 width, u32 height)
         L"MainWinClass", // name of the window class
         std::wstring(L"Hikai (" + winTitle + L")").c_str(), // title
         WS_OVERLAPPEDWINDOW,
-        (screenWidth  - wr.right)  / 2, // x-position of the window
-        (screenHeight - wr.bottom) / 2, // y-position of the window
+        (workareaWidth  - wr.right)  / 2, // x-position of the window
+        (workareaHeight - wr.bottom) / 2, // y-position of the window
         wr.right - wr.left,    // width of the window
         wr.bottom - wr.top,    // height of the window
         NULL, NULL, hInstance, (LPVOID)this
@@ -220,10 +248,10 @@ LRESULT CALLBACK WinWindow::WindowProc(UINT message,
         evs->fireEvent(hk::EVENT_WINDOW_RESIZE, context);
     } break;
 
-    // case WM_EXITSIZEMOVE:
-    // {
-    //     LOG_INFO("Window's size set to:", winWidth, "x", winHeight);
-    // }
+    case WM_EXITSIZEMOVE:
+    {
+        LOG_INFO("Window's size set to:", winWidth, "x", winHeight);
+    }
 
     case WM_KEYUP:
     case WM_SYSKEYUP:
@@ -363,4 +391,5 @@ LRESULT CALLBACK WinWindow::WindowProc(UINT message,
 
     return result;
 }
-#endif // HKWINDOWS
+
+#endif // _WIN32

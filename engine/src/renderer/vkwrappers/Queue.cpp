@@ -57,10 +57,11 @@ void QueueFamily::findQueue(
         {
             bestMatchIndex = i;
             extraQueuesMin = extraQueues;
-    }
+        }
     }
 
     index_ = bestMatchIndex;
+    properties = queueFamilies[bestMatchIndex];
 }
 
 void Queue::init(VkDevice device, QueueFamily family)

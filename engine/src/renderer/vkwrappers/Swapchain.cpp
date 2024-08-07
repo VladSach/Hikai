@@ -50,14 +50,14 @@ void Swapchain::init(VkSurfaceKHR surface, VkExtent2D size)
     vkGetPhysicalDeviceSurfacePresentModesKHR(
             physical, surface, &presentModeCount, presentModes.data());
 
+    // FIFO mode is the one that is always supported
+    presentMode = VK_PRESENT_MODE_FIFO_KHR;
+
     for (const auto &mode : presentModes) {
         if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
             presentMode = mode;
             break;
         }
-
-        // FIFO mode is the one that is always supported
-        presentMode = VK_PRESENT_MODE_FIFO_KHR;
     }
 
     VkSurfaceCapabilitiesKHR surfaceCaps = {};

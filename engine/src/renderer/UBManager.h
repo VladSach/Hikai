@@ -1,14 +1,9 @@
 #ifndef HK_UB_MANAGER_H
 #define HK_UB_MANAGER_H
 
-// FIX: temp
-#include "vendor/vulkan/vulkan.h"
-VkDescriptorSet *getGlobalDescriptorSet();
-VkDescriptorSetLayout getGlobalDescriptorSetLayout();
-#include "Descriptors.h"
-hk::DescriptorWriter *getGlobalDescriptorWriter();
-
 #include "math/hkmath.h"
+
+#include "renderer/vkwrappers/Buffer.h"
 
 namespace hk::ubo {
 
@@ -24,12 +19,14 @@ namespace hk::ubo {
 struct SceneData {
     hkm::vec2f resolution;
     f32 time;
-    alignas(16)hkm::mat4f viewProjection;
+    u8 pad[4];
+    alignas(16) hkm::mat4f viewProjection;
 };
 
 void init();
 void deinit();
 
+Buffer& getFrameData();
 HKAPI void setFrameData(const SceneData &ubo);
 
 }

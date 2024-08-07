@@ -12,22 +12,6 @@
 #include <string>
 
 class WinWindow final : public Window {
-private:
-    u32 winWidth = 400;
-    u32 winHeight = 400;
-    std::wstring winTitle = L"";
-
-    b8 isFullscreen = false;
-    b8 isVisible = false;
-
-    b8 cursorEnabled = true;
-    b8 rawMouseInputEnabled = false;
-
-    HWND hWnd = nullptr;
-    HINSTANCE hInstance = nullptr;
-
-    EventSystem *evs = nullptr;
-
 protected:
     static LRESULT CALLBACK StaticWindowProc(HWND hWnd, UINT message,
                                              WPARAM wParam, LPARAM lParam);
@@ -61,6 +45,22 @@ public:
 
     HWND getHWnd() const { return hWnd; }
     HINSTANCE getHInstance() const { return hInstance; }
+
+private:
+    u32 winWidth = 400;
+    u32 winHeight = 400;
+    std::wstring winTitle = L"";
+
+    b8 isFullscreen = false;
+    b8 isVisible = false;
+
+    b8 cursorEnabled = true;
+    b8 rawMouseInputEnabled = false;
+
+    HWND hWnd = nullptr;
+    HINSTANCE hInstance = nullptr;
+
+    EventSystem *evs = nullptr;
 };
 
 #endif // HK_WINWINDOW_H

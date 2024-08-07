@@ -8,27 +8,25 @@
 
 #include <functional>
 
+// INFO: For Dock Builder
+#include "vendor/imgui/imgui_internal.h"
+
 class GUI {
 public:
     void init(const Window *window);
     void deinit();
 
+    void setViewportMode(VkImageView view);
+    void setOverlayMode();
+
     void draw(VkCommandBuffer cmd);
 
-    inline void pushCallback(const std::function<void()> &callback)
-    {
-        callbacks.push_back(callback);
-    }
-
-    // inline bool captureInput() const
+    // inline void pushCallback(const std::function<void()> &callback)
     // {
-    //     auto& io = ImGui::GetIO();
-    //     if (io.WantCaptureMouse || io.WantCaptureKeyboard) {
-    //         return true;
-    //     }
-    //
-    //     return false;
+    //     callbacks.push_back(callback);
     // }
+
+    HKAPI b8 isInputLocked() const;
 
     // FIX: temp
     VkRenderPass uiRenderPass;
@@ -40,6 +38,17 @@ private:
 
 private:
     hk::vector<std::function<void()>> callbacks;
+
+    b8 lockedInput = false;
+
+    b8 viewportMode = false;
+    b8 created = false;
+    ImGuiID upper;
+    ImGuiID lower;
+    ImGuiID left;
+    ImGuiID right;
+    VkSampler viewportSampler_;
+    VkDescriptorSet viewportImage;
 };
 
 #endif // HK_GUI_H

@@ -4,6 +4,7 @@
 #include "core/Application.h"
 #include "platform/platform.h"
 #include "platform/PlatformArgs.h"
+#include "platform/Monitor.h"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                    LPSTR lpCmdLine, int nShowCmd)
@@ -21,6 +22,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     args.lpCmdLine = lpCmdLine;
     args.nShowCmd = nShowCmd;
 
+    hk::platform::getMonitors();
+
     Application *app = create_app();
 
     app->init();
@@ -35,5 +38,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
     return 0;
 }
+
 
 #endif // HK_WINMAIN_H

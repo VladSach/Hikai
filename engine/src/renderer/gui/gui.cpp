@@ -10,6 +10,10 @@
 
 #include "renderer/VulkanContext.h"
 
+#include "GuiLog.h"
+
+#include "platform/Monitor.h"
+
 int HK_ImGui_ImplWin32_CreateVkSurface(
     ImGuiViewport* viewport,
     ImU64 vk_instance,
@@ -24,9 +28,8 @@ int HK_ImGui_ImplWin32_CreateVkSurface(
     createInfo.hwnd = (HWND)viewport->PlatformHandle;
     createInfo.hinstance = GetModuleHandle(NULL);
 
-    VkResult result =
-        vkCreateWin32SurfaceKHR(instance, &createInfo,
-                                allocator, (VkSurfaceKHR*)out_vk_surface);
+    VkResult result = vkCreateWin32SurfaceKHR(instance, &createInfo, allocator,
+                                              (VkSurfaceKHR*)out_vk_surface);
     return result;
 }
 
@@ -35,8 +38,6 @@ void GUI::init(const Window *window)
     hk::VulkanContext &context = *hk::context();
 
     // create descriptor pool for IMGUI
-    // the size of the pool is very oversize,
-    // but it's copied from imgui demo itself.
     VkDescriptorPoolSize pool_sizes[] =
     {
         { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
@@ -103,6 +104,53 @@ void GUI::init(const Window *window)
     ImGui_ImplVulkan_CreateFontsTexture();
 
     // ImGui_ImplVulkan_DestroyFontsTexture();
+    addImGuiLog();
+}
+
+void GUI::setViewportMode(VkImageView view)
+{
+    viewportMode = true;
+
+    VkSamplerCreateInfo samplerInfo = {};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+    VkPhysicalDeviceProperties properties = {};
+    vkGetPhysicalDeviceProperties(hk::context()->physical(), &properties);
+
+    samplerInfo.anisotropyEnable = VK_TRUE;
+    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.mipLodBias = 0.0f;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 0.0f;
+
+    hk::VulkanContext &context = *hk::context();
+    vkCreateSampler(context.device(), &samplerInfo, nullptr, &viewportSampler_);
+
+    viewportImage = ImGui_ImplVulkan_AddTexture(
+        viewportSampler_,
+        view,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+}
+
+void GUI::setOverlayMode()
+{
+    viewportMode = false;
+    created = false;
+
+    ImGui::DockBuilderRemoveNode(upper);
+    ImGui::DockBuilderRemoveNode(lower);
+    ImGui::DockBuilderRemoveNode(left);
+    ImGui::DockBuilderRemoveNode(right);
 }
 
 void GUI::draw(VkCommandBuffer cmd)
@@ -111,53 +159,295 @@ void GUI::draw(VkCommandBuffer cmd)
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::ShowDemoWindow();
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("Options")) {
 
-    // VkSampler sampler;
-    // VkDevice device = hk::context()->device();
-    //
-    // VkSamplerCreateInfo samplerInfo = {};
-    // samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    // samplerInfo.magFilter = VK_FILTER_LINEAR;
-    // samplerInfo.minFilter = VK_FILTER_LINEAR;
-    // samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    // samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    // samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    //
-    // VkPhysicalDeviceProperties properties = {};
-    // vkGetPhysicalDeviceProperties(hk::context()->physical(), &properties);
-    //
-    // samplerInfo.anisotropyEnable = VK_TRUE;
-    // samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-    // samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    // samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    // samplerInfo.compareEnable = VK_FALSE;
-    // samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    // samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    // samplerInfo.mipLodBias = 0.0f;
-    // samplerInfo.minLod = 0.0f;
-    // samplerInfo.maxLod = 0.0f;
-    //
-    // vkCreateSampler(device, &samplerInfo, nullptr, &sampler);
-    //
-    // VkDescriptorSet m_Dset = ImGui_ImplVulkan_AddTexture(
-    //     sampler,
-    //     image,
-    //     VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    //
-    // ImGui::Begin("Viewport");
-    //
-    // ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-    // ImGui::Image(m_Dset, ImVec2{viewportPanelSize.x, viewportPanelSize.y});
-    //
-    // ImGui::End();
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
+    }
+
+    ImGuiID mainDockSpaceID;
+    if (viewportMode) {
+        mainDockSpaceID = ImGui::DockSpaceOverViewport();
+    }
+
+
+    if (viewportMode & !created) {
+        created = true;
+
+        ImGui::DockBuilderAddNode(mainDockSpaceID);
+
+        upper = mainDockSpaceID;
+        left  = ImGui::DockBuilderSplitNode(upper, ImGuiDir_Left, 0.25f, nullptr, &upper);
+        lower = ImGui::DockBuilderSplitNode(upper, ImGuiDir_Down, 0.25f, nullptr, &upper);
+        right = ImGui::DockBuilderSplitNode(upper, ImGuiDir_Right, 0.25f, nullptr, &upper);
+
+        ImGui::DockBuilderDockWindow("Viewport", upper);
+        ImGui::DockBuilderDockWindow("Log", lower);
+        ImGui::DockBuilderDockWindow("Scene", left);
+        ImGui::DockBuilderDockWindow("Inspector", right);
+    }
+
+    if (viewportMode) {
+        ImGui::Begin("Viewport");
+
+        ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+        ImGui::Image(viewportImage,
+                     ImVec2{viewportPanelSize.x, viewportPanelSize.y});
+
+        // lockedInput = !ImGui::IsWindowFocused();
+        lockedInput = !ImGui::IsWindowHovered();
+        ImGui::End();
+    }
+
+    drawLog();
+
+    if (viewportMode) { ImGui::SetNextWindowDockID(left); }
+    if (ImGui::Begin("Monitors Info")) {
+        hk::vector<hk::platform::MonitorInfo> infos = hk::platform::getMonitorInfos();
+
+        ImGui::Text("Monitors found: %i", infos.size());
+        for (auto &info : infos) {
+            ImGui::Separator();
+
+            ImGui::Text("Name: %s", info.name.c_str());
+            ImGui::Text("Resolution: %i x %i", info.width, info.height);
+            ImGui::Text("DPI: %1f", info.dpi);
+            ImGui::Text("Refresh rate: %i hz", info.hz);
+            ImGui::Text("Color depth: %i", info.depth);
+        }
+    } ImGui::End();
+
+
+    if (viewportMode) { ImGui::SetNextWindowDockID(left); }
+    if (ImGui::Begin("Vulkan")) {
+        if (ImGui::CollapsingHeader("Instance")) {
+            hk::VulkanContext::InstanceInfo &info = hk::context()->instanceInfo();
+            ImGui::Text("API Version: %s", hk::vkApiToString(info.apiVersion).c_str());
+
+            ImGui::Separator();
+
+            if (ImGui::TreeNode("Extensions")) {
+                for (u32 i = 0; i < info.extensions.size(); ++i) {
+                    auto &ext = info.extensions.at(i);
+
+                    ImGui::PushID(i);
+                    if (ImGui::Checkbox("", &ext.first)) {
+                        // hk::context()->deinit();
+                        // hk::context()->init();
+                    }
+                    ImGui::SameLine();
+
+                    if (ImGui::TreeNode(ext.second.extensionName)) {
+                        ImGui::Text("Ext Version: %d", ext.second.specVersion);
+
+                        ImGui::TreePop();
+                    }
+                    ImGui::PopID();
+                }
+                ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNode("Layers")) {
+                for (u32 i = 0; i < info.layers.size(); ++i) {
+                    auto &layer = info.layers.at(i);
+
+                    ImGui::PushID(i);
+                    ImGui::Checkbox("", &layer.first);
+                    ImGui::SameLine();
+
+                    if (ImGui::TreeNode(layer.second.layerName)) {
+                        ImGui::Text("Desc: %s", layer.second.description);
+                        ImGui::Text("Spec Version: %s",
+                                    hk::vkApiToString(layer.second.specVersion).c_str());
+                        ImGui::Text("Implementation Version: %d",
+                                    layer.second.implementationVersion);
+
+                        ImGui::TreePop();
+                    }
+                    ImGui::PopID();
+                }
+                ImGui::TreePop();
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Physical Device")) {
+            const auto &infos = hk::context()->physicalInfos();
+
+            for (u32 i = 0; i < infos.size(); ++i) {
+                auto &device = infos.at(i);
+                auto &properties = device.properties;
+                if (ImGui::TreeNode(properties.deviceName)) {
+                    ImGui::Text("Type: %s", hk::vkDeviceTypeToString(properties.deviceType).c_str());
+                    ImGui::Text("API Version: %s", hk::vkApiToString(properties.apiVersion).c_str());
+                    ImGui::Text("Driver Version: %s", hk::vkDeviceDriveToString(properties.driverVersion, properties.vendorID).c_str());
+                    ImGui::Text("Vendor: %s", hk::vkDeviceVendorToString(properties.vendorID).c_str());
+                    // ImGui::Text("Device ID: %d", device.deviceID);
+
+                    if (ImGui::TreeNode("Queue Families")) {
+                        ImGuiTableFlags flags = ImGuiTableFlags_RowBg;
+                        flags |= ImGuiTableFlags_BordersOuter;
+                        if (ImGui::BeginTable("Families", 6, flags)) {
+                            ImGui::TableSetupColumn("Index");
+                            ImGui::TableSetupColumn("Graphics");
+                            ImGui::TableSetupColumn("Compute");
+                            ImGui::TableSetupColumn("Transfer");
+                            ImGui::TableSetupColumn("Sparse");
+                            ImGui::TableSetupColumn("Protected");
+                            ImGui::TableHeadersRow();
+                            for (u32 j = 0; j < infos.at(i).families.size(); ++j) {
+                                auto &family = infos.at(i).families.at(j);
+                                ImGui::TableNextRow();
+                                ImGui::TableSetColumnIndex(0);
+                                ImGui::Text("%u", j);
+                                ImGui::TableSetColumnIndex(1);
+                                ImGui::Text("%c", (family.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? 'X' : ' ');
+                                ImGui::TableSetColumnIndex(2);
+                                ImGui::Text("%c", (family.queueFlags & VK_QUEUE_COMPUTE_BIT) ? 'X' : ' ');
+                                ImGui::TableSetColumnIndex(3);
+                                ImGui::Text("%c", (family.queueFlags & VK_QUEUE_TRANSFER_BIT) ? 'X' : ' ');
+                                ImGui::TableSetColumnIndex(4);
+                                ImGui::Text("%c", (family.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'X' : ' ');
+                                ImGui::TableSetColumnIndex(5);
+                                ImGui::Text("%c", (family.queueFlags & VK_QUEUE_PROTECTED_BIT) ? 'X' : ' ');
+                            }
+                            ImGui::EndTable();
+                        }
+                        ImGui::TreePop();
+                    }
+
+                    if (ImGui::TreeNode("Extensions")) {
+                        for (auto &ext : device.extensions) {
+                            if (ImGui::TreeNode(ext.extensionName)) {
+                                ImGui::Text("Spec Version: %d", ext.specVersion);
+
+                                ImGui::TreePop();
+                            }
+                        }
+                        ImGui::TreePop();
+                    }
+
+                    ImGui::TreePop();
+                }
+
+            }
+        }
+
+        if (ImGui::CollapsingHeader("Logical Device")) {
+            hk::VulkanContext::LogicalDeviceInfo info = hk::context()->deviceInfo();
+
+            if (ImGui::TreeNode("Chosen Queues")) {
+                ImGuiTableFlags flags = ImGuiTableFlags_RowBg;
+                flags |= ImGuiTableFlags_BordersOuter;
+
+                ImGui::Text("Graphics Family");
+
+                if (ImGui::BeginTable("Graphics Family", 6, flags)) {
+                    ImGui::TableSetupColumn("Index");
+                    ImGui::TableSetupColumn("Graphics");
+                    ImGui::TableSetupColumn("Compute");
+                    ImGui::TableSetupColumn("Transfer");
+                    ImGui::TableSetupColumn("Sparse");
+                    ImGui::TableSetupColumn("Protected");
+                    ImGui::TableHeadersRow();
+
+                    hk::QueueFamily &family = info.graphicsFamily;
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%u", family.index_);
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? 'X' : ' ');
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_COMPUTE_BIT) ? 'X' : ' ');
+                    ImGui::TableSetColumnIndex(3);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_TRANSFER_BIT) ? 'X' : ' ');
+                    ImGui::TableSetColumnIndex(4);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'X' : ' ');
+                    ImGui::TableSetColumnIndex(5);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_PROTECTED_BIT) ? 'X' : ' ');
+
+                    ImGui::EndTable();
+                }
+
+                ImGui::Text("Compute Family");
+
+                if (ImGui::BeginTable("Compute Family", 6, flags)) {
+                    ImGui::TableSetupColumn("Index");
+                    ImGui::TableSetupColumn("Graphics");
+                    ImGui::TableSetupColumn("Compute");
+                    ImGui::TableSetupColumn("Transfer");
+                    ImGui::TableSetupColumn("Sparse");
+                    ImGui::TableSetupColumn("Protected");
+                    ImGui::TableHeadersRow();
+
+                    hk::QueueFamily &family = info.computeFamily;
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%u", family.index_);
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? 'X' : ' ');
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_COMPUTE_BIT) ? 'X' : ' ');
+                    ImGui::TableSetColumnIndex(3);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_TRANSFER_BIT) ? 'X' : ' ');
+                    ImGui::TableSetColumnIndex(4);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'X' : ' ');
+                    ImGui::TableSetColumnIndex(5);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_PROTECTED_BIT) ? 'X' : ' ');
+
+                    ImGui::EndTable();
+                }
+
+                ImGui::Text("Transfer Family");
+
+                if (ImGui::BeginTable("Transfer Family", 6, flags)) {
+                    ImGui::TableSetupColumn("Index");
+                    ImGui::TableSetupColumn("Graphics");
+                    ImGui::TableSetupColumn("Compute");
+                    ImGui::TableSetupColumn("Transfer");
+                    ImGui::TableSetupColumn("Sparse");
+                    ImGui::TableSetupColumn("Protected");
+                    ImGui::TableHeadersRow();
+
+                    hk::QueueFamily &family = info.transferFamily;
+                    ImGui::TableNextRow();
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%u", family.index_);
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? 'X' : ' ');
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_COMPUTE_BIT) ? 'X' : ' ');
+                    ImGui::TableSetColumnIndex(3);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_TRANSFER_BIT) ? 'X' : ' ');
+                    ImGui::TableSetColumnIndex(4);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'X' : ' ');
+                    ImGui::TableSetColumnIndex(5);
+                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_PROTECTED_BIT) ? 'X' : ' ');
+
+                    ImGui::EndTable();
+                }
+
+                ImGui::TreePop();
+            }
+        }
+
+    } ImGui::End();
+
+    // ImGui::ShowDemoWindow();
 
     ImGui::Render();
 
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
-    ImGui::UpdatePlatformWindows();
-    ImGui::RenderPlatformWindowsDefault();
+    // ImGui::UpdatePlatformWindows();
+    // ImGui::RenderPlatformWindowsDefault();
+}
+
+b8 GUI::isInputLocked() const
+{
+    return lockedInput;
 }
 
 void GUI::createRenderPass()
@@ -167,12 +457,13 @@ void GUI::createRenderPass()
     VkAttachmentDescription colorAttachment = {};
     colorAttachment.format = VK_FORMAT_B8G8R8A8_UNORM;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    // colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    // colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    // colorAttachment.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     VkAttachmentReference colorAttachmentRef = {};
