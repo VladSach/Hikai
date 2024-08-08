@@ -3,6 +3,7 @@
 #include "platform/platform.h"
 #include "renderer/ShaderManager.h"
 #include "renderer/VertexLayout.h"
+#include "renderer/debug.h"
 
 #ifdef HKWINDOWS
 #include "vendor/vulkan/vulkan_win32.h"
@@ -65,6 +66,8 @@ void Renderer::init(const Window *window)
     );
     sceneDescriptorLayout = sceneDataDescriptorLayout->layout();
 
+    hk::debug::setName(sceneDescriptorLayout, "Frame Descriptor Layout");
+
     createSyncObjects();
 
     createDepthResources();
@@ -84,6 +87,7 @@ void Renderer::init(const Window *window)
     toggleUIMode();
 
     commandBuffer = context->graphics().createCommandBuffer();
+    hk::debug::setName(commandBuffer, "Frame Command Buffer");
 
     EventSystem::instance()->subscribe(hk::EVENT_WINDOW_RESIZE, resize, this);
 
@@ -117,6 +121,7 @@ void Renderer::init(const Window *window)
     samplerInfo.maxLod = 0.0f;
 
     vkCreateSampler(context->device(), &samplerInfo, nullptr, &sampler);
+    hk::debug::setName(sampler, "Frame Sampler");
 }
 
 void Renderer::deinit()
@@ -409,6 +414,7 @@ void Renderer::createRenderPass()
     err = vkCreateRenderPass(context->device(), &renderPassInfo,
                              nullptr, &sceneRenderPass);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Render Pass");
+    hk::debug::setName(sceneRenderPass, "Swapchain RenderPass");
 
     // FIX: temp
     VkAttachmentDescription offscreenColorAttachment = {};
@@ -477,6 +483,7 @@ void Renderer::createRenderPass()
     err = vkCreateRenderPass(context->device(), &offRenderPassInfo,
                              nullptr, &offscreenRenderPass);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Render Pass");
+    hk::debug::setName(offscreenRenderPass, "Offscreen RenderPass");
 }
 
 void Renderer::createGraphicsPipeline()
@@ -507,6 +514,9 @@ void Renderer::createGraphicsPipeline()
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+
+    hk::debug::setName(vertShaderModule, "Shader VisibleNormalsVS.hlsl");
+    hk::debug::setName(fragShaderModule, "Shader VisibleNormalsPS.hlsl");
 
     builder.setShader(ShaderType::Vertex, vertShaderModule);
     builder.setShader(ShaderType::Pixel, fragShaderModule);
@@ -542,6 +552,8 @@ void Renderer::createGraphicsPipeline()
     // pipeline = builder.build(device, sceneRenderPass);
     offscreenPipeline = builder.build(device, offscreenRenderPass);
 
+    hk::debug::setName(offscreenPipeline.handle(), "Offscreen Pipeline");
+
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
 }
@@ -572,6 +584,7 @@ void Renderer::createFramebuffers()
         err = vkCreateFramebuffer(context->device(), &framebufferInfo,
                                   nullptr, &framebuffers[i]);
         ALWAYS_ASSERT(!err, "Failed to create Vulkan Framebuffer");
+        // hk::debug::setName(framebuffers[i], "Swapchain Framebuffer #");
     }
 
     VkFramebufferCreateInfo uiFramebufferInfo = {};
@@ -592,6 +605,7 @@ void Renderer::createFramebuffers()
         err = vkCreateFramebuffer(context->device(), &uiFramebufferInfo,
                                   nullptr, &uiFrameBuffers[i]);
         ALWAYS_ASSERT(!err, "Failed to create Vulkan Framebuffer");
+        // hk::debug::setName(uiFrameBuffers[i], "UI Framebuffer #");
     }
 
     // FIX: temp
@@ -612,7 +626,9 @@ void Renderer::createFramebuffers()
         VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
     err = vkCreateImage(context->device(), &imageInfo, nullptr, &offscreenImage);
+    hk::debug::setName(offscreenImage, "Offscreen Image");
 
     VkMemoryRequirements memRequirements;
     vkGetImageMemoryRequirements(context->device(), offscreenImage, &memRequirements);
@@ -639,6 +655,8 @@ void Renderer::createFramebuffers()
 
     vkBindImageMemory(context->device(), offscreenImage, offscreenMemory, 0);
 
+    hk::debug::setName(offscreenMemory, "Offscreen Image Memory");
+
     VkImageViewCreateInfo viewInfo = {};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = offscreenImage;
@@ -651,6 +669,7 @@ void Renderer::createFramebuffers()
     viewInfo.subresourceRange.layerCount = 1;
 
     vkCreateImageView(context->device(), &viewInfo, nullptr, &offscreenImageView);
+    hk::debug::setName(offscreenImageView, "Offscreen Image View");
 
     VkImageLayout oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     VkImageLayout newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -698,6 +717,7 @@ void Renderer::createFramebuffers()
     err = vkCreateFramebuffer(context->device(), &offframe,
                               nullptr, &offscreenFrameBuffer);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Framebuffer");
+    hk::debug::setName(offscreenFrameBuffer, "Offscreen Framebuffer");
 }
 
 void Renderer::createSyncObjects()
@@ -710,9 +730,11 @@ void Renderer::createSyncObjects()
 
     err = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &acquireSemaphore);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Semaphore");
+    hk::debug::setName(acquireSemaphore, "Frame Acquire Semaphore");
 
     err = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &submitSemaphore);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Semaphore");
+    hk::debug::setName(submitSemaphore, "Frame Submit Semaphore");
 
     VkFenceCreateInfo fenceInfo = {};
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -720,6 +742,7 @@ void Renderer::createSyncObjects()
 
     err = vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Fence");
+    hk::debug::setName(inFlightFence, "Frame in flight Fence");
 }
 
 void Renderer::createDepthResources()

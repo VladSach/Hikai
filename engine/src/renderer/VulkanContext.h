@@ -67,6 +67,7 @@ public:
         hk::QueueFamily computeFamily;
         hk::QueueFamily transferFamily;
     };
+
 private:
     void getInstanceInfo();
     void getPhysicalDeviceInfo();
@@ -90,11 +91,6 @@ private:
     Queue graphics_;
     Queue compute_;
     Queue transfer_;
-
-    /* TODO: add debug functionality
-     * https://github.com/KhronosGroup/Vulkan-Samples/tree/main/
-     * samples/extensions/debug_utils */
-    VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
 };
 
 VulkanContext *context();

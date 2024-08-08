@@ -6,16 +6,12 @@
 #include "vendor/vulkan/vulkan_win32.h"
 #endif
 
+#include "renderer/debug.h"
+
 #include "utils/containers/hkvector.h"
 
 // TODO: change with hikai implementation
 #include <set>
-
-VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-    void *pUserData);
 
 namespace hk {
 
@@ -40,6 +36,17 @@ void VulkanContext::init()
     createPhysicalDevice();
 
     createLogicalDevice();
+
+    hk::debug::setName(instance_,  "Instance");
+    hk::debug::setName(device_,    "Logical Device");
+    hk::debug::setName(physical(), "Physical Device");
+    // for (const auto &info : physicalDevicesInfo_) {
+        // hk::debug::setName(info.device, info.properties.deviceName);
+    // }
+
+    hk::debug::setName(graphics_.handle(), "Graphics Queue");
+    hk::debug::setName(compute_.handle(),  "Compute Queue");
+    hk::debug::setName(transfer_.handle(), "Transfer Queue");
 }
 
 void VulkanContext::deinit()
@@ -51,13 +58,7 @@ void VulkanContext::deinit()
     if (device_)
         vkDestroyDevice(device_, nullptr);
 
-    if (instanceInfo_.isDebug) {
-        auto vkDestroyDebugUtilsMessengerEXT =
-            reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
-            vkGetInstanceProcAddr(instance_,
-                                  "vkDestroyDebugUtilsMessengerEXT"));
-        vkDestroyDebugUtilsMessengerEXT(instance_, debugMessenger, nullptr);
-    }
+    hk::debug::deinit(instance_);
 
     if (instance_)
         vkDestroyInstance(instance_, nullptr);
@@ -114,13 +115,8 @@ void VulkanContext::getInstanceInfo()
         instanceInfo_.layers.push_back({ false, layer });
     }
 
-#ifdef HKDEBUG
-    instanceInfo_.isDebug = true;
-#endif
-
     // TODO: make configurable?
     hk::vector<const char *> requiredExts = {
-        VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
         VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
         VK_KHR_SURFACE_EXTENSION_NAME,
 
@@ -128,6 +124,11 @@ void VulkanContext::getInstanceInfo()
         VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
 #endif
     };
+
+#ifdef HKDEBUG
+        instanceInfo_.isDebug = true;
+        requiredExts.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
 
     for (auto &ext : instanceInfo_.extensions) {
         for (const auto &required : requiredExts) {
@@ -226,34 +227,15 @@ void VulkanContext::createInstance()
     instanceInfo.ppEnabledLayerNames = layersOn.data();
     instanceInfo.enabledLayerCount = layersOn.size();
 
-    // TODO: move debug functions to separate system
-    VkDebugUtilsMessengerCreateInfoEXT debugInfo = {};
     if (instanceInfo_.isDebug) {
-        debugInfo.sType =
-            VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        debugInfo.messageSeverity =
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
-        debugInfo.messageType =
-            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
-        debugInfo.pfnUserCallback = debugCallback;
-
-        instanceInfo.pNext = &debugInfo;
+        instanceInfo.pNext = &hk::debug::info();
     }
 
     err = vkCreateInstance(&instanceInfo, nullptr, &instance_);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Instance");
 
     if (instanceInfo_.isDebug) {
-        auto vkCreateDebugUtilsMessengerEXT =
-            reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
-            vkGetInstanceProcAddr(instance_, "vkCreateDebugUtilsMessengerEXT"));
-
-        err = vkCreateDebugUtilsMessengerEXT(instance_, &debugInfo,
-                                             nullptr, &debugMessenger);
-        ALWAYS_ASSERT(!err, "Failed to create Vulkan Debug Messenger");
+        hk::debug::init(instance_);
     }
 }
 
@@ -333,6 +315,8 @@ void VulkanContext::createLogicalDevice()
     err = vkCreateDevice(physical(), &deviceInfo, 0, &device_);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Logical Device");
 
+    hk::debug::setDevice(device_);
+
     // Get queue handles
     graphics_.init(device_, deviceInfo_.graphicsFamily);
     compute_.init(device_, deviceInfo_.computeFamily);
@@ -341,34 +325,3 @@ void VulkanContext::createLogicalDevice()
 
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL
-debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-              VkDebugUtilsMessageTypeFlagsEXT messageType,
-              const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-              void *pUserData)
-{
-    (void)messageType;
-    (void)pUserData;
-
-    switch (messageSeverity) {
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT: {
-        LOG_WARN("Vulkan:", pCallbackData->pMessage);
-    } break;
-
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT: {
-        LOG_ERROR("Vulkan:", pCallbackData->pMessage);
-    } break;
-
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT: {
-        LOG_INFO("Vulkan:", pCallbackData->pMessage);
-    } break;
-
-    default:
-        // do nothing
-        break;
-    }
-
-    // HKBREAK;
-
-    return VK_FALSE;
-}

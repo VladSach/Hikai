@@ -16,6 +16,7 @@ public:
         TRANSFER_DST,
 
         SAMPLED,
+
         // COLOR_ATTACHMENT,
         DEPTH_STENCIL_ATTACHMENT,
 
