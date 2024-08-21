@@ -23,6 +23,8 @@ private:
     Window *window_ = nullptr;
 
     Camera camera_;
+
+    hk::xoshiro256ss rng;
 };
 
 #endif // HK_EDITOR_H

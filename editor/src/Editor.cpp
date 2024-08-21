@@ -30,6 +30,8 @@ void Editor::update(f32 dt)
     });
 
     time += dt;
+
+    LOG_INFO(rng());
 }
 
 void Editor::processInput(f32 dt)

@@ -11,8 +11,11 @@ public:
     void init();
 
 private:
-    void containersTests();
     void mathTests();
+
+    // Utils
+    void containersTests();
+    void numericsTests();
 };
 
 #endif // HK_TESTS_H

@@ -15,6 +15,8 @@
 #include "utils/Logger.h"
 #include "utils/containers/hkvector.h"
 #include "utils/containers/hkring_buffer.h"
+#include "utils/numerics/hkbit.h"
+#include "utils/numerics/hkrandom.h"
 
 #include "renderer/UBManager.h"
 #include "renderer/object/Camera.h"

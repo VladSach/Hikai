@@ -6,6 +6,7 @@ void Tests::init()
 {
     containersTests();
     mathTests();
+    numericsTests();
 
     RUN_ALL_TESTS();
 
@@ -231,5 +232,17 @@ void Tests::mathTests()
         });
 
         EXPECT_EQ(roundMat3f(rot, 4), expectedRot);
+    });
+}
+
+void Tests::numericsTests()
+{
+    DEFINE_TEST("Numerics", "Random", {
+        hk::xoshiro256ss rng;
+
+        for (u32 i = 0; i < 10; ++i) {
+            // TODO: How to even test random?
+            // EXPECT_EQ(rng(), 0ULL);
+        }
     });
 }
