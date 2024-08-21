@@ -35,6 +35,7 @@ private:
     void setStyle();
 
     void createRenderPass();
+    void createVulkanBackend();
 
 private:
     hk::vector<std::function<void()>> callbacks;

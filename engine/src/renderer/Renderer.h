@@ -52,14 +52,6 @@ private:
     hk::vector<VkFramebuffer> framebuffers;
     hk::Pipeline pipeline;
 
-    // FIX: temp
-    hk::Pipeline offscreenPipeline;
-    VkRenderPass offscreenRenderPass = VK_NULL_HANDLE;
-    VkFramebuffer offscreenFrameBuffer = VK_NULL_HANDLE;
-    VkImage offscreenImage;
-    VkImageView offscreenImageView;
-    VkDeviceMemory offscreenMemory = VK_NULL_HANDLE;
-
     GUI gui;
     VkRenderPass uiRenderPass = VK_NULL_HANDLE;
     hk::vector<VkFramebuffer> uiFrameBuffers;
@@ -68,6 +60,15 @@ private:
     VkSemaphore acquireSemaphore = VK_NULL_HANDLE;
     VkSemaphore submitSemaphore  = VK_NULL_HANDLE;
     VkFence inFlightFence        = VK_NULL_HANDLE;
+
+    // FIX: temp
+    hk::Pipeline offscreenPipeline;
+    VkRenderPass offscreenRenderPass = VK_NULL_HANDLE;
+    VkFramebuffer offscreenFrameBuffer = VK_NULL_HANDLE;
+    VkImage offscreenImage;
+    VkImageView offscreenImageView;
+    VkDeviceMemory offscreenMemory = VK_NULL_HANDLE;
+
 private:
     void createSurface();
     void createRenderPass();
@@ -75,6 +76,8 @@ private:
     void createFramebuffers();
     void createDepthResources();
     void createSyncObjects();
+
+    void createOffscreenRenderPass();
 };
 
 #endif // HK_RENDER_DEVICE_H

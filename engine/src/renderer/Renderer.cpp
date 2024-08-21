@@ -27,10 +27,43 @@ void Renderer::toggleUIMode()
 {
     viewport = !viewport;
 
+    vkDeviceWaitIdle(hk::context()->device());
+
     if (viewport) {
         gui.setViewportMode(offscreenImageView);
     } else {
         gui.setOverlayMode();
+    }
+
+    uiRenderPass = gui.uiRenderPass;
+
+    VkResult err;
+    const hk::vector<VkImageView> &views = swapchain.views();
+
+    for (auto framebuffer : uiFrameBuffers) {
+        vkDestroyFramebuffer(hk::context()->device(), framebuffer, nullptr);
+        framebuffer = nullptr;
+    }
+
+    VkFramebufferCreateInfo uiFramebufferInfo = {};
+    uiFramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    uiFramebufferInfo.renderPass = uiRenderPass;
+    uiFramebufferInfo.attachmentCount = 1;
+    uiFramebufferInfo.width = swapchain.extent().width;
+    uiFramebufferInfo.height = swapchain.extent().height;
+    uiFramebufferInfo.layers = 1;
+    uiFrameBuffers.resize(views.size());
+    for (u32 i = 0; i < views.size(); i++) {
+        VkImageView attachments[] = {
+            views[i],
+        };
+
+        uiFramebufferInfo.pAttachments = attachments;
+
+        err = vkCreateFramebuffer(context->device(), &uiFramebufferInfo,
+                                  nullptr, &uiFrameBuffers[i]);
+        ALWAYS_ASSERT(!err, "Failed to create Vulkan Framebuffer");
+        hk::debug::setName(uiFrameBuffers[i], "UI Framebuffer #" + std::to_string(i));
     }
 }
 
@@ -72,10 +105,6 @@ void Renderer::init(const Window *window)
 
     createDepthResources();
 
-    // FIX: temp
-    gui.init(window);
-    uiRenderPass = gui.uiRenderPass;
-
     createRenderPass();
 
     hk::ubo::init();
@@ -83,7 +112,11 @@ void Renderer::init(const Window *window)
     createGraphicsPipeline();
     createFramebuffers();
 
+    createOffscreenRenderPass();
+
+
     // FIX: temp
+    gui.init(window);
     toggleUIMode();
 
     commandBuffer = context->graphics().createCommandBuffer();
@@ -225,6 +258,8 @@ void Renderer::draw()
 
             model->bind(commandBuffer);
 
+            writer.updateSet(sceneDataDescriptor);
+
             vkCmdBindDescriptorSets(commandBuffer,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     pipeline.layout(), 0, 1,
@@ -298,8 +333,6 @@ void Renderer::draw()
     vkCmdBeginRenderPass(commandBuffer, &uiBeginInfo,
                          VK_SUBPASS_CONTENTS_INLINE);
     {
-        // vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-        //                   pipeline.handle());
         gui.draw(commandBuffer);
     }
     vkCmdEndRenderPass(commandBuffer);
@@ -415,75 +448,6 @@ void Renderer::createRenderPass()
                              nullptr, &sceneRenderPass);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Render Pass");
     hk::debug::setName(sceneRenderPass, "Swapchain RenderPass");
-
-    // FIX: temp
-    VkAttachmentDescription offscreenColorAttachment = {};
-    offscreenColorAttachment.format = VK_FORMAT_B8G8R8A8_UNORM;
-    offscreenColorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    offscreenColorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    offscreenColorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    offscreenColorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    offscreenColorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    offscreenColorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    offscreenColorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    VkAttachmentReference offscreenColorAttachmentRef = {};
-    offscreenColorAttachmentRef.attachment = 0;
-    offscreenColorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentDescription offscreenDepthAttachment = {};
-    offscreenDepthAttachment.format = depthImage.format();
-    offscreenDepthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    offscreenDepthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    offscreenDepthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    offscreenDepthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    offscreenDepthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    offscreenDepthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    offscreenDepthAttachment.finalLayout =
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference offscreenDepthAttachmentRef = {};
-    offscreenDepthAttachmentRef.attachment = 1;
-    offscreenDepthAttachmentRef.layout =
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription offscreenSubpass = {};
-    offscreenSubpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    offscreenSubpass.colorAttachmentCount = 1;
-    offscreenSubpass.pColorAttachments = &offscreenColorAttachmentRef;
-    offscreenSubpass.pDepthStencilAttachment = &offscreenDepthAttachmentRef;
-
-    VkAttachmentDescription offAttachments[] = {
-        offscreenColorAttachment, offscreenDepthAttachment
-    };
-
-    VkSubpassDependency offDependency = {};
-    offDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    offDependency.dstSubpass = 0;
-    offDependency.srcStageMask =
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    offDependency.dstStageMask =
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    offDependency.dstAccessMask =
-        VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-        VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-    VkRenderPassCreateInfo offRenderPassInfo = {};
-    offRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    offRenderPassInfo.attachmentCount = 2;
-    offRenderPassInfo.pAttachments = offAttachments;
-    offRenderPassInfo.subpassCount = 1;
-    offRenderPassInfo.pSubpasses = &offscreenSubpass;
-    offRenderPassInfo.dependencyCount = 1;
-    offRenderPassInfo.pDependencies = &offDependency;
-
-    err = vkCreateRenderPass(context->device(), &offRenderPassInfo,
-                             nullptr, &offscreenRenderPass);
-    ALWAYS_ASSERT(!err, "Failed to create Vulkan Render Pass");
-    hk::debug::setName(offscreenRenderPass, "Offscreen RenderPass");
 }
 
 void Renderer::createGraphicsPipeline()
@@ -549,10 +513,8 @@ void Renderer::createGraphicsPipeline()
     builder.setDepthStencil();
     builder.setRenderInfo(swapchain.format(), depthImage.format());
 
-    // pipeline = builder.build(device, sceneRenderPass);
-    offscreenPipeline = builder.build(device, offscreenRenderPass);
-
-    hk::debug::setName(offscreenPipeline.handle(), "Offscreen Pipeline");
+    pipeline = builder.build(device, sceneRenderPass);
+    hk::debug::setName(pipeline.handle(), "Scene Pipeline");
 
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
@@ -584,29 +546,189 @@ void Renderer::createFramebuffers()
         err = vkCreateFramebuffer(context->device(), &framebufferInfo,
                                   nullptr, &framebuffers[i]);
         ALWAYS_ASSERT(!err, "Failed to create Vulkan Framebuffer");
-        // hk::debug::setName(framebuffers[i], "Swapchain Framebuffer #");
+        hk::debug::setName(framebuffers[i], "Swapchain Framebuffer #" + std::to_string(i));
     }
+}
 
-    VkFramebufferCreateInfo uiFramebufferInfo = {};
-    uiFramebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    uiFramebufferInfo.renderPass = uiRenderPass;
-    uiFramebufferInfo.attachmentCount = 1;
-    uiFramebufferInfo.width = swapchain.extent().width;
-    uiFramebufferInfo.height = swapchain.extent().height;
-    uiFramebufferInfo.layers = 1;
-    uiFrameBuffers.resize(views.size());
-    for (u32 i = 0; i < views.size(); i++) {
-        VkImageView attachments[] = {
-            views[i],
-        };
+void Renderer::createSyncObjects()
+{
+    VkResult err;
+    VkDevice device = context->device();
 
-        uiFramebufferInfo.pAttachments = attachments;
+    VkSemaphoreCreateInfo semaphoreInfo = {};
+    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-        err = vkCreateFramebuffer(context->device(), &uiFramebufferInfo,
-                                  nullptr, &uiFrameBuffers[i]);
-        ALWAYS_ASSERT(!err, "Failed to create Vulkan Framebuffer");
-        // hk::debug::setName(uiFrameBuffers[i], "UI Framebuffer #");
-    }
+    err = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &acquireSemaphore);
+    ALWAYS_ASSERT(!err, "Failed to create Vulkan Semaphore");
+    hk::debug::setName(acquireSemaphore, "Frame Acquire Semaphore");
+
+    err = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &submitSemaphore);
+    ALWAYS_ASSERT(!err, "Failed to create Vulkan Semaphore");
+    hk::debug::setName(submitSemaphore, "Frame Submit Semaphore");
+
+    VkFenceCreateInfo fenceInfo = {};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    err = vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence);
+    ALWAYS_ASSERT(!err, "Failed to create Vulkan Fence");
+    hk::debug::setName(inFlightFence, "Frame in flight Fence");
+}
+
+void Renderer::createDepthResources()
+{
+    depthImage.init({
+        hk::Image::Usage::DEPTH_STENCIL_ATTACHMENT,
+        VK_FORMAT_D32_SFLOAT,
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_ASPECT_DEPTH_BIT,
+        swapchain.extent().width, swapchain.extent().height, 1,
+    });
+}
+
+void Renderer::createOffscreenRenderPass()
+{
+    VkResult err;
+
+    // Creating offscreen vulkan renderpass
+    VkAttachmentDescription offscreenColorAttachment = {};
+    offscreenColorAttachment.format = VK_FORMAT_B8G8R8A8_UNORM;
+    offscreenColorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    offscreenColorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    offscreenColorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    offscreenColorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    offscreenColorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    offscreenColorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    offscreenColorAttachment.finalLayout =
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkAttachmentReference offscreenColorAttachmentRef = {};
+    offscreenColorAttachmentRef.attachment = 0;
+    offscreenColorAttachmentRef.layout =
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentDescription offscreenDepthAttachment = {};
+    offscreenDepthAttachment.format = depthImage.format();
+    offscreenDepthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    offscreenDepthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    offscreenDepthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    offscreenDepthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    offscreenDepthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    offscreenDepthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    offscreenDepthAttachment.finalLayout =
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference offscreenDepthAttachmentRef = {};
+    offscreenDepthAttachmentRef.attachment = 1;
+    offscreenDepthAttachmentRef.layout =
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription offscreenSubpass = {};
+    offscreenSubpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    offscreenSubpass.colorAttachmentCount = 1;
+    offscreenSubpass.pColorAttachments = &offscreenColorAttachmentRef;
+    offscreenSubpass.pDepthStencilAttachment = &offscreenDepthAttachmentRef;
+
+    VkAttachmentDescription offAttachments[] = {
+        offscreenColorAttachment, offscreenDepthAttachment
+    };
+
+    VkSubpassDependency offDependency = {};
+    offDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    offDependency.dstSubpass = 0;
+    offDependency.srcStageMask =
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    offDependency.dstStageMask =
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    offDependency.dstAccessMask =
+        VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+        VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+    VkRenderPassCreateInfo offRenderPassInfo = {};
+    offRenderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    offRenderPassInfo.attachmentCount = 2;
+    offRenderPassInfo.pAttachments = offAttachments;
+    offRenderPassInfo.subpassCount = 1;
+    offRenderPassInfo.pSubpasses = &offscreenSubpass;
+    offRenderPassInfo.dependencyCount = 1;
+    offRenderPassInfo.pDependencies = &offDependency;
+
+    err = vkCreateRenderPass(context->device(), &offRenderPassInfo,
+                             nullptr, &offscreenRenderPass);
+    ALWAYS_ASSERT(!err, "Failed to create Vulkan Render Pass");
+    hk::debug::setName(offscreenRenderPass, "Offscreen RenderPass");
+
+    // Create vulkan pipeline
+    VkDevice device = context->device();
+
+    hk::PipelineBuilder builder;
+
+    const std::string path = "assets\\shaders\\";
+
+    hk::dxc::ShaderDesc desc;
+    desc.path = path + "VisibleNormalsVS.hlsl";
+    desc.entry = "main";
+    desc.type = ShaderType::Vertex;
+    desc.model = ShaderModel::SM_6_0;
+    desc.ir = ShaderIR::SPIRV;
+#ifdef HKDEBUG
+    desc.debug = true;
+#else
+    desc.debug = false;
+#endif
+
+    auto vertShaderCode = hk::dxc::loadShader(desc);
+
+    desc.path = path + "VisibleNormalsPS.hlsl";
+    desc.type = ShaderType::Pixel;
+    auto fragShaderCode = hk::dxc::loadShader(desc);
+
+    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+
+    hk::debug::setName(vertShaderModule, "Shader VisibleNormalsVS.hlsl");
+    hk::debug::setName(fragShaderModule, "Shader VisibleNormalsPS.hlsl");
+
+    builder.setShader(ShaderType::Vertex, vertShaderModule);
+    builder.setShader(ShaderType::Pixel, fragShaderModule);
+
+    hk::vector<hk::Format> layout = {
+        // position
+        hk::Format::SIGNED | hk::Format::FLOAT |
+        hk::Format::VEC3 | hk::Format::B32,
+
+        // normal
+        hk::Format::SIGNED | hk::Format::FLOAT |
+        hk::Format::VEC3 | hk::Format::B32,
+
+        // texture coordinates
+        hk::Format::SIGNED | hk::Format::FLOAT |
+        hk::Format::VEC2 | hk::Format::B32,
+    };
+    builder.setVertexLayout(sizeof(Vertex), layout);
+
+    builder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+    builder.setRasterizer(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT);
+    builder.setMultisampling();
+    builder.setColorBlend();
+
+    hk::vector<VkDescriptorSetLayout> descriptorSetsLayouts = {
+        sceneDescriptorLayout,
+    };
+    builder.setLayout(descriptorSetsLayouts);
+
+    builder.setDepthStencil();
+    builder.setRenderInfo(swapchain.format(), depthImage.format());
+
+    offscreenPipeline = builder.build(device, offscreenRenderPass);
+    hk::debug::setName(offscreenPipeline.handle(), "Offscreen Pipeline");
+
+    vkDestroyShaderModule(device, fragShaderModule, nullptr);
+    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+
 
     // FIX: temp
     VkImageCreateInfo imageInfo = {};
@@ -670,6 +792,7 @@ void Renderer::createFramebuffers()
 
     vkCreateImageView(context->device(), &viewInfo, nullptr, &offscreenImageView);
     hk::debug::setName(offscreenImageView, "Offscreen Image View");
+    if (viewport) { gui.setViewportMode(offscreenImageView); }
 
     VkImageLayout oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     VkImageLayout newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -686,19 +809,19 @@ void Renderer::createFramebuffers()
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
 
-    // VkPipelineStageFlags sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    // VkPipelineStageFlags destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    //
-    // hk::context()->submitImmCmd([&](VkCommandBuffer cmd) {
-    //     vkCmdPipelineBarrier(
-    //         cmd,
-    //         sourceStage, destinationStage,
-    //         0,
-    //         0, nullptr,
-    //         0, nullptr,
-    //         1, &barrier
-    //     );
-    // });
+    VkPipelineStageFlags sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkPipelineStageFlags destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+    hk::context()->submitImmCmd([&](VkCommandBuffer cmd) {
+        vkCmdPipelineBarrier(
+            cmd,
+            sourceStage, destinationStage,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
+        );
+    });
 
     VkFramebufferCreateInfo offframe = {};
     offframe.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -718,42 +841,6 @@ void Renderer::createFramebuffers()
                               nullptr, &offscreenFrameBuffer);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Framebuffer");
     hk::debug::setName(offscreenFrameBuffer, "Offscreen Framebuffer");
-}
-
-void Renderer::createSyncObjects()
-{
-    VkResult err;
-    VkDevice device = context->device();
-
-    VkSemaphoreCreateInfo semaphoreInfo = {};
-    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-    err = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &acquireSemaphore);
-    ALWAYS_ASSERT(!err, "Failed to create Vulkan Semaphore");
-    hk::debug::setName(acquireSemaphore, "Frame Acquire Semaphore");
-
-    err = vkCreateSemaphore(device, &semaphoreInfo, nullptr, &submitSemaphore);
-    ALWAYS_ASSERT(!err, "Failed to create Vulkan Semaphore");
-    hk::debug::setName(submitSemaphore, "Frame Submit Semaphore");
-
-    VkFenceCreateInfo fenceInfo = {};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-    err = vkCreateFence(device, &fenceInfo, nullptr, &inFlightFence);
-    ALWAYS_ASSERT(!err, "Failed to create Vulkan Fence");
-    hk::debug::setName(inFlightFence, "Frame in flight Fence");
-}
-
-void Renderer::createDepthResources()
-{
-    depthImage.init({
-        hk::Image::Usage::DEPTH_STENCIL_ATTACHMENT,
-        VK_FORMAT_D32_SFLOAT,
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_ASPECT_DEPTH_BIT,
-        swapchain.extent().width, swapchain.extent().height, 1,
-    });
 }
 
 VkShaderModule Renderer::createShaderModule(const hk::vector<u32> &code)
@@ -778,6 +865,34 @@ void Renderer::resize(hk::EventContext size, void *listener)
     Renderer *renderer = reinterpret_cast<Renderer*>(listener);
 
     renderer->swapchain.init(renderer->surface, {size.u32[0], size.u32[1]});
+
+    renderer->depthImage.deinit();
     renderer->createDepthResources();
+
+    if (renderer->viewport) {
+        vkDestroyImageView(hk::context()->device(), renderer->offscreenImageView, nullptr);
+        vkDestroyImage(hk::context()->device(), renderer->offscreenImage, nullptr);
+        vkFreeMemory(hk::context()->device(), renderer->offscreenMemory, nullptr);
+        vkDestroyFramebuffer(hk::context()->device(), renderer->offscreenFrameBuffer, nullptr);
+        renderer->offscreenFrameBuffer = nullptr;
+
+        renderer->offscreenPipeline.deinit();
+        vkDestroyRenderPass(hk::context()->device(), renderer->offscreenRenderPass, nullptr);
+
+        renderer->createOffscreenRenderPass();
+    }
+    // if (renderer->offscreenImageView)
+    //     vkDestroyImageView(hk::context()->device(),
+    //                        renderer->offscreenImageView, nullptr);
+    //
+    // if (renderer->offscreenImage)
+    //     vkDestroyImage(hk::context()->device(), renderer->offscreenImage, nullptr);
+    // if (renderer->offscreenMemory)
+    //     vkFreeMemory(hk::context()->device(), renderer->offscreenMemory, nullptr);
+
+    for (auto framebuffer : renderer->framebuffers) {
+        vkDestroyFramebuffer(hk::context()->device(), framebuffer, nullptr);
+        framebuffer = nullptr;
+    }
     renderer->createFramebuffers();
 }

@@ -35,34 +35,6 @@ int HK_ImGui_ImplWin32_CreateVkSurface(
 
 void GUI::init(const Window *window)
 {
-    hk::VulkanContext &context = *hk::context();
-
-    // create descriptor pool for IMGUI
-    VkDescriptorPoolSize pool_sizes[] =
-    {
-        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-    };
-
-    VkDescriptorPoolCreateInfo pool_info = {};
-    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    pool_info.maxSets = 1000;
-    pool_info.poolSizeCount = sizeof(pool_sizes)/sizeof(pool_sizes[0]);
-    pool_info.pPoolSizes = pool_sizes;
-
-    VkDescriptorPool imguiPool;
-    vkCreateDescriptorPool(context.device(), &pool_info, nullptr, &imguiPool);
-
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -77,39 +49,27 @@ void GUI::init(const Window *window)
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(reinterpret_cast<const WinWindow*>(window)->getHWnd());
+    createVulkanBackend();
 
-    ImGui_ImplVulkan_InitInfo init_info = {};
-    init_info.Instance = context.instance();
-    init_info.PhysicalDevice = context.physical();
-    init_info.Device = context.device();
-    init_info.Queue = context.graphics().handle();
-    init_info.DescriptorPool = imguiPool;
-    init_info.Subpass = 0;
-    init_info.MinImageCount = 2;
-    init_info.ImageCount = 2;
-    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-
-    createRenderPass();
-    init_info.RenderPass = uiRenderPass;
-
-    VkFormat format = VK_FORMAT_B8G8R8A8_UNORM;
-    init_info.PipelineRenderingCreateInfo = {};
-    init_info.PipelineRenderingCreateInfo.sType =
-        VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-    init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-    init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &format;
-
-    ImGui_ImplVulkan_Init(&init_info);
-
-    ImGui_ImplVulkan_CreateFontsTexture();
-
-    // ImGui_ImplVulkan_DestroyFontsTexture();
     addImGuiLog();
+}
+
+void GUI::deinit()
+{
+    vkDestroyRenderPass(hk::context()->device(), uiRenderPass, nullptr);
+    uiRenderPass = nullptr;
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+
+    removeImGuiLog();
 }
 
 void GUI::setViewportMode(VkImageView view)
 {
     viewportMode = true;
+
+    createVulkanBackend();
 
     VkSamplerCreateInfo samplerInfo = {};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -146,11 +106,7 @@ void GUI::setOverlayMode()
 {
     viewportMode = false;
     created = false;
-
-    ImGui::DockBuilderRemoveNode(upper);
-    ImGui::DockBuilderRemoveNode(lower);
-    ImGui::DockBuilderRemoveNode(left);
-    ImGui::DockBuilderRemoveNode(right);
+    createVulkanBackend();
 }
 
 void GUI::draw(VkCommandBuffer cmd)
@@ -159,17 +115,16 @@ void GUI::draw(VkCommandBuffer cmd)
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("Options")) {
-
-            ImGui::EndMenu();
-        }
-
-        ImGui::EndMainMenuBar();
-    }
-
     ImGuiID mainDockSpaceID;
     if (viewportMode) {
+        if (ImGui::BeginMainMenuBar()) {
+            if (ImGui::BeginMenu("Options")) {
+
+                ImGui::EndMenu();
+            }
+
+            ImGui::EndMainMenuBar();
+        }
         mainDockSpaceID = ImGui::DockSpaceOverViewport();
     }
 
@@ -457,13 +412,15 @@ void GUI::createRenderPass()
     VkAttachmentDescription colorAttachment = {};
     colorAttachment.format = VK_FORMAT_B8G8R8A8_UNORM;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    // colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.loadOp = viewportMode ?
+        VK_ATTACHMENT_LOAD_OP_CLEAR :
+        VK_ATTACHMENT_LOAD_OP_LOAD;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    // colorAttachment.initialLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.initialLayout = viewportMode ?
+        VK_IMAGE_LAYOUT_UNDEFINED :
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     VkAttachmentReference colorAttachmentRef = {};
@@ -505,4 +462,67 @@ void GUI::createRenderPass()
     err = vkCreateRenderPass(hk::context()->device(), &renderPassInfo,
                              nullptr, &uiRenderPass);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Render Pass");
+}
+
+void GUI::createVulkanBackend()
+{
+    hk::VulkanContext &context = *hk::context();
+
+    // create descriptor pool for IMGUI
+    VkDescriptorPoolSize pool_sizes[] =
+    {
+        { VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+    };
+
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 1000;
+    pool_info.poolSizeCount = sizeof(pool_sizes)/sizeof(pool_sizes[0]);
+    pool_info.pPoolSizes = pool_sizes;
+
+    VkDescriptorPool imguiPool;
+    vkCreateDescriptorPool(context.device(), &pool_info, nullptr, &imguiPool);
+
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.Instance = context.instance();
+    init_info.PhysicalDevice = context.physical();
+    init_info.Device = context.device();
+    init_info.Queue = context.graphics().handle();
+    init_info.DescriptorPool = imguiPool;
+    init_info.Subpass = 0;
+    init_info.MinImageCount = 2;
+    init_info.ImageCount = 2;
+    init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+
+    if (uiRenderPass) {
+        vkDestroyRenderPass(hk::context()->device(), uiRenderPass, nullptr);
+        uiRenderPass = nullptr;
+        ImGui_ImplVulkan_Shutdown();
+    }
+    createRenderPass();
+    init_info.RenderPass = uiRenderPass;
+
+    VkFormat format = VK_FORMAT_B8G8R8A8_UNORM;
+    init_info.PipelineRenderingCreateInfo = {};
+    init_info.PipelineRenderingCreateInfo.sType =
+        VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+    init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &format;
+
+    ImGui_ImplVulkan_Init(&init_info);
+
+    ImGui_ImplVulkan_CreateFontsTexture();
+
+    // ImGui_ImplVulkan_DestroyFontsTexture();
 }

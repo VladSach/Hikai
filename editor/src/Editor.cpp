@@ -34,7 +34,7 @@ void Editor::update(f32 dt)
 
 void Editor::processInput(f32 dt)
 {
-    if (hk::input::isKeyDown(hk::input::Button::KEY_F11))
+    if (hk::input::isKeyPressed(hk::input::Button::KEY_F11))
         renderer->toggleUIMode();
 
     // FIX: temp
