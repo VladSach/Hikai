@@ -16,6 +16,7 @@ private:
     // Utils
     void containersTests();
     void numericsTests();
+    void stringsTests();
 };
 
 #endif // HK_TESTS_H

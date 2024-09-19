@@ -17,6 +17,7 @@
 #include "utils/containers/hkring_buffer.h"
 #include "utils/numerics/hkbit.h"
 #include "utils/numerics/hkrandom.h"
+#include "utils/strings/hklocale.h"
 
 #include "renderer/UBManager.h"
 #include "renderer/object/Camera.h"

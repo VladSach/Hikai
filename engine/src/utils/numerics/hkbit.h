@@ -21,4 +21,4 @@ constexpr u32 popcount(T v)
 
 }
 
-#endif
+#endif // HK_BIT_H

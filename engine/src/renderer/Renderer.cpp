@@ -23,6 +23,10 @@ static hk::Model *model;
 static hk::Image *texture;
 static VkSampler sampler;
 
+#include "vendor/vulkan/vk_enum_string_helper.h"
+
+#include "utils/Filewatch.h"
+
 void Renderer::toggleUIMode()
 {
     viewport = !viewport;
@@ -65,6 +69,147 @@ void Renderer::toggleUIMode()
         ALWAYS_ASSERT(!err, "Failed to create Vulkan Framebuffer");
         hk::debug::setName(uiFrameBuffers[i], "UI Framebuffer #" + std::to_string(i));
     }
+}
+
+void Renderer::addUIInfo()
+{
+    gui.pushCallback([this](){
+        if (ImGui::Begin("Vulkan")) {
+        if (ImGui::CollapsingHeader("Swapchain")) {
+            if (ImGui::TreeNode("Surface Formats")) {
+                for (u32 i = 0; i < swapchain.surfaceFormats.size(); ++i) {
+                    auto &format = swapchain.surfaceFormats.at(i);
+
+                    ImGui::PushID(i);
+
+                    b8 isFormat = false;
+                    if (swapchain.surfaceFormat.format == format.format &&
+                        swapchain.surfaceFormat.colorSpace == format.colorSpace)
+                    {
+                        isFormat = true;
+                    }
+
+                    if (ImGui::Checkbox("", &isFormat)) {
+                        swapchain.setSurfaceFormat(format);
+                        resized = true;
+                    }
+
+                    ImGui::SameLine();
+
+                    if (ImGui::TreeNode(string_VkFormat(format.format))) {
+                        ImGui::Text("Colorspace: %s",
+                            string_VkColorSpaceKHR(format.colorSpace));
+
+                        ImGui::TreePop();
+                    }
+                    ImGui::PopID();
+                }
+
+                ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNode("Present Modes")) {
+                for (u32 i = 0; i < swapchain.presentModes.size(); ++i) {
+                    auto &mode = swapchain.presentModes.at(i);
+
+                    ImGui::PushID(i);
+
+                    b8 isMode = false;
+                    if (swapchain.presentMode == mode) { isMode = true; }
+
+                    if (ImGui::Checkbox("", &isMode)) {
+                        swapchain.setPresentMode(mode);
+                        resized = true;
+                    }
+
+                    ImGui::SameLine();
+
+                    ImGui::Text(string_VkPresentModeKHR(mode));
+
+                    ImGui::PopID();
+                }
+                ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNode("Surface Capabilities")) {
+                const auto &caps = swapchain.surfaceCaps;
+                ImGui::Text("minImageCount: %d", caps.minImageCount);
+                ImGui::Text("maxImageCount: %d", caps.maxImageCount);
+
+                ImGui::Spacing();
+
+                ImGui::Text("currentExtent:  %d x %d",
+                            caps.currentExtent.width, caps.currentExtent.height);
+                ImGui::Text("minImageExtent: %d x %d",
+                            caps.minImageExtent.width, caps.minImageExtent.height);
+                ImGui::Text("maxImageExtent: %d x %d",
+                            caps.maxImageExtent.width, caps.maxImageExtent.height);
+
+                ImGui::Spacing();
+
+                ImGui::Text("maxImageArrayLayers: %d", caps.maxImageArrayLayers);
+
+                ImGui::Spacing();
+
+                // TODO: supportedTransforms and currentTransform;
+
+                ImGui::Spacing();
+
+                if (ImGui::TreeNode("supportedCompositeAlpha")) {
+                    ImGuiTableFlags flags = ImGuiTableFlags_RowBg |
+                                            ImGuiTableFlags_Resizable |
+                                            ImGuiTableFlags_BordersOuter;
+                    if (ImGui::BeginTable("Supported Composite Alpha", 2, flags)) {
+                        // ImGui::TableSetupColumn("Bit");
+                        // ImGui::TableSetupColumn("Supported");
+                        // ImGui::TableHeadersRow();
+
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        ImGui::Text("VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR");
+                        ImGui::TableNextColumn();
+                        ImGui::Text("%c", (caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR) ? 'X' : ' ');
+
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        ImGui::Text("VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR");
+                        ImGui::TableNextColumn();
+                        ImGui::Text("%c", (caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR) ? 'X' : ' ');
+
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        ImGui::Text("VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR");
+                        ImGui::TableNextColumn();
+                        ImGui::Text("%c", (caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR) ? 'X' : ' ');
+
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        ImGui::Text("VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR");
+                        ImGui::TableNextColumn();
+                        ImGui::Text("%c", (caps.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR) ? 'X' : ' ');
+
+                        ImGui::EndTable();
+                    }
+
+                    ImGui::TreePop();
+                }
+
+                ImGui::Spacing();
+
+                // TODO: supportedUsageFlags
+
+                ImGui::TreePop();
+            }
+        }
+        } ImGui::End();
+
+        // if (ImGui::CollapsingHeader("Render Passes")) {
+        //     if (ImGui::TreeNode("Offscreen Render Pass")) {
+        //
+        //         ImGui::TreePop();
+        //     }
+        // } ImGui::End();
+    });
 }
 
 void Renderer::init(const Window *window)
@@ -114,7 +259,6 @@ void Renderer::init(const Window *window)
 
     createOffscreenRenderPass();
 
-
     // FIX: temp
     gui.init(window);
     toggleUIMode();
@@ -125,11 +269,12 @@ void Renderer::init(const Window *window)
     EventSystem::instance()->subscribe(hk::EVENT_WINDOW_RESIZE, resize, this);
 
     // FIX: temp
-    model = hk::loader::loadModel("assets/models/smooth_vase.obj");
+    model = hk::loader::loadModel("assets/models/viking_room.obj");
     model->populateBuffers();
 
-    texture = hk::loader::loadImage(
-        "assets/textures/prototype/PNG/Dark/texture_01.png");
+    // texture = hk::loader::loadImage(
+    //     "assets/textures/prototype/PNG/Dark/texture_01.png");
+    texture = hk::loader::loadImage("assets/textures/viking_room.png");
 
     VkSamplerCreateInfo samplerInfo = {};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -155,6 +300,25 @@ void Renderer::init(const Window *window)
 
     vkCreateSampler(context->device(), &samplerInfo, nullptr, &sampler);
     hk::debug::setName(sampler, "Frame Sampler");
+
+    hk::filewatch::watch("assets/shaders",
+        [this](const std::string &path, const hk::filewatch::State state)
+        {
+            resized = true;
+
+            // vkDeviceWaitIdle(context->device());
+            // vkDestroyImageView(hk::context()->device(), offscreenImageView, nullptr);
+            // vkDestroyImage(hk::context()->device(), offscreenImage, nullptr);
+            // vkFreeMemory(hk::context()->device(), offscreenMemory, nullptr);
+            // vkDestroyFramebuffer(hk::context()->device(), offscreenFrameBuffer, nullptr);
+            // offscreenFrameBuffer = nullptr;
+            //
+            // offscreenPipeline.deinit();
+            // vkDestroyRenderPass(hk::context()->device(), offscreenRenderPass, nullptr);
+            //
+            // createOffscreenRenderPass();
+        }
+    );
 }
 
 void Renderer::deinit()
@@ -175,7 +339,7 @@ void Renderer::deinit()
     pipeline.deinit();
 
     vkDestroyRenderPass(device, uiRenderPass, nullptr);
-    // vkDestroyRenderPass(device, sceneRenderPass, nullptr);
+    vkDestroyRenderPass(device, sceneRenderPass, nullptr);
 
     hk::ubo::deinit();
 
@@ -194,6 +358,8 @@ void Renderer::draw()
 {
     VkResult err;
 
+    addUIInfo();
+
     vkWaitForFences(context->device(), 1, &inFlightFence, VK_TRUE, UINT64_MAX);
 
     frameDescriptors.clear();
@@ -209,8 +375,16 @@ void Renderer::draw()
     writer.writeImage(1, texture->view(), sampler, texture->layout(),
                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-    u32 imageIndex;
+    u32 imageIndex = 0;
     err = swapchain.acquireNextImage(acquireSemaphore, imageIndex);
+
+    if (err == VK_ERROR_OUT_OF_DATE_KHR) {
+        resize({static_cast<u16>(window_->getWidth()),
+                static_cast<u16>(window_->getHeight())}, this);
+        return;
+    } else if (err != VK_SUCCESS && err != VK_SUBOPTIMAL_KHR) {
+        LOG_ERROR("Failed to acquire Swapchain image");
+    }
 
     vkResetFences(context->device(), 1, &inFlightFence);
     vkResetCommandBuffer(commandBuffer, 0);
@@ -358,6 +532,12 @@ void Renderer::draw()
     ALWAYS_ASSERT(!err, "Failed to submit Vulkan draw Command Buffer");
 
     err = swapchain.present(imageIndex, submitSemaphore);
+    if (err == VK_ERROR_OUT_OF_DATE_KHR || resized) {
+        resize({static_cast<u16>(window_->getWidth()),
+                static_cast<u16>(window_->getHeight())}, this);
+    } else if (err != VK_SUCCESS && err != VK_SUBOPTIMAL_KHR) {
+        LOG_ERROR("Failed to present Swapchain image");
+    }
 }
 
 void Renderer::createSurface()
@@ -470,14 +650,16 @@ void Renderer::createGraphicsPipeline()
     desc.debug = false;
 #endif
 
-    auto vertShaderCode = hk::dxc::loadShader(desc);
+    hk::vector<u32> vertShaderCode = hk::dxc::loadShader(desc);
+    if (vertShaderCode.size() > 0) vertexCode = vertShaderCode;
 
     desc.path = path + "VisibleNormalsPS.hlsl";
     desc.type = ShaderType::Pixel;
-    auto fragShaderCode = hk::dxc::loadShader(desc);
+    hk::vector<u32> fragShaderCode = hk::dxc::loadShader(desc);
+    if (fragShaderCode.size() > 0) pixelCode = fragShaderCode;
 
-    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+    VkShaderModule vertShaderModule = createShaderModule(vertexCode);
+    VkShaderModule fragShaderModule = createShaderModule(pixelCode);
 
     hk::debug::setName(vertShaderModule, "Shader VisibleNormalsVS.hlsl");
     hk::debug::setName(fragShaderModule, "Shader VisibleNormalsPS.hlsl");
@@ -681,13 +863,15 @@ void Renderer::createOffscreenRenderPass()
 #endif
 
     auto vertShaderCode = hk::dxc::loadShader(desc);
+    if (vertShaderCode.size() > 0) vertexCode = vertShaderCode;
 
     desc.path = path + "VisibleNormalsPS.hlsl";
     desc.type = ShaderType::Pixel;
     auto fragShaderCode = hk::dxc::loadShader(desc);
+    if (fragShaderCode.size() > 0) pixelCode = fragShaderCode;
 
-    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+    VkShaderModule vertShaderModule = createShaderModule(vertexCode);
+    VkShaderModule fragShaderModule = createShaderModule(pixelCode);
 
     hk::debug::setName(vertShaderModule, "Shader VisibleNormalsVS.hlsl");
     hk::debug::setName(fragShaderModule, "Shader VisibleNormalsPS.hlsl");
@@ -864,6 +1048,8 @@ void Renderer::resize(hk::EventContext size, void *listener)
 {
     Renderer *renderer = reinterpret_cast<Renderer*>(listener);
 
+    vkDeviceWaitIdle(hk::context()->device());
+
     renderer->swapchain.init(renderer->surface, {size.u32[0], size.u32[1]});
 
     renderer->depthImage.deinit();
@@ -881,18 +1067,21 @@ void Renderer::resize(hk::EventContext size, void *listener)
 
         renderer->createOffscreenRenderPass();
     }
-    // if (renderer->offscreenImageView)
-    //     vkDestroyImageView(hk::context()->device(),
-    //                        renderer->offscreenImageView, nullptr);
-    //
-    // if (renderer->offscreenImage)
-    //     vkDestroyImage(hk::context()->device(), renderer->offscreenImage, nullptr);
-    // if (renderer->offscreenMemory)
-    //     vkFreeMemory(hk::context()->device(), renderer->offscreenMemory, nullptr);
+
+    vkDestroyRenderPass(hk::context()->device(), renderer->sceneRenderPass, nullptr);
+    renderer->createRenderPass();
+    renderer->pipeline.deinit();
+    renderer->createGraphicsPipeline();
 
     for (auto framebuffer : renderer->framebuffers) {
         vkDestroyFramebuffer(hk::context()->device(), framebuffer, nullptr);
         framebuffer = nullptr;
     }
     renderer->createFramebuffers();
+
+    // FIX: temp
+    renderer->toggleUIMode();
+    renderer->toggleUIMode();
+
+    renderer->resized = false;
 }

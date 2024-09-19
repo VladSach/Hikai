@@ -392,6 +392,11 @@ void GUI::draw(VkCommandBuffer cmd)
 
     // ImGui::ShowDemoWindow();
 
+    for (auto &callback : callbacks) {
+        callback();
+    }
+    callbacks.clear();
+
     ImGui::Render();
 
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);

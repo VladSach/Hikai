@@ -1,6 +1,7 @@
 #include "Application.h"
 
 #include "input.h"
+#include "utils/Filewatch.h"
 
 #include <thread>
 
@@ -78,6 +79,7 @@ void Application::run()
 
 void Application::deinit()
 {
+    hk::filewatch::deinit();
     renderer->deinit();
     hk::input::deinit();
     window->deinit();

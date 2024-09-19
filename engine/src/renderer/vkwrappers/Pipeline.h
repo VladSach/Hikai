@@ -37,7 +37,7 @@ public:
     void setMultisampling();
     void setColorBlend();
     void setDepthStencil();
-    void setLayout(hk::vector<VkDescriptorSetLayout> layouts);
+    void setLayout(const hk::vector<VkDescriptorSetLayout> &layouts);
     void setRenderInfo(VkFormat colorFormat, VkFormat depthFormat);
 
     hk::Pipeline build(VkDevice device, VkRenderPass pass);

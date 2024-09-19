@@ -29,10 +29,12 @@ public:
     VkShaderModule createShaderModule(const hk::vector<u32> &code);
 
     static void resize(hk::EventContext size, void *listener);
+    void recreateSwapchain();
 
     // FIX: temp
     constexpr GUI& ui() { return gui; }
     HKAPI void toggleUIMode();
+    void addUIInfo();
 
 private:
     const Window *window_;
@@ -41,6 +43,7 @@ private:
 
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     hk::Swapchain swapchain;
+    b8 resized = false;
 
     hk::DescriptorAllocator frameDescriptors;
     VkDescriptorSetLayout sceneDescriptorLayout;
@@ -68,6 +71,10 @@ private:
     VkImage offscreenImage;
     VkImageView offscreenImageView;
     VkDeviceMemory offscreenMemory = VK_NULL_HANDLE;
+
+    // FIX: temp
+    hk::vector<u32> vertexCode;
+    hk::vector<u32> pixelCode;
 
 private:
     void createSurface();

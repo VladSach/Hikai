@@ -18,6 +18,9 @@ public:
     VkResult acquireNextImage(VkSemaphore semaphore, u32 &index);
     VkResult present(u32 index, VkSemaphore semaphore);
 
+    void setSurfaceFormat(const VkSurfaceFormatKHR &preferredFormat);
+    void setPresentMode(const VkPresentModeKHR &preferredMode);
+
 public:
     constexpr VkSwapchainKHR handle() const { return handle_; }
     constexpr VkFormat format() const { return format_; }
@@ -26,6 +29,9 @@ public:
     constexpr hk::vector<VkImageView> &views() { return views_; }
 
     constexpr VkExtent2D extent() const { return extent_; }
+
+private:
+    void getPhysicalInfo(VkPhysicalDevice physical, VkSurfaceKHR surface);
 
 private:
     VkSwapchainKHR handle_ = VK_NULL_HANDLE;
@@ -37,6 +43,14 @@ private:
 
     VkExtent2D extent_;
     Queue present_;
+
+    // FIX: temp
+public:
+    VkSurfaceFormatKHR surfaceFormat = {};
+    hk::vector<VkSurfaceFormatKHR> surfaceFormats;
+    VkPresentModeKHR presentMode = VK_PRESENT_MODE_MAX_ENUM_KHR;
+    hk::vector<VkPresentModeKHR> presentModes;
+    VkSurfaceCapabilitiesKHR surfaceCaps;
 };
 
 }

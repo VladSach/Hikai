@@ -7,6 +7,7 @@ void Tests::init()
     containersTests();
     mathTests();
     numericsTests();
+    stringsTests();
 
     RUN_ALL_TESTS();
 
@@ -244,5 +245,15 @@ void Tests::numericsTests()
             // TODO: How to even test random?
             // EXPECT_EQ(rng(), 0ULL);
         }
+    });
+}
+
+void Tests::stringsTests()
+{
+    DEFINE_TEST("Strings", "Locale", {
+        std::wstring wstr(L"TestString.str");
+        std::string str("TestString.str");
+
+        EXPECT_EQ(str, hk::wstring_convert(wstr));
     });
 }

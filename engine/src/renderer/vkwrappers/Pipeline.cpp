@@ -124,7 +124,7 @@ void PipelineBuilder::setDepthStencil()
     depthStencil.back = {}; // Optional
 }
 
-void PipelineBuilder::setLayout(hk::vector<VkDescriptorSetLayout> layouts)
+void PipelineBuilder::setLayout(const hk::vector<VkDescriptorSetLayout> &layouts)
 {
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = layouts.size();

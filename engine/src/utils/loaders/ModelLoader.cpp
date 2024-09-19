@@ -95,8 +95,8 @@ Model* loadModel(const std::string &path)
 
             if (index.texcoord_index >= 0) {
                 vertex.tc = {
-                    attrib.texcoords[3 * index.texcoord_index + 0],
-                    1.f - attrib.texcoords[3 * index.texcoord_index + 1],
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    1.f - attrib.texcoords[2 * index.texcoord_index + 1],
                 };
             }
 

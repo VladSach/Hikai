@@ -2,28 +2,53 @@
 
 namespace hk {
 
-VkSurfaceFormatKHR chooseSurfaceFormat(
-    const VkSurfaceFormatKHR &preferredFormat,
-    const VkPhysicalDevice physical,
-    const VkSurfaceKHR surface)
+void Swapchain::getPhysicalInfo(VkPhysicalDevice physical, VkSurfaceKHR surface)
 {
     u32 formatCount = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(physical, surface,
                                          &formatCount, nullptr);
 
-    hk::vector<VkSurfaceFormatKHR> surfaceFormats(formatCount);
+    surfaceFormats.resize(formatCount);
     vkGetPhysicalDeviceSurfaceFormatsKHR(physical, surface,
                                          &formatCount, surfaceFormats.data());
 
+    u32 presentModeCount;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physical, surface,
+                                              &presentModeCount, nullptr);
+
+    presentModes.resize(presentModeCount);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physical, surface,
+                                              &presentModeCount,
+                                              presentModes.data());
+}
+
+void Swapchain::setSurfaceFormat(const VkSurfaceFormatKHR &preferredFormat)
+{
     for (const auto &format : surfaceFormats) {
         if (format.format     == preferredFormat.format &&
             format.colorSpace == preferredFormat.colorSpace)
         {
-            return format;
+            surfaceFormat = format;
+            return;
         }
     }
 
-    return surfaceFormats[0];
+    LOG_DEBUG("Preferred Surface Format is not supported");
+    surfaceFormat = surfaceFormats[0];
+}
+
+void Swapchain::setPresentMode(const VkPresentModeKHR &preferredMode)
+{
+    for (const auto &mode : presentModes) {
+        if (mode == preferredMode) {
+            presentMode = mode;
+            return;
+        }
+    }
+
+    LOG_DEBUG("Preferred Present Mode is not supported");
+    // FIFO mode is the one that is always supported
+    presentMode = VK_PRESENT_MODE_FIFO_KHR;
 }
 
 void Swapchain::init(VkSurfaceKHR surface, VkExtent2D size)
@@ -33,34 +58,24 @@ void Swapchain::init(VkSurfaceKHR surface, VkExtent2D size)
     VkDevice device = hk::context()->device();
     VkPhysicalDevice physical = hk::context()->physical();
 
-    VkSurfaceFormatKHR preferredFormat = {
-        VK_FORMAT_B8G8R8_SRGB,
-        VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
-    };
-
-    VkSurfaceFormatKHR surfaceFormat =
-        chooseSurfaceFormat(preferredFormat, physical, surface);
-
-    VkPresentModeKHR presentMode;
-    u32 presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(physical, surface,
-                                              &presentModeCount, nullptr);
-
-    hk::vector<VkPresentModeKHR> presentModes(presentModeCount);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(
-            physical, surface, &presentModeCount, presentModes.data());
-
-    // FIFO mode is the one that is always supported
-    presentMode = VK_PRESENT_MODE_FIFO_KHR;
-
-    for (const auto &mode : presentModes) {
-        if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-            presentMode = mode;
-            break;
-        }
+    if (!surfaceFormats.size()) {
+        getPhysicalInfo(physical, surface);
     }
 
-    VkSurfaceCapabilitiesKHR surfaceCaps = {};
+    if (!surfaceFormat.format) {
+        VkSurfaceFormatKHR preferredFormat = {
+            VK_FORMAT_B8G8R8A8_UNORM,
+            VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+        };
+
+        setSurfaceFormat(preferredFormat);
+    }
+
+    if (presentMode == VK_PRESENT_MODE_MAX_ENUM_KHR) {
+        setPresentMode(VK_PRESENT_MODE_MAILBOX_KHR);
+    }
+
+    surfaceCaps = {};
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &surfaceCaps);
 
     extent_ = size;
@@ -95,9 +110,11 @@ void Swapchain::init(VkSurfaceKHR surface, VkExtent2D size)
     // TODO: I assume, as there is no present only family, that
     // it will be one of already created families.
     // There is sure a better way
-    hk::QueueFamily family;
-    family.findQueue(physical, VK_QUEUE_GRAPHICS_BIT, surface);
-    present_.init(device, family);
+    if (!present_.handle()) {
+        hk::QueueFamily family;
+        family.findQueue(physical, VK_QUEUE_GRAPHICS_BIT, surface);
+        present_.init(device, family);
+    }
 
     // FIX: temp
     // u32 queueFamilyIndices[] = { graphicsFamily, computeFamily,
@@ -110,7 +127,6 @@ void Swapchain::init(VkSurfaceKHR surface, VkExtent2D size)
     // } else {
     //     swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     // }
-
     swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     swapchainInfo.oldSwapchain = handle_;

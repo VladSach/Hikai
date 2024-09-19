@@ -21,12 +21,11 @@ public:
 
     void draw(VkCommandBuffer cmd);
 
-    // inline void pushCallback(const std::function<void()> &callback)
-    // {
-    //     callbacks.push_back(callback);
-    // }
-
     HKAPI b8 isInputLocked() const;
+    HKAPI inline void pushCallback(const std::function<void()> &callback)
+    {
+        callbacks.push_back(callback);
+    }
 
     // FIX: temp
     VkRenderPass uiRenderPass;
@@ -44,6 +43,7 @@ private:
 
     b8 viewportMode = false;
     b8 created = false;
+
     ImGuiID upper;
     ImGuiID lower;
     ImGuiID left;
