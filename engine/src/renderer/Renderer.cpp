@@ -201,14 +201,28 @@ void Renderer::addUIInfo()
                 ImGui::TreePop();
             }
         }
-        } ImGui::End();
 
-        // if (ImGui::CollapsingHeader("Render Passes")) {
-        //     if (ImGui::TreeNode("Offscreen Render Pass")) {
-        //
-        //         ImGui::TreePop();
-        //     }
-        // } ImGui::End();
+        if (ImGui::CollapsingHeader("Shaders")) {
+            constexpr const char *items[] = {"Default", "Normals", "Depth", "Grid"};
+            static u32 curr = 0;
+
+            const char *preview = items[curr];
+            if (ImGui::BeginCombo("Shader groups", preview)) {
+                for (u32 i = 0; i < 4; ++i) {
+                    const b8 selected = (curr == i);
+
+                    if (ImGui::Selectable(items[i], selected)) {
+                        curr = i;
+                        resized = true;
+                    }
+
+                    if (selected) { ImGui::SetItemDefaultFocus(); }
+                }
+                ImGui::EndCombo();
+            }
+        }
+
+        } ImGui::End();
     });
 }
 
@@ -250,14 +264,36 @@ void Renderer::init(const Window *window)
 
     createDepthResources();
 
-    createRenderPass();
-
     hk::ubo::init();
 
-    createGraphicsPipeline();
-    createFramebuffers();
+    // FIX: move shader creation to asset manager
+    const std::string path = "assets\\shaders\\";
+
+    hk::dxc::ShaderDesc desc;
+    desc.path = path + "VisibleNormalsVS.hlsl";
+    desc.entry = "main";
+    desc.type = ShaderType::Vertex;
+    desc.model = ShaderModel::SM_6_0;
+    desc.ir = ShaderIR::SPIRV;
+#ifdef HKDEBUG
+    desc.debug = true;
+#else
+    desc.debug = false;
+#endif
+
+    auto vertShaderCode = hk::dxc::loadShader(desc);
+    if (vertShaderCode.size() > 0) vertexCode = vertShaderCode;
+
+    desc.path = path + "VisibleNormalsPS.hlsl";
+    desc.type = ShaderType::Pixel;
+    auto fragShaderCode = hk::dxc::loadShader(desc);
+    if (fragShaderCode.size() > 0) pixelCode = fragShaderCode;
 
     createOffscreenRenderPass();
+    createOffscreenPipeline();
+    createPresentRenderPass();
+
+    createFramebuffers();
 
     // FIX: temp
     gui.init(window);
@@ -305,18 +341,6 @@ void Renderer::init(const Window *window)
         [this](const std::string &path, const hk::filewatch::State state)
         {
             resized = true;
-
-            // vkDeviceWaitIdle(context->device());
-            // vkDestroyImageView(hk::context()->device(), offscreenImageView, nullptr);
-            // vkDestroyImage(hk::context()->device(), offscreenImage, nullptr);
-            // vkFreeMemory(hk::context()->device(), offscreenMemory, nullptr);
-            // vkDestroyFramebuffer(hk::context()->device(), offscreenFrameBuffer, nullptr);
-            // offscreenFrameBuffer = nullptr;
-            //
-            // offscreenPipeline.deinit();
-            // vkDestroyRenderPass(hk::context()->device(), offscreenRenderPass, nullptr);
-            //
-            // createOffscreenRenderPass();
         }
     );
 }
@@ -336,10 +360,7 @@ void Renderer::deinit()
 
     depthImage.deinit();
 
-    pipeline.deinit();
-
     vkDestroyRenderPass(device, uiRenderPass, nullptr);
-    vkDestroyRenderPass(device, sceneRenderPass, nullptr);
 
     hk::ubo::deinit();
 
@@ -396,101 +417,79 @@ void Renderer::draw()
     err = vkBeginCommandBuffer(commandBuffer, &beginInfo);
     ALWAYS_ASSERT(!err, "Failed to begin Command Buffer");
 
-    if (!viewport) {
-        VkClearValue clearValue[2] = {};
-        clearValue[0].color = { 0.f, 0.f, 0.f, 1.f };
-        clearValue[1].depthStencil = { 0.f, 0 };
+    VkClearValue offClearValue[2] = {};
+    offClearValue[0].color = { 0.f, 0.f, 0.f, 1.f };
+    offClearValue[1].depthStencil = { 0.f, 0 };
 
-        VkRenderPassBeginInfo rpBeginInfo = {};
-        rpBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        rpBeginInfo.renderPass = sceneRenderPass;
-        rpBeginInfo.renderArea.offset = { 0, 0 };
-        rpBeginInfo.renderArea.extent = swapchain.extent();
-        rpBeginInfo.framebuffer = framebuffers[imageIndex];
-        rpBeginInfo.clearValueCount = 2;
-        rpBeginInfo.pClearValues = clearValue;
+    VkRenderPassBeginInfo offBeginInfo = {};
+    offBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    offBeginInfo.renderPass = offscreenRenderPass;
+    offBeginInfo.renderArea.offset = { 0, 0 };
+    offBeginInfo.renderArea.extent = swapchain.extent();
+    // rpBeginInfo.framebuffer = framebuffers[imageIndex];
+    offBeginInfo.framebuffer = offscreenFrameBuffer;
+    offBeginInfo.clearValueCount = 2;
+    offBeginInfo.pClearValues = offClearValue;
 
-        vkCmdBeginRenderPass(commandBuffer, &rpBeginInfo,
-                             VK_SUBPASS_CONTENTS_INLINE);
-        {
-            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              pipeline.handle());
+    vkCmdBeginRenderPass(commandBuffer, &offBeginInfo,
+                         VK_SUBPASS_CONTENTS_INLINE);
+    {
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          offscreenPipeline.handle());
 
-            VkViewport viewport = {};
-            viewport.x = 0.0f;
-            viewport.y = 0.0f;
-            viewport.width = static_cast<f32>(swapchain.extent().width);
-            viewport.height = static_cast<f32>(swapchain.extent().height);
-            viewport.minDepth = 0.0f;
-            viewport.maxDepth = 1.0f;
-            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+        VkViewport viewport = {};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = static_cast<f32>(swapchain.extent().width);
+        viewport.height = static_cast<f32>(swapchain.extent().height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-            VkRect2D scissor = {};
-            scissor.offset = {0, 0};
-            scissor.extent = swapchain.extent();
-            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        VkRect2D scissor = {};
+        scissor.offset = {0, 0};
+        scissor.extent = swapchain.extent();
+        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-            model->bind(commandBuffer);
+        model->bind(commandBuffer);
 
-            writer.updateSet(sceneDataDescriptor);
+        writer.updateSet(sceneDataDescriptor);
 
-            vkCmdBindDescriptorSets(commandBuffer,
-                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    pipeline.layout(), 0, 1,
-                                    &sceneDataDescriptor, 0, nullptr);
+        vkCmdBindDescriptorSets(commandBuffer,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                offscreenPipeline.layout(), 0, 1,
+                                &sceneDataDescriptor, 0, nullptr);
 
-            vkCmdDrawIndexed(commandBuffer, model->indexCount(), 1, 0, 0, 0);
-
-        }
-        vkCmdEndRenderPass(commandBuffer);
-    } else {
-        // FIX: temp
-        VkClearValue offClearValue[2] = {};
-        offClearValue[0].color = { 0.f, 0.f, 0.f, 1.f };
-        offClearValue[1].depthStencil = { 0.f, 0 };
-
-        VkRenderPassBeginInfo offBeginInfo = {};
-        offBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        offBeginInfo.renderPass = offscreenRenderPass;
-        offBeginInfo.renderArea.offset = { 0, 0 };
-        offBeginInfo.renderArea.extent = swapchain.extent();
-        offBeginInfo.framebuffer = offscreenFrameBuffer;
-        offBeginInfo.clearValueCount = 2;
-        offBeginInfo.pClearValues = offClearValue;
-
-        vkCmdBeginRenderPass(commandBuffer, &offBeginInfo,
-                             VK_SUBPASS_CONTENTS_INLINE);
-        {
-            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                              offscreenPipeline.handle());
-
-            VkViewport viewport = {};
-            viewport.x = 0.0f;
-            viewport.y = 0.0f;
-            viewport.width = static_cast<f32>(swapchain.extent().width);
-            viewport.height = static_cast<f32>(swapchain.extent().height);
-            viewport.minDepth = 0.0f;
-            viewport.maxDepth = 1.0f;
-            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-            VkRect2D scissor = {};
-            scissor.offset = {0, 0};
-            scissor.extent = swapchain.extent();
-            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-            model->bind(commandBuffer);
-
-            writer.updateSet(sceneDataDescriptor);
-
-            vkCmdBindDescriptorSets(commandBuffer,
-                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    offscreenPipeline.layout(), 0, 1,
-                                    &sceneDataDescriptor, 0, nullptr);
-
-            vkCmdDrawIndexed(commandBuffer, model->indexCount(), 1, 0, 0, 0);
-        }
-        vkCmdEndRenderPass(commandBuffer);
+        vkCmdDrawIndexed(commandBuffer, model->indexCount(), 1, 0, 0, 0);
     }
+    vkCmdEndRenderPass(commandBuffer);
+
+    // if (!viewport) {
+    //     VkImageCopy copyRegion = {};
+    //     copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    //     copyRegion.srcSubresource.mipLevel = 0;
+    //     copyRegion.srcSubresource.baseArrayLayer = 0;
+    //     copyRegion.srcSubresource.layerCount = 1;
+    //     copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    //     copyRegion.dstSubresource.mipLevel = 0;
+    //     copyRegion.dstSubresource.baseArrayLayer = 0;
+    //     copyRegion.dstSubresource.layerCount = 1;
+    //     copyRegion.extent.width = swapchain.extent().width;
+    //     copyRegion.extent.height = swapchain.extent().height;
+    //     copyRegion.extent.depth = 1;
+    //
+    //     hk::vector<VkImage> &scimages = swapchain.images();
+    //
+    //     vkCmdCopyImage(
+    //         commandBuffer,
+    //         offscreenImage,
+    //         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    //         scimages[imageIndex],
+    //         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+    //         1,
+    //         &copyRegion
+    //     );
+    // }
 
     VkClearValue uiClearValue = {};
     uiClearValue.color = { 0.f, 0.f, 0.f, 1.f };
@@ -558,150 +557,6 @@ void Renderer::createSurface()
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Surface");
 }
 
-void Renderer::createRenderPass()
-{
-    VkResult err;
-
-    VkAttachmentDescription colorAttachment = {};
-    colorAttachment.format = swapchain.format();
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    VkAttachmentReference colorAttachmentRef = {};
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentDescription depthAttachment = {};
-    depthAttachment.format = depthImage.format();
-    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    depthAttachment.finalLayout =
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference depthAttachmentRef = {};
-    depthAttachmentRef.attachment = 1;
-    depthAttachmentRef.layout =
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpass = {};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-    subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-    VkAttachmentDescription attachments[] = {
-        colorAttachment, depthAttachment
-    };
-
-    VkSubpassDependency dependency = {};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask =
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstStageMask =
-        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstAccessMask =
-        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-        VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-    VkRenderPassCreateInfo renderPassInfo = {};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = 2;
-    renderPassInfo.pAttachments = attachments;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-    renderPassInfo.dependencyCount = 1;
-    renderPassInfo.pDependencies = &dependency;
-
-    err = vkCreateRenderPass(context->device(), &renderPassInfo,
-                             nullptr, &sceneRenderPass);
-    ALWAYS_ASSERT(!err, "Failed to create Vulkan Render Pass");
-    hk::debug::setName(sceneRenderPass, "Swapchain RenderPass");
-}
-
-void Renderer::createGraphicsPipeline()
-{
-    VkDevice device = context->device();
-
-    hk::PipelineBuilder builder;
-
-    const std::string path = "assets\\shaders\\";
-
-    hk::dxc::ShaderDesc desc;
-    desc.path = path + "VisibleNormalsVS.hlsl";
-    desc.entry = "main";
-    desc.type = ShaderType::Vertex;
-    desc.model = ShaderModel::SM_6_0;
-    desc.ir = ShaderIR::SPIRV;
-#ifdef HKDEBUG
-    desc.debug = true;
-#else
-    desc.debug = false;
-#endif
-
-    hk::vector<u32> vertShaderCode = hk::dxc::loadShader(desc);
-    if (vertShaderCode.size() > 0) vertexCode = vertShaderCode;
-
-    desc.path = path + "VisibleNormalsPS.hlsl";
-    desc.type = ShaderType::Pixel;
-    hk::vector<u32> fragShaderCode = hk::dxc::loadShader(desc);
-    if (fragShaderCode.size() > 0) pixelCode = fragShaderCode;
-
-    VkShaderModule vertShaderModule = createShaderModule(vertexCode);
-    VkShaderModule fragShaderModule = createShaderModule(pixelCode);
-
-    hk::debug::setName(vertShaderModule, "Shader VisibleNormalsVS.hlsl");
-    hk::debug::setName(fragShaderModule, "Shader VisibleNormalsPS.hlsl");
-
-    builder.setShader(ShaderType::Vertex, vertShaderModule);
-    builder.setShader(ShaderType::Pixel, fragShaderModule);
-
-    hk::vector<hk::Format> layout = {
-        // position
-        hk::Format::SIGNED | hk::Format::FLOAT |
-        hk::Format::VEC3 | hk::Format::B32,
-
-        // normal
-        hk::Format::SIGNED | hk::Format::FLOAT |
-        hk::Format::VEC3 | hk::Format::B32,
-
-        // texture coordinates
-        hk::Format::SIGNED | hk::Format::FLOAT |
-        hk::Format::VEC2 | hk::Format::B32,
-    };
-    builder.setVertexLayout(sizeof(Vertex), layout);
-
-    builder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    builder.setRasterizer(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT);
-    builder.setMultisampling();
-    builder.setColorBlend();
-
-    hk::vector<VkDescriptorSetLayout> descriptorSetsLayouts = {
-        sceneDescriptorLayout,
-    };
-    builder.setLayout(descriptorSetsLayouts);
-
-    builder.setDepthStencil();
-    builder.setRenderInfo(swapchain.format(), depthImage.format());
-
-    pipeline = builder.build(device, sceneRenderPass);
-    hk::debug::setName(pipeline.handle(), "Scene Pipeline");
-
-    vkDestroyShaderModule(device, fragShaderModule, nullptr);
-    vkDestroyShaderModule(device, vertShaderModule, nullptr);
-}
-
 void Renderer::createFramebuffers()
 {
     VkResult err;
@@ -710,26 +565,135 @@ void Renderer::createFramebuffers()
 
     VkFramebufferCreateInfo framebufferInfo = {};
     framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    framebufferInfo.renderPass = sceneRenderPass;
-    framebufferInfo.attachmentCount = 2;
+    framebufferInfo.renderPass = presentRenderPass;
+    framebufferInfo.attachmentCount = 1;
     framebufferInfo.width = swapchain.extent().width;
     framebufferInfo.height = swapchain.extent().height;
     framebufferInfo.layers = 1;
 
     framebuffers.resize(views.size());
-    for (u32 i = 0; i < views.size(); i++) {
-        VkImageView attachments[] = {
-            views[i],
-            depthImage.view()
-        };
 
-        framebufferInfo.pAttachments = attachments;
+    for (u32 i = 0; i < views.size(); i++) {
+        framebufferInfo.pAttachments = &views[i];
 
         err = vkCreateFramebuffer(context->device(), &framebufferInfo,
                                   nullptr, &framebuffers[i]);
         ALWAYS_ASSERT(!err, "Failed to create Vulkan Framebuffer");
         hk::debug::setName(framebuffers[i], "Swapchain Framebuffer #" + std::to_string(i));
     }
+
+    // FIX: temp
+    VkImageCreateInfo imageInfo = {};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = swapchain.extent().width;
+    imageInfo.extent.height = swapchain.extent().height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = swapchain.format();
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage =
+        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+        VK_IMAGE_USAGE_SAMPLED_BIT |
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    err = vkCreateImage(context->device(), &imageInfo, nullptr, &offscreenImage);
+    hk::debug::setName(offscreenImage, "Offscreen Image");
+
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(context->device(), offscreenImage, &memRequirements);
+
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(context->physical(), &memProperties);
+
+    u32 memIndex = 0;
+    for (; memIndex < memProperties.memoryTypeCount; ++memIndex) {
+        if ((memRequirements.memoryTypeBits & (1 << memIndex)) &&
+            (memProperties.memoryTypes[memIndex].propertyFlags &
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+        {
+            break;
+        }
+    }
+
+    VkMemoryAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = memIndex;
+
+    err = vkAllocateMemory(context->device(), &allocInfo, nullptr, &offscreenMemory);
+
+    vkBindImageMemory(context->device(), offscreenImage, offscreenMemory, 0);
+
+    hk::debug::setName(offscreenMemory, "Offscreen Image Memory");
+
+    VkImageViewCreateInfo viewInfo = {};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = offscreenImage;
+    viewInfo.format = swapchain.format();
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+
+    vkCreateImageView(context->device(), &viewInfo, nullptr, &offscreenImageView);
+    hk::debug::setName(offscreenImageView, "Offscreen Image View");
+    if (viewport) { gui.setViewportMode(offscreenImageView); }
+
+    VkImageLayout oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    VkImageLayout newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkImageMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = offscreenImage;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    VkPipelineStageFlags sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    VkPipelineStageFlags destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+    hk::context()->submitImmCmd([&](VkCommandBuffer cmd) {
+        vkCmdPipelineBarrier(
+            cmd,
+            sourceStage, destinationStage,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier
+        );
+    });
+
+    VkFramebufferCreateInfo offframe = {};
+    offframe.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    offframe.renderPass = offscreenRenderPass;
+    offframe.attachmentCount = 2;
+    offframe.width = swapchain.extent().width;
+    offframe.height = swapchain.extent().height;
+    offframe.layers = 1;
+    VkImageView offattachments[] = {
+        offscreenImageView,
+        depthImage.view()
+    };
+
+    offframe.pAttachments = offattachments;
+
+    err = vkCreateFramebuffer(context->device(), &offframe,
+                              nullptr, &offscreenFrameBuffer);
+    ALWAYS_ASSERT(!err, "Failed to create Vulkan Framebuffer");
+    hk::debug::setName(offscreenFrameBuffer, "Offscreen Framebuffer");
 }
 
 void Renderer::createSyncObjects()
@@ -772,9 +736,8 @@ void Renderer::createOffscreenRenderPass()
 {
     VkResult err;
 
-    // Creating offscreen vulkan renderpass
     VkAttachmentDescription offscreenColorAttachment = {};
-    offscreenColorAttachment.format = VK_FORMAT_B8G8R8A8_UNORM;
+    offscreenColorAttachment.format = swapchain.format();
     offscreenColorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     offscreenColorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     offscreenColorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -842,39 +805,20 @@ void Renderer::createOffscreenRenderPass()
                              nullptr, &offscreenRenderPass);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Render Pass");
     hk::debug::setName(offscreenRenderPass, "Offscreen RenderPass");
+}
 
-    // Create vulkan pipeline
+void Renderer::createOffscreenPipeline()
+{
     VkDevice device = context->device();
 
     hk::PipelineBuilder builder;
 
-    const std::string path = "assets\\shaders\\";
-
-    hk::dxc::ShaderDesc desc;
-    desc.path = path + "VisibleNormalsVS.hlsl";
-    desc.entry = "main";
-    desc.type = ShaderType::Vertex;
-    desc.model = ShaderModel::SM_6_0;
-    desc.ir = ShaderIR::SPIRV;
-#ifdef HKDEBUG
-    desc.debug = true;
-#else
-    desc.debug = false;
-#endif
-
-    auto vertShaderCode = hk::dxc::loadShader(desc);
-    if (vertShaderCode.size() > 0) vertexCode = vertShaderCode;
-
-    desc.path = path + "VisibleNormalsPS.hlsl";
-    desc.type = ShaderType::Pixel;
-    auto fragShaderCode = hk::dxc::loadShader(desc);
-    if (fragShaderCode.size() > 0) pixelCode = fragShaderCode;
 
     VkShaderModule vertShaderModule = createShaderModule(vertexCode);
     VkShaderModule fragShaderModule = createShaderModule(pixelCode);
 
-    hk::debug::setName(vertShaderModule, "Shader VisibleNormalsVS.hlsl");
-    hk::debug::setName(fragShaderModule, "Shader VisibleNormalsPS.hlsl");
+    hk::debug::setName(vertShaderModule, "Offscreen Vertex Shader");
+    hk::debug::setName(fragShaderModule, "Offscreen Pixel Shader");
 
     builder.setShader(ShaderType::Vertex, vertShaderModule);
     builder.setShader(ShaderType::Pixel, fragShaderModule);
@@ -913,118 +857,40 @@ void Renderer::createOffscreenRenderPass()
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
     vkDestroyShaderModule(device, vertShaderModule, nullptr);
 
+}
 
-    // FIX: temp
-    VkImageCreateInfo imageInfo = {};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = swapchain.extent().width;
-    imageInfo.extent.height = swapchain.extent().height;
-    imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
-    imageInfo.format = VK_FORMAT_B8G8R8A8_UNORM;
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage =
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-        VK_IMAGE_USAGE_SAMPLED_BIT |
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+void Renderer::createPresentRenderPass()
+{
+    VkAttachmentDescription colorAttachment = {};
+    colorAttachment.format = swapchain.format();
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-    err = vkCreateImage(context->device(), &imageInfo, nullptr, &offscreenImage);
-    hk::debug::setName(offscreenImage, "Offscreen Image");
+    VkAttachmentReference colorAttachmentRef = {};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(context->device(), offscreenImage, &memRequirements);
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
 
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(context->physical(), &memProperties);
+    VkRenderPassCreateInfo renderPassInfo = {};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
 
-    u32 memIndex = 0;
-    for (; memIndex < memProperties.memoryTypeCount; ++memIndex) {
-        if ((memRequirements.memoryTypeBits & (1 << memIndex)) &&
-            (memProperties.memoryTypes[memIndex].propertyFlags &
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
-        {
-            break;
-        }
-    }
-
-    VkMemoryAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memIndex;
-
-    err = vkAllocateMemory(context->device(), &allocInfo, nullptr, &offscreenMemory);
-
-    vkBindImageMemory(context->device(), offscreenImage, offscreenMemory, 0);
-
-    hk::debug::setName(offscreenMemory, "Offscreen Image Memory");
-
-    VkImageViewCreateInfo viewInfo = {};
-    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    viewInfo.image = offscreenImage;
-    viewInfo.format = VK_FORMAT_B8G8R8A8_UNORM;
-    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = 1;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = 1;
-
-    vkCreateImageView(context->device(), &viewInfo, nullptr, &offscreenImageView);
-    hk::debug::setName(offscreenImageView, "Offscreen Image View");
-    if (viewport) { gui.setViewportMode(offscreenImageView); }
-
-    VkImageLayout oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    VkImageLayout newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    VkImageMemoryBarrier barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = oldLayout;
-    barrier.newLayout = newLayout;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = offscreenImage;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = 1;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
-
-    VkPipelineStageFlags sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    VkPipelineStageFlags destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-
-    hk::context()->submitImmCmd([&](VkCommandBuffer cmd) {
-        vkCmdPipelineBarrier(
-            cmd,
-            sourceStage, destinationStage,
-            0,
-            0, nullptr,
-            0, nullptr,
-            1, &barrier
-        );
-    });
-
-    VkFramebufferCreateInfo offframe = {};
-    offframe.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-    offframe.renderPass = offscreenRenderPass;
-    offframe.attachmentCount = 2;
-    offframe.width = swapchain.extent().width;
-    offframe.height = swapchain.extent().height;
-    offframe.layers = 1;
-    VkImageView offattachments[] = {
-        offscreenImageView,
-        depthImage.view()
-    };
-
-    offframe.pAttachments = offattachments;
-
-    err = vkCreateFramebuffer(context->device(), &offframe,
-                              nullptr, &offscreenFrameBuffer);
-    ALWAYS_ASSERT(!err, "Failed to create Vulkan Framebuffer");
-    hk::debug::setName(offscreenFrameBuffer, "Offscreen Framebuffer");
+    VkResult err = vkCreateRenderPass(context->device(), &renderPassInfo,
+                                      nullptr, &presentRenderPass);
+    ALWAYS_ASSERT(!err, "Failed to create Vulkan Present Render Pass");
+    hk::debug::setName(presentRenderPass, "Present RenderPass");
 }
 
 VkShaderModule Renderer::createShaderModule(const hk::vector<u32> &code)
@@ -1066,12 +932,9 @@ void Renderer::resize(hk::EventContext size, void *listener)
         vkDestroyRenderPass(hk::context()->device(), renderer->offscreenRenderPass, nullptr);
 
         renderer->createOffscreenRenderPass();
+        renderer->createOffscreenPipeline();
+        renderer->createPresentRenderPass();
     }
-
-    vkDestroyRenderPass(hk::context()->device(), renderer->sceneRenderPass, nullptr);
-    renderer->createRenderPass();
-    renderer->pipeline.deinit();
-    renderer->createGraphicsPipeline();
 
     for (auto framebuffer : renderer->framebuffers) {
         vkDestroyFramebuffer(hk::context()->device(), framebuffer, nullptr);

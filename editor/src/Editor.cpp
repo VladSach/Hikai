@@ -12,14 +12,6 @@ void Editor::init()
 
     camera_.setPerspective(45.f, aspect, .1f, 100.f);
     camera_.setWorldOffset({ 0.f, 0.f, -2.f });
-
-    // TEST: tmp
-    hk::filewatch::watch("assets/shaders",
-        [](const std::string &path, const hk::filewatch::State state)
-        {
-            LOG_INFO(path, static_cast<u32>(state));
-        }
-    );
 }
 
 void Editor::update(f32 dt)

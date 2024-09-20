@@ -43,6 +43,7 @@ private:
 
     VkSurfaceKHR surface = VK_NULL_HANDLE;
     hk::Swapchain swapchain;
+
     b8 resized = false;
 
     hk::DescriptorAllocator frameDescriptors;
@@ -50,10 +51,10 @@ private:
 
     VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
 
-    VkRenderPass sceneRenderPass = VK_NULL_HANDLE;
     hk::Image depthImage;
+
+    VkRenderPass presentRenderPass;
     hk::vector<VkFramebuffer> framebuffers;
-    hk::Pipeline pipeline;
 
     GUI gui;
     VkRenderPass uiRenderPass = VK_NULL_HANDLE;
@@ -78,13 +79,13 @@ private:
 
 private:
     void createSurface();
-    void createRenderPass();
-    void createGraphicsPipeline();
     void createFramebuffers();
     void createDepthResources();
     void createSyncObjects();
 
+    void createPresentRenderPass();
     void createOffscreenRenderPass();
+    void createOffscreenPipeline();
 };
 
 #endif // HK_RENDER_DEVICE_H
