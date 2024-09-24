@@ -11,18 +11,21 @@ inline std::string wstring_convert(const std::wstring &in)
 {
     if (in.empty()) { return std::string(); }
 
-    u32 sz = WideCharToMultiByte(
+    i32 sz = WideCharToMultiByte(
         CP_UTF8, 0,
-        in.data(), static_cast<int>(in.size()),
+        in.data(), -1,
         NULL, 0, NULL, NULL);
 
     std::string out(sz, 0);
 
     WideCharToMultiByte(
         CP_UTF8, 0,
-        in.data(), static_cast<int>(in.size()),
+        in.data(), -1,
         out.data(), sz,
         NULL, NULL);
+
+    // FIX: stripping null terminator for convenience, shouldn't probably do this
+    out.pop_back();
 
     return out;
 }

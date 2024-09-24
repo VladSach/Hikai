@@ -26,8 +26,6 @@ public:
 
     void draw();
 
-    VkShaderModule createShaderModule(const hk::vector<u32> &code);
-
     static void resize(hk::EventContext size, void *listener);
     void recreateSwapchain();
 
@@ -73,9 +71,19 @@ private:
     VkImageView offscreenImageView;
     VkDeviceMemory offscreenMemory = VK_NULL_HANDLE;
 
+    VkSampler samplerLinear;
+    VkSampler samplerNearest;
+
     // FIX: temp
-    hk::vector<u32> vertexCode;
-    hk::vector<u32> pixelCode;
+    u32 hndlTexture;
+
+    u32 hndlDefaultVS;
+    u32 hndlDefaultPS;
+    u32 hndlNormalsPS;
+    u32 hndlTexturePS;
+
+    u32 curShaderVS;
+    u32 curShaderPS;
 
 private:
     void createSurface();
@@ -86,6 +94,9 @@ private:
     void createPresentRenderPass();
     void createOffscreenRenderPass();
     void createOffscreenPipeline();
+
+    void loadShaders();
+    void createSamplers();
 };
 
 #endif // HK_RENDER_DEVICE_H

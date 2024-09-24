@@ -14,6 +14,7 @@ private:
     void mathTests();
 
     // Utils
+    void platformTests();
     void containersTests();
     void numericsTests();
     void stringsTests();

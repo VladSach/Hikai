@@ -6,7 +6,7 @@
 
 namespace hk::loader {
 
-HKAPI Model* loadModel(const std::string &path);
+Model* loadModel(const std::string &path);
 
 }
 

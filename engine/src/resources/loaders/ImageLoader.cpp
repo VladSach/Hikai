@@ -7,8 +7,6 @@
 
 namespace hk::loader {
 
-static std::unordered_map<std::string, Image*> loaded_ = {};
-
 Image* loadImage(const std::string &path)
 {
     i32 width, height, channels;
@@ -30,8 +28,6 @@ Image* loadImage(const std::string &path)
     image->write(pixels);
 
     stbi_image_free(pixels);
-
-    loaded_[path] = image;
 
     return image;
 }

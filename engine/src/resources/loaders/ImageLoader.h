@@ -6,7 +6,7 @@
 
 namespace hk::loader {
 
-HKAPI Image* loadImage(const std::string &path);
+Image* loadImage(const std::string &path);
 
 }
 

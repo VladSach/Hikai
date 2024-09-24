@@ -2,6 +2,7 @@
 
 #include "input.h"
 #include "utils/Filewatch.h"
+#include "resources/AssetManager.h"
 
 #include <thread>
 
@@ -28,6 +29,8 @@ Application::Application(const AppDesc &desc)
     hk::input::init();
 
     clock.record();
+
+    hk::assets()->init("assets\\");
 
     renderer = new Renderer();
     renderer->init(window);
@@ -79,6 +82,7 @@ void Application::run()
 
 void Application::deinit()
 {
+    hk::assets()->deinit();
     hk::filewatch::deinit();
     renderer->deinit();
     hk::input::deinit();

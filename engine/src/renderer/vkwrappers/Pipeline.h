@@ -3,7 +3,7 @@
 
 #include "vendor/vulkan/vulkan.h"
 
-#include "renderer/ShaderManager.h"
+#include "resources/loaders/ShaderLoader.h"
 #include "renderer/VertexLayout.h"
 
 #include "utils/containers/hkvector.h"

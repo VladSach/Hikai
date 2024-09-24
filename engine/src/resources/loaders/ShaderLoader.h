@@ -1,5 +1,5 @@
-#ifndef HK_SHADER_MANAGER_H
-#define HK_SHADER_MANAGER_H
+#ifndef HK_SHADER_LOADER_H
+#define HK_SHADER_LOADER_H
 
 #include "defines.h"
 #include "utils/containers/hkvector.h"
@@ -56,4 +56,4 @@ hk::vector<u32> loadShader(const ShaderDesc &desc);
 
 }
 
-#endif // HK_SHADER_MANAGER_H
+#endif // HK_SHADER_LOADER_H

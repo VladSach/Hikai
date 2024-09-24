@@ -5,6 +5,7 @@
 void Tests::init()
 {
     containersTests();
+    platformTests();
     mathTests();
     numericsTests();
     stringsTests();
@@ -138,6 +139,38 @@ void Tests::containersTests()
 
         hkring.clear();
         EXPECT_EQ(hkring.size(), (u32)0);
+    });
+}
+
+void Tests::platformTests()
+{
+    DEFINE_TEST("Platform", "File operations",
+    {
+        b8 res = false;
+        std::string root = "mockfolder\\";
+
+        std::string out;
+        std::string search;
+
+        search = "file4.txt";
+        res = hk::platform::findFile(root, search);
+        EXPECT_EQ(res, true);
+
+        search = "file10.txt";
+        res = hk::platform::findFile(root, search);
+        EXPECT_EQ(res, false);
+
+        root = "mockfolder\\folder1";
+        search = "mockfile.txt";
+        res = hk::platform::findFile(root, search);
+        EXPECT_EQ(res, false);
+
+
+        root = "mockfolder\\";
+        search = "file5.txt";
+        res = hk::platform::findFile(root, search, out);
+
+        // EXPECT_EQ(0, strcmp(out.c_str(), "mockfolder\\folder1\\folder2\\folder3\\file5.txt"));
     });
 }
 

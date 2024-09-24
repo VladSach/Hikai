@@ -1,9 +1,9 @@
 #include "Renderer.h"
 
 #include "platform/platform.h"
-#include "renderer/ShaderManager.h"
 #include "renderer/VertexLayout.h"
 #include "renderer/debug.h"
+#include "resources/AssetManager.h"
 
 #ifdef HKWINDOWS
 #include "vendor/vulkan/vulkan_win32.h"
@@ -16,16 +16,10 @@
 // FIX: temp
 #include "renderer/UBManager.h"
 #include "object/Model.h"
-#include "utils/loaders/ModelLoader.h"
+#include "resources/loaders/ModelLoader.h"
 static hk::Model *model;
 
-#include "utils/loaders/ImageLoader.h"
-static hk::Image *texture;
-static VkSampler sampler;
-
 #include "vendor/vulkan/vk_enum_string_helper.h"
-
-#include "utils/Filewatch.h"
 
 void Renderer::toggleUIMode()
 {
@@ -124,7 +118,7 @@ void Renderer::addUIInfo()
 
                     ImGui::SameLine();
 
-                    ImGui::Text(string_VkPresentModeKHR(mode));
+                    ImGui::Text("%s", string_VkPresentModeKHR(mode));
 
                     ImGui::PopID();
                 }
@@ -203,7 +197,18 @@ void Renderer::addUIInfo()
         }
 
         if (ImGui::CollapsingHeader("Shaders")) {
-            constexpr const char *items[] = {"Default", "Normals", "Depth", "Grid"};
+            constexpr const char *items[] = {
+                "Default",
+                "Normals",
+                "Texture",
+                "Depth",
+                "Grid"
+            };
+            u32 handles[] = {
+                hndlDefaultPS,
+                hndlNormalsPS,
+                hndlTexturePS,
+            };
             static u32 curr = 0;
 
             const char *preview = items[curr];
@@ -213,6 +218,7 @@ void Renderer::addUIInfo()
 
                     if (ImGui::Selectable(items[i], selected)) {
                         curr = i;
+                        curShaderPS = handles[curr];
                         resized = true;
                     }
 
@@ -261,33 +267,11 @@ void Renderer::init(const Window *window)
     hk::debug::setName(sceneDescriptorLayout, "Frame Descriptor Layout");
 
     createSyncObjects();
-
     createDepthResources();
 
     hk::ubo::init();
 
-    // FIX: move shader creation to asset manager
-    const std::string path = "assets\\shaders\\";
-
-    hk::dxc::ShaderDesc desc;
-    desc.path = path + "VisibleNormalsVS.hlsl";
-    desc.entry = "main";
-    desc.type = ShaderType::Vertex;
-    desc.model = ShaderModel::SM_6_0;
-    desc.ir = ShaderIR::SPIRV;
-#ifdef HKDEBUG
-    desc.debug = true;
-#else
-    desc.debug = false;
-#endif
-
-    auto vertShaderCode = hk::dxc::loadShader(desc);
-    if (vertShaderCode.size() > 0) vertexCode = vertShaderCode;
-
-    desc.path = path + "VisibleNormalsPS.hlsl";
-    desc.type = ShaderType::Pixel;
-    auto fragShaderCode = hk::dxc::loadShader(desc);
-    if (fragShaderCode.size() > 0) pixelCode = fragShaderCode;
+    loadShaders();
 
     createOffscreenRenderPass();
     createOffscreenPipeline();
@@ -308,41 +292,10 @@ void Renderer::init(const Window *window)
     model = hk::loader::loadModel("assets/models/viking_room.obj");
     model->populateBuffers();
 
-    // texture = hk::loader::loadImage(
-    //     "assets/textures/prototype/PNG/Dark/texture_01.png");
-    texture = hk::loader::loadImage("assets/textures/viking_room.png");
+    // hndlTexture = hk::assets()->load("assets/textures/viking_room.png");
+    hndlTexture = hk::assets()->load("viking_room.png");
 
-    VkSamplerCreateInfo samplerInfo = {};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-
-    VkPhysicalDeviceProperties properties = {};
-    vkGetPhysicalDeviceProperties(hk::context()->physical(), &properties);
-
-    samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerInfo.mipLodBias = 0.0f;
-    samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
-
-    vkCreateSampler(context->device(), &samplerInfo, nullptr, &sampler);
-    hk::debug::setName(sampler, "Frame Sampler");
-
-    hk::filewatch::watch("assets/shaders",
-        [this](const std::string &path, const hk::filewatch::State state)
-        {
-            resized = true;
-        }
-    );
+    createSamplers();
 }
 
 void Renderer::deinit()
@@ -355,8 +308,9 @@ void Renderer::deinit()
     }
 
     model->deinit();
-    if (sampler)
-        vkDestroySampler(device, sampler, nullptr);
+
+    vkDestroySampler(device, samplerLinear, nullptr);
+    vkDestroySampler(device, samplerNearest, nullptr);
 
     depthImage.deinit();
 
@@ -393,8 +347,10 @@ void Renderer::draw()
                        sizeof(hk::ubo::SceneData), 0,
                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
-    writer.writeImage(1, texture->view(), sampler, texture->layout(),
-                       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+    hk::Image *texture = hk::assets()->getTexture(hndlTexture).texture;
+    writer.writeImage(1, texture->view(), samplerLinear, texture->layout(),
+                      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     u32 imageIndex = 0;
     err = swapchain.acquireNextImage(acquireSemaphore, imageIndex);
@@ -813,15 +769,8 @@ void Renderer::createOffscreenPipeline()
 
     hk::PipelineBuilder builder;
 
-
-    VkShaderModule vertShaderModule = createShaderModule(vertexCode);
-    VkShaderModule fragShaderModule = createShaderModule(pixelCode);
-
-    hk::debug::setName(vertShaderModule, "Offscreen Vertex Shader");
-    hk::debug::setName(fragShaderModule, "Offscreen Pixel Shader");
-
-    builder.setShader(ShaderType::Vertex, vertShaderModule);
-    builder.setShader(ShaderType::Pixel, fragShaderModule);
+    builder.setShader(ShaderType::Vertex, hk::assets()->getShader(curShaderVS).module);
+    builder.setShader(ShaderType::Pixel, hk::assets()->getShader(curShaderPS).module);
 
     hk::vector<hk::Format> layout = {
         // position
@@ -853,10 +802,6 @@ void Renderer::createOffscreenPipeline()
 
     offscreenPipeline = builder.build(device, offscreenRenderPass);
     hk::debug::setName(offscreenPipeline.handle(), "Offscreen Pipeline");
-
-    vkDestroyShaderModule(device, fragShaderModule, nullptr);
-    vkDestroyShaderModule(device, vertShaderModule, nullptr);
-
 }
 
 void Renderer::createPresentRenderPass()
@@ -893,53 +838,113 @@ void Renderer::createPresentRenderPass()
     hk::debug::setName(presentRenderPass, "Present RenderPass");
 }
 
-VkShaderModule Renderer::createShaderModule(const hk::vector<u32> &code)
+void Renderer::loadShaders()
 {
-    VkResult err;
+    const std::string path = "assets\\shaders\\";
 
-    VkShaderModuleCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size() * sizeof(u32);
-    createInfo.pCode = code.data();
+    hk::dxc::ShaderDesc desc;
+    desc.entry = "main";
+    desc.type = ShaderType::Vertex;
+    desc.model = ShaderModel::SM_6_0;
+    desc.ir = ShaderIR::SPIRV;
+#ifdef HKDEBUG
+    desc.debug = true;
+#else
+    desc.debug = false;
+#endif
 
-    VkShaderModule shaderModule;
-    err = vkCreateShaderModule(context->device(), &createInfo,
-                               nullptr, &shaderModule);
-    ALWAYS_ASSERT(!err, "Failed to create Vulkan Shader Module");
+    desc.path = path + "DefaultVS.hlsl";
+    hndlDefaultVS = hk::assets()->load(desc.path, &desc);
+    hk::assets()->attachCallback(hndlDefaultVS, [this](){
+        resized = true;
+    });
 
-    return shaderModule;
+    desc.type = ShaderType::Pixel;
+
+    desc.path = path + "DefaultPS.hlsl";
+    hndlDefaultPS = hk::assets()->load(desc.path, &desc);
+    hk::assets()->attachCallback(hndlDefaultPS, [this](){
+        resized = true;
+    });
+
+    desc.path = path + "NormalsPS.hlsl";
+    hndlNormalsPS = hk::assets()->load(desc.path, &desc);
+    hk::assets()->attachCallback(hndlNormalsPS, [this](){
+        resized = true;
+    });
+
+    desc.path = path + "TexturePS.hlsl";
+    hndlTexturePS = hk::assets()->load(desc.path, &desc);
+    hk::assets()->attachCallback(hndlTexturePS, [this](){
+        resized = true;
+    });
+
+    curShaderVS = hndlDefaultVS;
+    curShaderPS = hndlDefaultPS;
+}
+
+void Renderer::createSamplers()
+{
+    VkSamplerCreateInfo samplerInfo = {};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+    const auto info = context->physicalInfos()[0];
+
+    samplerInfo.anisotropyEnable = VK_TRUE;
+    samplerInfo.maxAnisotropy = info.properties.limits.maxSamplerAnisotropy;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.mipLodBias = 0.0f;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 0.0f;
+
+    vkCreateSampler(context->device(), &samplerInfo, nullptr, &samplerLinear);
+    hk::debug::setName(samplerLinear, "Default Linear Sampler");
+
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+
+    vkCreateSampler(context->device(), &samplerInfo, nullptr, &samplerNearest);
+    hk::debug::setName(samplerNearest, "Default Nearest Sampler");
 }
 
 void Renderer::resize(hk::EventContext size, void *listener)
 {
     Renderer *renderer = reinterpret_cast<Renderer*>(listener);
+    VkDevice device = hk::context()->device();
 
-    vkDeviceWaitIdle(hk::context()->device());
+    vkDeviceWaitIdle(device);
 
     renderer->swapchain.init(renderer->surface, {size.u32[0], size.u32[1]});
 
     renderer->depthImage.deinit();
     renderer->createDepthResources();
 
-    if (renderer->viewport) {
-        vkDestroyImageView(hk::context()->device(), renderer->offscreenImageView, nullptr);
-        vkDestroyImage(hk::context()->device(), renderer->offscreenImage, nullptr);
-        vkFreeMemory(hk::context()->device(), renderer->offscreenMemory, nullptr);
-        vkDestroyFramebuffer(hk::context()->device(), renderer->offscreenFrameBuffer, nullptr);
-        renderer->offscreenFrameBuffer = nullptr;
+    vkDestroyImageView(device, renderer->offscreenImageView, nullptr);
+    vkDestroyImage(device, renderer->offscreenImage, nullptr);
+    vkFreeMemory(device, renderer->offscreenMemory, nullptr);
+    renderer->offscreenPipeline.deinit();
+    vkDestroyRenderPass(device, renderer->offscreenRenderPass, nullptr);
 
-        renderer->offscreenPipeline.deinit();
-        vkDestroyRenderPass(hk::context()->device(), renderer->offscreenRenderPass, nullptr);
-
-        renderer->createOffscreenRenderPass();
-        renderer->createOffscreenPipeline();
-        renderer->createPresentRenderPass();
-    }
+    renderer->createOffscreenRenderPass();
+    renderer->createOffscreenPipeline();
+    renderer->createPresentRenderPass();
 
     for (auto framebuffer : renderer->framebuffers) {
-        vkDestroyFramebuffer(hk::context()->device(), framebuffer, nullptr);
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
         framebuffer = nullptr;
     }
+    vkDestroyFramebuffer(device, renderer->offscreenFrameBuffer, nullptr);
+    renderer->offscreenFrameBuffer = nullptr;
+
     renderer->createFramebuffers();
 
     // FIX: temp

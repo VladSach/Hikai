@@ -15,7 +15,6 @@ public:
     {
         vertices_ = vertices;
         indices_ = indices;
-
     }
 
     void deinit()

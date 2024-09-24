@@ -20,7 +20,6 @@ VertexOutput main(VertexInput input) {
     VertexOutput output;
 
     output.position = mul(viewProj, float4(input.pos, 1.f));
-    //output.position = float4(input.pos, 1.f);
     output.normal = input.normal;
     output.tc = input.tc;
 
