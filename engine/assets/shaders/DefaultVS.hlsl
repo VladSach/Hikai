@@ -1,8 +1,4 @@
-cbuffer PerFrame : register(b0) {
-    float2 resolution;
-    float time;
-    float4x4 viewProj;
-};
+#include "globals.hlsli"
 
 struct VertexInput {
     float3 pos : POSITION0;

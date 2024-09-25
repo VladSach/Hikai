@@ -1,7 +1,4 @@
-cbuffer PerFrame : register(b0) {
-    float2 resolution;
-    float time;
-};
+#include "globals.hlsli"
 
 [[vk::combinedImageSampler]]
 Texture2D<float4> myTexture : register(t1);

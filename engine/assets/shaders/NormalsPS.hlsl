@@ -1,7 +1,4 @@
-cbuffer PerFrame : register(b0) {
-    float2 resolution;
-    float time;
-};
+#include "globals.hlsli"
 
 struct PixelInput {
     float4 pos : SV_Position;

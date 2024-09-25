@@ -82,6 +82,10 @@ private:
     u32 hndlNormalsPS;
     u32 hndlTexturePS;
 
+    hk::Pipeline gridPipeline;
+    u32 hndlGridVS;
+    u32 hndlGridPS;
+
     u32 curShaderVS;
     u32 curShaderPS;
 
@@ -94,6 +98,8 @@ private:
     void createPresentRenderPass();
     void createOffscreenRenderPass();
     void createOffscreenPipeline();
+
+    void createGridPipeline();
 
     void loadShaders();
     void createSamplers();

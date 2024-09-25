@@ -6,6 +6,7 @@
 
 #include <string>
 
+// TODO: I don't like them being in global space
 enum class ShaderType : u8 {
     Vertex = 0,
     Hull,

@@ -44,6 +44,8 @@ private:
     b8 viewportMode = false;
     b8 created = false;
 
+    b8 showImGuiDemo = false;
+
     ImGuiID upper;
     ImGuiID lower;
     ImGuiID left;

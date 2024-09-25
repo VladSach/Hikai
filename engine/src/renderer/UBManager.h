@@ -19,7 +19,8 @@ namespace hk::ubo {
 struct SceneData {
     hkm::vec2f resolution;
     f32 time;
-    u8 pad[4];
+    // u8 pad[4];
+    hkm::vec3f cameraPosition;
     alignas(16) hkm::mat4f viewProjection;
 };
 

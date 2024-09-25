@@ -27,7 +27,7 @@ void Editor::update(f32 dt)
             static_cast<f32>(window_->getHeight())
         },
         time,
-        {},
+        camera_.position(),
         mat,
     });
 

@@ -123,6 +123,13 @@ void GUI::draw(VkCommandBuffer cmd)
                 ImGui::EndMenu();
             }
 
+            if (ImGui::BeginMenu("Debug")) {
+
+                ImGui::MenuItem("ImGui Demo Window", NULL, &showImGuiDemo);
+
+                ImGui::EndMenu();
+            }
+
             ImGui::EndMainMenuBar();
         }
         mainDockSpaceID = ImGui::DockSpaceOverViewport();
@@ -152,7 +159,6 @@ void GUI::draw(VkCommandBuffer cmd)
         ImGui::Image(viewportImage,
                      ImVec2{viewportPanelSize.x, viewportPanelSize.y});
 
-        // lockedInput = !ImGui::IsWindowFocused();
         lockedInput = !ImGui::IsWindowHovered();
         ImGui::End();
     }
@@ -390,7 +396,9 @@ void GUI::draw(VkCommandBuffer cmd)
 
     } ImGui::End();
 
-    // ImGui::ShowDemoWindow();
+    if (showImGuiDemo) {
+        ImGui::ShowDemoWindow();
+    }
 
     for (auto &callback : callbacks) {
         callback();

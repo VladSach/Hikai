@@ -48,8 +48,20 @@ void PipelineBuilder::setVertexLayout(u32 stride,
                                       const hk::vector<hk::Format> &layout)
 {
     bindingDescription.binding = 0;
-    bindingDescription.stride = stride;
     bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    if (!stride) {
+        bindingDescription.stride = 0;
+        vertexInputInfo.sType =
+            VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        vertexInputInfo.vertexBindingDescriptionCount = 0;
+        vertexInputInfo.pVertexBindingDescriptions = nullptr;
+        vertexInputInfo.vertexAttributeDescriptionCount = 0;
+        vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+        return;
+    }
+
+    bindingDescription.stride = stride;
 
     attributeDescs = hk::createVertexLayout(layout);
 

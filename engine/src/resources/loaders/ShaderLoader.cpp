@@ -12,11 +12,43 @@
 
 #include "platform/platform.h"
 
+#include "utils/strings/hklocale.h"
+
 namespace hk::dxc {
 
 static CComPtr<IDxcUtils> dxcUtils;
 static CComPtr<IDxcCompiler3> dxcCompiler;
 static b8 initialized = false;
+
+struct IncludeHandler : public IDxcIncludeHandler {
+    HRESULT STDMETHODCALLTYPE LoadSource(
+        _In_z_ LPCWSTR pFilename,
+        _COM_Outptr_result_maybenull_ IDxcBlob** ppIncludeSource) override
+    {
+        HRESULT hr;
+        CComPtr<IDxcBlobEncoding> pEncoding;
+
+        hr = dxcUtils->LoadFile(pFilename, nullptr, pEncoding.GetAddressOf());
+        if (SUCCEEDED(hr)) {
+            *ppIncludeSource = pEncoding.Detach();
+        }
+
+        return hr;
+    }
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(
+        REFIID riid,
+        _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) override
+    {
+        (void)riid; (void)ppvObject;
+        return E_NOINTERFACE;
+    }
+
+    ULONG STDMETHODCALLTYPE AddRef(void) override { return 0; }
+    ULONG STDMETHODCALLTYPE Release(void) override { return 0; }
+};
+
+static struct IncludeHandler dxcIncludeHandler;
 
 void init()
 {
@@ -43,6 +75,7 @@ void deinit()
 hk::vector<u32> loadShader(const ShaderDesc &desc)
 {
     if(!initialized) { init(); }
+
 
     hk::vector<u8> shader;
     if (!hk::platform::readFile(desc.path, shader)) {
@@ -93,7 +126,7 @@ hk::vector<u32> loadShader(const ShaderDesc &desc)
     } break;
     case ShaderIR::SPIRV: {
         args.push_back(L"-spirv");
-        args.push_back(L"-fspv-target-env=vulkan1.1");
+        args.push_back(L"-fspv-target-env=vulkan1.3");
         args.push_back(L"-fvk-use-dx-layout");
     } break;
     }
@@ -113,6 +146,12 @@ hk::vector<u32> loadShader(const ShaderDesc &desc)
         args.push_back(L"-O3");
     }
 
+
+    args.push_back(L"-I");
+    args.push_back(L"assets/shaders/includes"); // TODO: make conf.
+
+    IncludeHandler handler;
+
     // Pack matrices in Column-major order
     // args.push_back(L"-Zpc");
 
@@ -123,7 +162,7 @@ hk::vector<u32> loadShader(const ShaderDesc &desc)
 
     CComPtr<IDxcResult> result;
     err = dxcCompiler->Compile(&sourceBuffer, args.data(), (u32)args.size(),
-                               nullptr, IID_PPV_ARGS(&result));
+                               &handler, IID_PPV_ARGS(&result));
     ALWAYS_ASSERT(SUCCEEDED(err), "Failed to compile shader");
 
     CComPtr<IDxcBlobUtf8> errors;

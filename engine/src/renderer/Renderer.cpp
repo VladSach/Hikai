@@ -226,6 +226,13 @@ void Renderer::addUIInfo()
                 }
                 ImGui::EndCombo();
             }
+
+            ImGui::Separator();
+
+            ImGui::Text("Grid Shader Values");
+
+            // static f32 grid_size = 100.0f;
+            // ImGui::InputFloat("Grid Size", &grid_size, 5);
         }
 
         } ImGui::End();
@@ -276,6 +283,8 @@ void Renderer::init(const Window *window)
     createOffscreenRenderPass();
     createOffscreenPipeline();
     createPresentRenderPass();
+
+    createGridPipeline();
 
     createFramebuffers();
 
@@ -417,35 +426,86 @@ void Renderer::draw()
                                 &sceneDataDescriptor, 0, nullptr);
 
         vkCmdDrawIndexed(commandBuffer, model->indexCount(), 1, 0, 0, 0);
+
+
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          gridPipeline.handle());
+        vkCmdDraw(commandBuffer, 4, 1, 0, 0);
     }
     vkCmdEndRenderPass(commandBuffer);
 
-    // if (!viewport) {
-    //     VkImageCopy copyRegion = {};
-    //     copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    //     copyRegion.srcSubresource.mipLevel = 0;
-    //     copyRegion.srcSubresource.baseArrayLayer = 0;
-    //     copyRegion.srcSubresource.layerCount = 1;
-    //     copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    //     copyRegion.dstSubresource.mipLevel = 0;
-    //     copyRegion.dstSubresource.baseArrayLayer = 0;
-    //     copyRegion.dstSubresource.layerCount = 1;
-    //     copyRegion.extent.width = swapchain.extent().width;
-    //     copyRegion.extent.height = swapchain.extent().height;
-    //     copyRegion.extent.depth = 1;
-    //
-    //     hk::vector<VkImage> &scimages = swapchain.images();
-    //
-    //     vkCmdCopyImage(
-    //         commandBuffer,
-    //         offscreenImage,
-    //         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-    //         scimages[imageIndex],
-    //         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-    //         1,
-    //         &copyRegion
-    //     );
-    // }
+
+    if (!viewport) {
+        VkImageCopy copyRegion = {};
+        copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.srcSubresource.mipLevel = 0;
+        copyRegion.srcSubresource.baseArrayLayer = 0;
+        copyRegion.srcSubresource.layerCount = 1;
+        copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.dstSubresource.mipLevel = 0;
+        copyRegion.dstSubresource.baseArrayLayer = 0;
+        copyRegion.dstSubresource.layerCount = 1;
+        copyRegion.extent.width = swapchain.extent().width;
+        copyRegion.extent.height = swapchain.extent().height;
+        copyRegion.extent.depth = 1;
+
+        hk::vector<VkImage> &scimages = swapchain.images();
+
+        VkImageMemoryBarrier bar = {};
+        bar.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        bar.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        bar.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        bar.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        bar.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        bar.image = scimages[imageIndex];
+        bar.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        bar.subresourceRange.baseMipLevel = 0;
+        bar.subresourceRange.levelCount = 1;
+        bar.subresourceRange.baseArrayLayer = 0;
+        bar.subresourceRange.layerCount = 1;
+        vkCmdPipelineBarrier(commandBuffer,
+                             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             0, 0, NULL, 0, NULL, 1,
+                             &bar);
+
+        bar.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        bar.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        bar.image = offscreenImage;
+        vkCmdPipelineBarrier(commandBuffer,
+                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             0, 0, NULL, 0, NULL, 1,
+                             &bar);
+
+        vkCmdCopyImage(
+            commandBuffer,
+            offscreenImage,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            scimages[imageIndex],
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            1,
+            &copyRegion
+        );
+
+        bar.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        bar.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        bar.image = scimages[imageIndex];
+        vkCmdPipelineBarrier(commandBuffer,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                             0, 0, NULL, 0, NULL, 1,
+                             &bar);
+
+        bar.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        bar.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        bar.image = offscreenImage;
+        vkCmdPipelineBarrier(commandBuffer,
+                             VK_PIPELINE_STAGE_TRANSFER_BIT,
+                             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                             0, 0, NULL, 0, NULL, 1,
+                             &bar);
+    }
 
     VkClearValue uiClearValue = {};
     uiClearValue.color = { 0.f, 0.f, 0.f, 1.f };
@@ -553,6 +613,7 @@ void Renderer::createFramebuffers()
     imageInfo.usage =
         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
         VK_IMAGE_USAGE_SAMPLED_BIT |
+        VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
         VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -597,6 +658,11 @@ void Renderer::createFramebuffers()
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = 1;
+    viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    // INFO: possible solution to ImGui blending problem
+    viewInfo.components.a = VK_COMPONENT_SWIZZLE_ONE;
 
     vkCreateImageView(context->device(), &viewInfo, nullptr, &offscreenImageView);
     hk::debug::setName(offscreenImageView, "Offscreen Image View");
@@ -838,6 +904,36 @@ void Renderer::createPresentRenderPass()
     hk::debug::setName(presentRenderPass, "Present RenderPass");
 }
 
+void Renderer::createGridPipeline()
+{
+    VkDevice device = context->device();
+
+    hk::PipelineBuilder builder;
+
+    VkShaderModule vs = hk::assets()->getShader(hndlGridVS).module;
+    VkShaderModule ps = hk::assets()->getShader(hndlGridPS).module;
+    builder.setShader(ShaderType::Vertex, vs);
+    builder.setShader(ShaderType::Pixel, ps);
+
+    builder.setVertexLayout(0, 0);
+
+    builder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
+    builder.setRasterizer(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE);
+    builder.setMultisampling();
+    builder.setColorBlend();
+
+    hk::vector<VkDescriptorSetLayout> descriptorSetsLayouts = {
+        sceneDescriptorLayout,
+    };
+    builder.setLayout(descriptorSetsLayouts);
+
+    builder.setDepthStencil();
+    builder.setRenderInfo(swapchain.format(), depthImage.format());
+
+    gridPipeline = builder.build(device, offscreenRenderPass);
+    hk::debug::setName(gridPipeline.handle(), "Offscreen Pipeline");
+}
+
 void Renderer::loadShaders()
 {
     const std::string path = "assets\\shaders\\";
@@ -859,6 +955,12 @@ void Renderer::loadShaders()
         resized = true;
     });
 
+    desc.path = path + "GridVS.hlsl";
+    hndlGridVS = hk::assets()->load(desc.path, &desc);
+    hk::assets()->attachCallback(hndlGridVS, [this](){
+        createGridPipeline();
+    });
+
     desc.type = ShaderType::Pixel;
 
     desc.path = path + "DefaultPS.hlsl";
@@ -877,6 +979,12 @@ void Renderer::loadShaders()
     hndlTexturePS = hk::assets()->load(desc.path, &desc);
     hk::assets()->attachCallback(hndlTexturePS, [this](){
         resized = true;
+    });
+
+    desc.path = path + "GridPS.hlsl";
+    hndlGridPS = hk::assets()->load(desc.path, &desc);
+    hk::assets()->attachCallback(hndlGridPS, [this](){
+        createGridPipeline();
     });
 
     curShaderVS = hndlDefaultVS;

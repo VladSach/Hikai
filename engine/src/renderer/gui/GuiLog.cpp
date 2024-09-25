@@ -11,6 +11,8 @@
 // FIX: This file is a temp solution
 // Later: rewrite whole imgui log
 
+#include "platform/Windows/WinLog.h"
+
 struct ColorText {
     hk::vector<ImVec4> color;
     ImGuiTextBuffer buf;
@@ -27,6 +29,8 @@ void addImGuiLog()
     log_.buf.clear();
     log_.lineOffsets.clear();
     log_.lineOffsets.push_back(0);
+
+    deallocWinConsole();
 
     Logger::getInstance()->addMessageHandler(logImGui);
 }
