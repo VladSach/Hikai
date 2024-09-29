@@ -152,7 +152,7 @@ void init()
 {
     initialized = true;
 
-    EventSystem &evsys = *EventSystem::instance();
+    EventSystem &evsys = *hk::evesys();
     evsys.subscribe(EVENT_KEY_PRESSED, registerKeyPress);
     evsys.subscribe(EVENT_KEY_RELEASED, registerKeyPress);
 
@@ -169,7 +169,7 @@ void deinit()
 {
     if (!initialized) { return; }
 
-    EventSystem &evsys = *EventSystem::instance();
+    EventSystem &evsys = *hk::evesys();
     evsys.unsubscribe(EVENT_KEY_PRESSED, registerKeyPress);
     evsys.unsubscribe(EVENT_KEY_RELEASED, registerKeyPress);
 

@@ -18,8 +18,10 @@
 #include "object/Model.h"
 #include "resources/loaders/ModelLoader.h"
 static hk::Model *model;
+#include "imgui/imgui_impl_vulkan.h"
 
 #include "vendor/vulkan/vk_enum_string_helper.h"
+#include "utils/strings/hklocale.h"
 
 void Renderer::toggleUIMode()
 {
@@ -295,14 +297,15 @@ void Renderer::init(const Window *window)
     commandBuffer = context->graphics().createCommandBuffer();
     hk::debug::setName(commandBuffer, "Frame Command Buffer");
 
-    EventSystem::instance()->subscribe(hk::EVENT_WINDOW_RESIZE, resize, this);
+    hk::evesys()->subscribe(hk::EVENT_WINDOW_RESIZE, resize, this);
 
     // FIX: temp
-    model = hk::loader::loadModel("assets/models/viking_room.obj");
+    model = hk::loader::loadModel("..\\editor\\assets\\models\\Rei Plush.fbx");
+    // model = hk::loader::loadModel("assets/models/dark-knight/Knight_All.fbx");
     model->populateBuffers();
 
     // hndlTexture = hk::assets()->load("assets/textures/viking_room.png");
-    hndlTexture = hk::assets()->load("viking_room.png");
+    hndlTexture = hk::assets()->load("Rei Plush Texture.png");
 
     createSamplers();
 }
@@ -936,7 +939,7 @@ void Renderer::createGridPipeline()
 
 void Renderer::loadShaders()
 {
-    const std::string path = "assets\\shaders\\";
+    const std::string path = "..\\engine\\assets\\shaders\\";
 
     hk::dxc::ShaderDesc desc;
     desc.entry = "main";

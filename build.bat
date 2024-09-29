@@ -39,6 +39,9 @@ robocopy ".\engine\bin" ".\bin" hikai.pdb /mt 2>&1 | findstr /i "ERROR"
 echo Copying dxcompiler.dll...
 robocopy ".\engine\lib" ".\bin" dxcompiler.dll /mt 2>&1 | findstr /i "ERROR"
 
+echo Copying assimp-vc143-mt.dll...
+robocopy ".\engine\lib" ".\bin" assimp-vc143-mt.dll /mt 2>&1 | findstr /i "ERROR"
+
 echo Copying editor.exe...
 robocopy ".\editor\bin" ".\bin" editor.exe /mt 2>&1 | findstr /i "ERROR"
 robocopy ".\editor\bin" ".\bin" editor.pdb /mt 2>&1 | findstr /i "ERROR"
@@ -46,9 +49,6 @@ robocopy ".\editor\bin" ".\bin" editor.pdb /mt 2>&1 | findstr /i "ERROR"
 echo Copying sandbox.exe...
 robocopy ".\sandbox\bin" ".\bin" sandbox.exe /mt 2>&1 | findstr /i "ERROR"
 robocopy ".\sandbox\bin" ".\bin" sandbox.pdb /mt 2>&1 | findstr /i "ERROR"
-
-echo Copying assets...
-robocopy ".\engine\assets" ".\bin\assets" /s /mt 2>&1 | findstr /i "ERROR"
 
 echo ============================
 echo Build successful

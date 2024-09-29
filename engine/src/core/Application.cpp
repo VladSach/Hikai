@@ -11,7 +11,7 @@ b8 Application::running = false;
 Application::Application(const AppDesc &desc)
     : desc(desc)
 {
-    evsys = EventSystem::instance();
+    evsys = hk::evesys();
 
     evsys->init();
     evsys->subscribe(hk::EVENT_APP_SHUTDOWN, shutdown, this);
@@ -30,7 +30,8 @@ Application::Application(const AppDesc &desc)
 
     clock.record();
 
-    hk::assets()->init("assets\\");
+    // FIX: temp development fix
+    hk::assets()->init("..\\editor\\assets");
 
     renderer = new Renderer();
     renderer->init(window);

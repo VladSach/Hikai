@@ -4,15 +4,16 @@
 
 #include "utils/Filewatch.h"
 #include "platform/platform.h"
+#include "core/EventSystem.h"
 
 namespace hk {
 
 AssetManager *assets()
 {
-    static hk::AssetManager *singletone = nullptr;
+    static AssetManager *singletone = nullptr;
 
     if (singletone == nullptr) {
-        singletone = new hk::AssetManager();
+        singletone = new AssetManager();
     }
     return singletone;
 }
@@ -67,7 +68,7 @@ u32 AssetManager::load(const std::string &path, void *data)
 
     std::string out;
 
-    if (hk::platform::findFile(folder_, path, &out)) {
+    if (hk::filesystem::findFile(folder_, path, &out)) {
         // Path inside folder_
     } else {
         // Path outside folder_
@@ -100,6 +101,11 @@ u32 AssetManager::load(const std::string &path, Asset::Type type, void *data)
     // should be loaded initialy
     paths_[path] = handle;
     LOG_INFO("path:", path);
+
+    hk::EventContext context;
+    context.u32[0] = handle;
+    context.u32[1] = static_cast<u32>(type);
+    hk::evesys()->fireEvent(hk::EventCode::EVENT_ASSET_LOADED, context);
 
     return handle;
 }
@@ -137,6 +143,7 @@ void AssetManager::attachCallback(u32 handle, std::function<void()> callback)
 u32 AssetManager::loadTexture(const std::string &path)
 {
     TextureAsset *asset = new TextureAsset();
+    asset->name = path.substr(path.find_last_of("/\\") + 1);
     asset->path = path;
     asset->handle = index_;
     asset->type = Asset::Type::TEXTURE;
@@ -157,9 +164,11 @@ u32 AssetManager::loadShader(const std::string &path, void *data)
 
     if (code.size() <= 0) {
         LOG_WARN("Shader code is empty");
+        return 0;
     }
 
     ShaderAsset *asset = new ShaderAsset();
+    asset->name = path.substr(path.find_last_of("/\\") + 1);
     asset->path = path;
     asset->handle = index_;
     asset->type = Asset::Type::SHADER;

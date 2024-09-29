@@ -4,6 +4,7 @@
 #include "defines.h"
 #include "vec3f.h"
 #include "mat3f.h"
+#include "mat4f.h"
 
 namespace hkm {
 
@@ -85,6 +86,64 @@ struct HKAPI quaternion {
             2.f * (xy + wz),       1.f - 2.f * (x2 + z2), 2.f * (yz - wx),
             2.f * (xz - wy),       2.f * (yz + wx),       1.f - 2.f * (x2 + y2)
         );
+    }
+
+    constexpr mat4f rotmat4f() const
+    {
+        f32 x2 = x * x;
+        f32 y2 = y * y;
+        f32 z2 = z * z;
+        f32 xy = x * y;
+        f32 xz = x * z;
+        f32 yz = y * z;
+        f32 wx = w * x;
+        f32 wy = w * y;
+        f32 wz = w * z;
+
+        return mat4f(
+            1.f - 2.f * (y2 + z2), 2.f * (xy - wz),       2.f * (xz + wy),   0,
+            2.f * (xy + wz),       1.f - 2.f * (x2 + z2), 2.f * (yz - wx),   0,
+            2.f * (xz - wy),       2.f * (yz + wx),   1.f - 2.f * (x2 + y2), 0,
+            0, 0, 0, 1
+        );
+    }
+
+    void setRotationMatrix4(const mat4f &m)
+    {
+        float m00 = m(0, 0);
+        float m11 = m(1, 1);
+        float m22 = m(2, 2);
+        float sum = m00 + m11 + m22;
+
+        if (sum > .0f) {
+            w = std::sqrt(sum + 1.f) * .5f;
+            float f = .25f / w;
+
+            x = (m(2, 1) - m(1, 2)) * f;
+            y = (m(0, 2) - m(2, 0)) * f;
+            z = (m(1, 0) - m(0, 1)) * f;
+        } else if ((m00 > m11) && (m00 > m22)) {
+            x = std::sqrt(m00 - m11 - m22 + 1.f) * .5f;
+            float f = .25f / x;
+
+            y = (m(1, 0) + m(0, 1)) * f;
+            z = (m(0, 2) + m(2, 0)) * f;
+            w = (m(2, 1) - m(1, 2)) * f;
+        } else if (m11 > m22) {
+            y = std::sqrt(m11 - m00 - m22 + 1.f) * .5f;
+            float f = .25f / y;
+
+            x = (m(1, 0) + m(0, 1)) * f;
+            z = (m(2, 1) + m(1, 2)) * f;
+            w = (m(0, 2) - m(2, 0)) * f;
+        } else {
+            z = std::sqrt(m22 - m00 - m11 + 1.f) * .5f;
+            float f = .25f / z;
+
+            x = (m(0, 2) + m(2, 0)) * f;
+            y = (m(2, 1) + m(1, 2)) * f;
+            w = (m(1, 0) - m(0, 1)) * f;
+        }
     }
 };
 

@@ -4,7 +4,7 @@
 namespace hkm {
 
 template <typename T>
-T clamp(const T &n, const T &lower, const T &upper)
+constexpr T clamp(const T &n, const T &lower, const T &upper)
 {
     return (n <= lower ? lower : n <= upper ? n : upper);
 }

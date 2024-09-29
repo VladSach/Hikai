@@ -21,6 +21,8 @@ public:
 
     void draw(VkCommandBuffer cmd);
 
+    HKAPI void* addTexture(VkImageView view);
+
     HKAPI b8 isInputLocked() const;
     HKAPI inline void pushCallback(const std::function<void()> &callback)
     {

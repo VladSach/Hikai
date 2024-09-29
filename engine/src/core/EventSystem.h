@@ -32,8 +32,6 @@ struct EventContext {
     };
 };
 
-}
-
 class EventSystem {
 public:
     // using EventCallback = void(*)(EventContext userdata);
@@ -52,8 +50,6 @@ public:
     };
 
 public:
-    HKAPI static EventSystem *instance();
-
     HKAPI b8 subscribe(u32 code, EventCallback callback,
                        void *listener = nullptr);
 
@@ -67,13 +63,6 @@ public:
     void deinit();
     void dispatch();
 
-    EventSystem(EventSystem &other) = delete;
-    void operator=(const EventSystem&) = delete;
-
-protected:
-    EventSystem() {}
-    static EventSystem *singleton;
-
 private:
     std::unordered_map<u32, hk::vector<Subscriber>> subscribers;
     // TODO: make size customizable, maybe through init
@@ -81,7 +70,9 @@ private:
 
 };
 
-enum hk::EventCode : u32 {
+HKAPI EventSystem* evesys();
+
+enum EventCode : u32 {
     EVENT_EMPTY = 0,
 
     // u64 = hk::ErrorCode
@@ -107,10 +98,13 @@ enum hk::EventCode : u32 {
     // u32[0] = width, u32[1] = height
     EVENT_WINDOW_RESIZE,
 
+    // u32[0] = handle, u32[1] = asset type
+    EVENT_ASSET_LOADED,
+
     MAX_EVENT_CODES
 };
 
-enum hk::ErrorCode : u64 {
+enum ErrorCode : u64 {
     ERROR_UNKNOWN = 0,
 
     // TODO: add error codes as needed
@@ -119,5 +113,7 @@ enum hk::ErrorCode : u64 {
 
     MAX_ERROR_CODES
 };
+
+}
 
 #endif // HK_EVENTSYSTEM_H

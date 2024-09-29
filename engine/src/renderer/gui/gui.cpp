@@ -102,6 +102,16 @@ void GUI::setViewportMode(VkImageView view)
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
+void* GUI::addTexture(VkImageView view)
+{
+    VkDescriptorSet texture = ImGui_ImplVulkan_AddTexture(
+        viewportSampler_,
+        view,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    return texture;
+}
+
 void GUI::setOverlayMode()
 {
     viewportMode = false;
@@ -393,6 +403,11 @@ void GUI::draw(VkCommandBuffer cmd)
                 ImGui::TreePop();
             }
         }
+
+    } ImGui::End();
+
+    if (viewportMode) { ImGui::SetNextWindowDockID(lower); }
+    if (ImGui::Begin("Assets")) {
 
     } ImGui::End();
 

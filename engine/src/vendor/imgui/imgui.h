@@ -79,9 +79,14 @@ Index of this file:
 // Define attributes of all API symbols declarations (e.g. for DLL under Windows)
 // IMGUI_API is used for core imgui functions, IMGUI_IMPL_API is used for the default backends files (imgui_impl_xxx.h)
 // Using dear imgui via a shared library is not recommended: we don't guarantee backward nor forward ABI compatibility + this is a call-heavy library and function call overhead adds up.
-#ifndef IMGUI_API
-#define IMGUI_API
+#ifdef HKDLL_OUT // FIX: temp
+    #define IMGUI_API __declspec(dllexport)
+#else
+    #define IMGUI_API __declspec(dllimport)
 #endif
+// #ifndef IMGUI_API
+// #define IMGUI_API
+// #endif
 #ifndef IMGUI_IMPL_API
 #define IMGUI_IMPL_API              IMGUI_API
 #endif

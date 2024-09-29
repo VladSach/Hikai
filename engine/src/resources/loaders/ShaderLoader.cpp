@@ -78,7 +78,7 @@ hk::vector<u32> loadShader(const ShaderDesc &desc)
 
 
     hk::vector<u8> shader;
-    if (!hk::platform::readFile(desc.path, shader)) {
+    if (!hk::filesystem::readFile(desc.path, shader)) {
         LOG_ERROR("Failed to read from file:", desc.path);
     }
 
@@ -148,7 +148,7 @@ hk::vector<u32> loadShader(const ShaderDesc &desc)
 
 
     args.push_back(L"-I");
-    args.push_back(L"assets/shaders/includes"); // TODO: make conf.
+    args.push_back(L"..\\engine\\assets\\shaders\\includes"); // TODO: make conf.
 
     IncludeHandler handler;
 

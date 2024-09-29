@@ -60,7 +60,7 @@ private:
     HWND hWnd = nullptr;
     HINSTANCE hInstance = nullptr;
 
-    EventSystem *evs = nullptr;
+    hk::EventSystem *evs = nullptr;
 };
 
 #endif // HK_WINWINDOW_H

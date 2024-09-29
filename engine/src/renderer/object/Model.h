@@ -1,21 +1,16 @@
 #ifndef HK_MODEL_H
 #define HK_MODEL_H
 
-#include "renderer/object/Vertex.h"
-#include "renderer/vkwrappers/Buffer.h"
+#include "Entity.h"
+#include "Mesh.h"
 
-#include "utils/containers/hkvector.h"
+#include "renderer/vkwrappers/Buffer.h"
 
 namespace hk {
 
-class Model {
+class Model : public Entity {
 public:
-    void init(const hk::vector<Vertex> &vertices,
-              const hk::vector<u32> &indices)
-    {
-        vertices_ = vertices;
-        indices_ = indices;
-    }
+    ~Model() { deinit(); }
 
     void deinit()
     {
@@ -25,11 +20,44 @@ public:
 
     void populateBuffers()
     {
+        ranges_.clear();
+
+        hk::vector<Vertex> vertices;
+        hk::vector<u32> indices;
+
+        u32 vn = 0;
+        u32 inn = 0;
+        u32 prev_vn = 0;
+        u32 prev_inn = 0;
+        for (auto &mesh : meshes_) {
+        // for (auto &handle : meshes) {
+            //Mesh mesh = hk::assets()->getMesh(handle);
+
+            prev_vn += vn;
+            prev_inn += inn;
+            vn = 0;
+            inn = 0;
+
+            for (auto &v : mesh.vertices) {
+                vertices.push_back(v);
+                ++vn;
+            }
+
+            for (auto &triangle : mesh.triangles) {
+                indices.push_back(triangle.indices[0]);
+                indices.push_back(triangle.indices[1]);
+                indices.push_back(triangle.indices[2]);
+                inn += 3;
+            }
+
+            ranges_.push_back({prev_vn, prev_inn, vn, inn});
+        }
+
         Buffer::BufferDesc vertexDesc = {};
         vertexDesc.type = Buffer::Type::VERTEX_BUFFER;
         vertexDesc.usage = Buffer::Usage::TRANSFER_DST;
         vertexDesc.property = Buffer::Property::GPU_LOCAL;
-        vertexDesc.size = vertices_.size();
+        vertexDesc.size = vertices.size();
         vertexDesc.stride = sizeof(Vertex);
         vertexBuffer_.init(vertexDesc);
 
@@ -37,12 +65,15 @@ public:
         indexDesc.type = Buffer::Type::INDEX_BUFFER;
         indexDesc.usage = Buffer::Usage::TRANSFER_DST;
         indexDesc.property = Buffer::Property::GPU_LOCAL;
-        indexDesc.size = indices_.size();
-        indexDesc.stride = sizeof(indices_[0]);
+        indexDesc.size = indices.size();
+        indexDesc.stride = sizeof(indices[0]);
         indexBuffer_.init(indexDesc);
 
-        vertexBuffer_.update(vertices_.data());
-        indexBuffer_.update(indices_.data());
+        vertexBuffer_.update(vertices.data());
+        indexBuffer_.update(indices.data());
+
+        vertexCnt = vertices.size();
+        indexCnt = indices.size();
     }
 
     void bind(VkCommandBuffer commandBuffer) {
@@ -51,14 +82,25 @@ public:
     }
 
 public:
-    const u32 indexCount() const { return indices_.size(); }
+    const u32 indexCount() const { return indexCnt; }
 
-private:
-    Buffer vertexBuffer_;
-    Buffer indexBuffer_;
+public:
+    hk::vector<Mesh> meshes_;
+    // hk::vector<u32> meshes; // handles
 
-    hk::vector<Vertex> vertices_;
-    hk::vector<u32> indices_;
+    struct MeshRange {
+        u32 vertexOffset; // offset in vertices
+        u32 indexOffset;  // offset in indices
+        u32 vertexNum;    // num of vertices
+        u32 indexNum;     // num of indices
+    };
+    hk::vector<MeshRange> ranges_; // where each mesh data is stored in vertices
+
+    Buffer vertexBuffer_; // stores vertices of all Meshes of this Model
+    Buffer indexBuffer_;  // stores indices of all Meshes of this Model
+
+    u32 vertexCnt = 0;
+    u32 indexCnt = 0;
 };
 
 }

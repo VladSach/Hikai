@@ -11,27 +11,30 @@ void Editor::init()
     f32 aspect = static_cast<f32>(window_->getWidth())/window_->getHeight();
 
     camera_.setPerspective(45.f, aspect, .1f, 100.f);
-    camera_.setWorldOffset({ 0.f, 0.f, -2.f });
+    camera_.setWorldOffset({ 0.f, 1.f, -2.f });
+
+    assets.init(renderer->ui());
 }
 
 void Editor::update(f32 dt)
 {
-    f32 time = .0f;
-
     processInput(dt);
 
     hkm::mat4f mat = camera_.getViewProjection();
-    hk::ubo::setFrameData({
+    hk::ubo::setFrameData(
+    {
         {
             static_cast<f32>(window_->getWidth()),
             static_cast<f32>(window_->getHeight())
         },
-        time,
+        time_,
         camera_.position(),
         mat,
     });
 
-    time += dt;
+    time_ += dt;
+
+    assets.display(renderer->ui());
 }
 
 void Editor::processInput(f32 dt)

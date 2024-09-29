@@ -2,10 +2,12 @@
 
 #include "utils/Logger.h"
 
-EventSystem *EventSystem::singleton = nullptr;
+namespace hk {
 
-EventSystem *EventSystem::instance()
+EventSystem *evesys()
 {
+    static EventSystem *singleton = nullptr;
+
     if (singleton == nullptr) {
         singleton = new EventSystem();
     }
@@ -21,7 +23,6 @@ void EventSystem::deinit()
 {
     buffer.clear();
     subscribers.clear();
-    delete singleton;
 }
 
 b8 EventSystem::subscribe(u32 code,
@@ -30,8 +31,8 @@ b8 EventSystem::subscribe(u32 code,
 {
     for (auto &sub : subscribers[code]) {
         if (sub.listener == listener &&
-                sub.callback.target<EventCallback>() ==
-                callback.target<EventCallback>())
+            sub.callback.target<EventCallback>() ==
+            callback.target<EventCallback>())
         {
             LOG_WARN("Trying to register already existing callback");
             return false;
@@ -81,7 +82,7 @@ void EventSystem::dispatch()
     }
 }
 
-const char* hk::getErrocodeStr(hk::ErrorCode error)
+const char* getErrocodeStr(hk::ErrorCode error)
 {
     constexpr char const *lookup_errors[hk::MAX_ERROR_CODES] = {
         "Unknown error",
@@ -90,4 +91,6 @@ const char* hk::getErrocodeStr(hk::ErrorCode error)
     };
 
     return lookup_errors[error];
+}
+
 }

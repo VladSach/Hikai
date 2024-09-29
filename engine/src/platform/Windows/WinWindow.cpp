@@ -28,7 +28,7 @@ void WinWindow::init(std::wstring title, u32 width, u32 height)
     // winHeight /= info.dpi;
 
     hInstance = PlatformArgs::instance()->hInstance;
-    evs = EventSystem::instance();
+    evs = hk::evesys();
 
     WNDCLASSEX wc;
     ZeroMemory(&wc, sizeof(WNDCLASSEX));

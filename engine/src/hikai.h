@@ -22,4 +22,6 @@
 #include "renderer/UBManager.h"
 #include "renderer/object/Camera.h"
 
+#include "resources/AssetManager.h"
+
 #endif // HIKAI_H

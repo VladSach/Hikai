@@ -44,7 +44,7 @@ private:
 
     AppDesc desc;
     Window *window;
-    EventSystem *evsys;
+    hk::EventSystem *evsys;
 
     hk::Timer clock;
 public: // FIX: temp, delete public

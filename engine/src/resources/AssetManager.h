@@ -12,13 +12,19 @@ public:
     void init(const std::string &folder);
     void deinit();
 
-    u32 load(const std::string &path, void *data = nullptr);
-    u32 load(const std::string &path, Asset::Type type, void *data = nullptr);
-    void unload(u32 handle);
+    HKAPI u32 load(const std::string &path, void *data = nullptr);
+    HKAPI u32 load(const std::string &path, Asset::Type type, void *data = nullptr);
+    HKAPI void unload(u32 handle);
 
     void reload(u32 handle);
 
-    void attachCallback(u32 handle, std::function<void()> callback);
+    HKAPI void attachCallback(u32 handle, std::function<void()> callback);
+
+
+    inline std::string getAssetPath(u32 handle)
+    {
+        return assets_.at(getIndex(handle))->path;
+    }
 
     // TODO: probably don't want to get access to user to Assets
     Asset* get(u32 handle) const
@@ -36,6 +42,12 @@ public:
     {
         return *static_cast<hk::TextureAsset*>(assets_.at(getIndex(handle)));
     }
+
+public:
+    inline std::string folder() const { return folder_; }
+
+    // FIX: temp
+    const hk::vector<Asset*> assets() const { return assets_; }
 
 private:
     u32 loadTexture(const std::string &path);
@@ -56,7 +68,7 @@ private:
     std::unordered_map<std::string, u32> paths_;
 };
 
-AssetManager *assets();
+HKAPI AssetManager *assets();
 
 }
 

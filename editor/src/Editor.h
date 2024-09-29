@@ -3,6 +3,8 @@
 
 #include "hikai.h"
 
+#include "AssetBrowser.h"
+
 class Editor final : public Application {
 public:
     Editor(const AppDesc &desc)
@@ -23,6 +25,12 @@ private:
     Window *window_ = nullptr;
 
     Camera camera_;
+
+    f32 time_ = .0f;
+
+// GUI part
+private:
+    AssetBrowser assets;
 };
 
 #endif // HK_EDITOR_H
