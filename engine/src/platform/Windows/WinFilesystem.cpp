@@ -1,6 +1,9 @@
 #include "platform/filesystem.h"
 
 #include "win.h"
+#include "PathCch.h"
+
+#include "utils/strings/hklocale.h"
 
 #include <fstream>
 #include <string>
@@ -66,6 +69,83 @@ b8 findFile(const std::string &root, const std::string &target,
 
     FindClose(hFind);
     return false;
+}
+
+b8 exists(const std::string &path)
+{
+    DWORD attr = GetFileAttributesA(path.c_str());
+
+    if (attr == INVALID_FILE_ATTRIBUTES) {
+        DWORD err = GetLastError();
+        if (err == ERROR_PATH_NOT_FOUND ||
+            err == ERROR_FILE_NOT_FOUND ||
+            err == ERROR_INVALID_NAME   ||
+            err == ERROR_BAD_NETPATH)
+        {
+            return false;
+        }
+
+        LOG_WARN("Path exists but inaccessible");
+    }
+
+    return true;
+}
+
+typedef HRESULT (WINAPI *PathCchCanonicalizeExFunc)(
+    PWSTR pszPathOut,
+    size_t cchPathOut,
+    PCWSTR pszPathIn,
+    ULONG dwFlags
+);
+
+std::string canonical(const std::string &path)
+{
+    // FIX: works, but I don't like the way it's written
+
+    // https://learn.microsoft.com/en-us/windows/win32/apiindex/windows-apisets
+    HMODULE hModule = LoadLibraryExW(L"api-ms-win-core-path-l1-1-0.dll",
+                                     NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    static PathCchCanonicalizeExFunc PathCchCanonicalizeEx =
+        (PathCchCanonicalizeExFunc)GetProcAddress(hModule, "PathCchCanonicalizeEx");
+
+    std::wstring wpath = string_convert(path);
+
+    DWORD flags = FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT;
+    HANDLE hFile = CreateFileW(wpath.c_str(),
+                               GENERIC_READ, FILE_SHARE_READ |
+                               FILE_SHARE_WRITE |
+                               FILE_SHARE_DELETE,
+                               NULL, OPEN_EXISTING, flags, NULL);
+
+    if (hFile == INVALID_HANDLE_VALUE) {
+        // Path doesn't exist or we don't have access rights
+        //
+        // wpath = widen(p.root_path().string());
+        // if (!PathCanonicalizeW(wpath.data(), wpath.data())) {
+        //     throw std::runtime_error("Failed to canonicalize path");
+        // }
+        // return narrow(wpath);
+    }
+
+    HRESULT hr;
+
+    // Get full path
+    WCHAR buffer[MAX_PATH];
+    DWORD result = GetFullPathNameW(wpath.c_str(), MAX_PATH, buffer, nullptr);
+    if (result == 0 || result > MAX_PATH) {
+        CloseHandle(hFile);
+        ALWAYS_ASSERT(0, "Failed to get full path");
+    }
+
+    // Canonicalize path
+    WCHAR buffer2[MAX_PATH];
+    hr = PathCchCanonicalizeEx(buffer2, MAX_PATH, buffer, PATHCCH_ALLOW_LONG_PATHS);
+    if (hr != S_OK) {
+        CloseHandle(hFile);
+        ALWAYS_ASSERT(0, "Failed to canonicalize path");
+    }
+
+    return wstring_convert(std::wstring(buffer2));
 }
 
 struct DirectoryIterator::Impl {

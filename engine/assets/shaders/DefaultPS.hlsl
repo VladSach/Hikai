@@ -1,10 +1,5 @@
 #include "globals.hlsli"
 
-[[vk::combinedImageSampler]]
-Texture2D<float4> myTexture : register(t1);
-[[vk::combinedImageSampler]]
-SamplerState mySampler : register(s1);
-
 struct PixelInput {
     float4 pos : SV_Position;
     float3 normal : NORMAL;
@@ -13,5 +8,5 @@ struct PixelInput {
 
 float4 main(PixelInput input) : SV_Target0
 {
-    return myTexture.Sample(mySampler, input.tc);
+    return float4(1.f, 1.f, 1.f, 1.f);
 }

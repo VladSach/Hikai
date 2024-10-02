@@ -16,6 +16,8 @@
 #include "core/EventSystem.h"
 #include "utils/containers/hkvector.h"
 
+#include "object/Model.h"
+
 class Renderer {
 public:
     Renderer() = default;
@@ -26,7 +28,7 @@ public:
 
     void draw();
 
-    static void resize(hk::EventContext size, void *listener);
+    static void resize(const hk::EventContext &size, void *listener);
     void recreateSwapchain();
 
     // FIX: temp
@@ -46,6 +48,7 @@ private:
 
     hk::DescriptorAllocator frameDescriptors;
     VkDescriptorSetLayout sceneDescriptorLayout;
+    VkDescriptorSetLayout materialDescriptorLayout;
 
     VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
 
@@ -74,9 +77,6 @@ private:
     VkSampler samplerLinear;
     VkSampler samplerNearest;
 
-    // FIX: temp
-    u32 hndlTexture;
-
     u32 hndlDefaultVS;
     u32 hndlDefaultPS;
     u32 hndlNormalsPS;
@@ -88,6 +88,9 @@ private:
 
     u32 curShaderVS;
     u32 curShaderPS;
+
+    // FIX: temp
+    hk::vector<hk::Model*> models;
 
 private:
     void createSurface();

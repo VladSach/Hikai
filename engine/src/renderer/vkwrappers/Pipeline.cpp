@@ -143,6 +143,16 @@ void PipelineBuilder::setLayout(const hk::vector<VkDescriptorSetLayout> &layouts
     pipelineLayoutInfo.pSetLayouts = layouts.data();
 }
 
+void PipelineBuilder::setPushConstants(u32 structSize)
+{
+    pushConstant.offset = 0;
+    pushConstant.size = structSize;
+    pushConstant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; // TODO: configurable
+
+    pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+}
+
 void PipelineBuilder::setRenderInfo(VkFormat colorFormat, VkFormat depthFormat)
 {
     colorAttachmentformat = colorFormat;

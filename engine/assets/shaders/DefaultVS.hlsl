@@ -15,31 +15,8 @@ struct VertexOutput {
 VertexOutput main(VertexInput input) {
     VertexOutput output;
 
-    float scale = 0.1f; // Scaling factor
-    float rotationAngle = 0.9f * time; // Rotation angle in radians
-
-    // Create scaling matrix
-    float3x3 scaleMatrix = float3x3(
-        scale, 0, 0,
-        0, scale, 0,
-        0, 0, scale
-    );
-
-    // Create rotation matrix around Y-axis
-    float3x3 rotationMatrix = float3x3(
-        cos(rotationAngle), 0, sin(rotationAngle),
-        0, 1, 0,
-        -sin(rotationAngle), 0, cos(rotationAngle)
-    );
-
-    // Calculate translation vector
-    float3 translationVector = float3(0, 10, 0);
-
-    float3 transformedPos = input.pos + translationVector;
-    transformedPos = mul(transformedPos, scaleMatrix);
-    transformedPos = mul(float3(transformedPos), rotationMatrix);
-
-    output.position = mul(viewProj, float4(transformedPos, 1.f));
+    float4 world_pos = mul(modelToWorld.mat, float4(input.pos, 1.f));
+    output.position = mul(viewProj, world_pos);
     output.normal = input.normal;
     output.tc = input.tc;
 

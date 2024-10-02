@@ -8,6 +8,10 @@ cbuffer PerFrame : register(b0) {
     float4x4 viewProj;
 };
 
+[[vk::push_constant]]
+struct ModelToWorld {
+    float4x4 mat;
+} modelToWorld;
 
 // GLSL-like mod function
 #define mod(x, y) ((x) - (y) * floor((x)/(y)))

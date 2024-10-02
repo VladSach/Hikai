@@ -4,8 +4,10 @@ void AssetBrowser::init(GUI &gui)
 {
     u32 hndlIconD = hk::assets()->load("hk_icon_directory.png");
     u32 hndlIconF = hk::assets()->load("hk_icon_file.png");
+    u32 hndlIconB = hk::assets()->load("hk_icon_arrow_back.png");
     iconD = gui.addTexture(hk::assets()->getTexture(hndlIconD).texture->view());
     iconF = gui.addTexture(hk::assets()->getTexture(hndlIconF).texture->view());
+    iconB = gui.addTexture(hk::assets()->getTexture(hndlIconB).texture->view());
 
     iconSize = 128.f;
     iconAlphaNonloaded = 0.5f;
@@ -21,7 +23,7 @@ void AssetBrowser::init(GUI &gui)
     }
 
     hk::evesys()->subscribe(hk::EventCode::EVENT_ASSET_LOADED,
-        [&](hk::EventContext context, void *listener) {
+        [&](const hk::EventContext &context, void *listener) {
             const u32 handle = context.u32[0];
             std::string path = hk::assets()->getAssetPath(handle);
 
@@ -55,7 +57,6 @@ void AssetBrowser::display(GUI &gui)
         } ImGui::End();
 
     });
-
 }
 
 void AssetBrowser::addExplorer()
@@ -138,9 +139,11 @@ void AssetBrowser::addControlPanel()
                       ImGuiWindowFlags_NoScrollbar |
                       ImGuiChildFlags_None);
 
-    if (ImGui::Button("Back")) {
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+    if (ImGui::ImageButton("Back", iconB, {16, 16})) {
         curPath_ = curPath_.substr(0, curPath_.find_last_of('\\'));
     }
+    ImGui::PopStyleColor();
 
     ImGui::SameLine();
 
@@ -166,6 +169,7 @@ void AssetBrowser::addAssetsPanel()
     ImGui::Columns(columnCount, 0, false);
 
     for (auto &entry : hk::filesystem::directory_iterator(curPath_)) {
+
         icon = entry.isDirectory ? iconD : iconF;
 
         alpha = entry.isDirectory ? 1.f : iconAlphaNonloaded;
@@ -192,6 +196,12 @@ void AssetBrowser::addAssetsPanel()
             }
         }
         ImGui::PopStyleColor();
+
+        if (!entry.isDirectory && ImGui::BeginDragDropSource()) {
+            ImGui::SetDragDropPayload("ASSET_PAYLOAD", entry.path.c_str(), entry.path.size());
+            ImGui::Text("%s", entry.path.c_str());
+            ImGui::EndDragDropSource();
+        }
 
         ImGui::TextWrapped("%s", entry.name.c_str());
 

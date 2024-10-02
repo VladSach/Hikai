@@ -36,13 +36,13 @@ void init();
 void deinit();
 void update();
 
-void registerKeyPress(EventContext keyinfo, void*);
+void registerKeyPress(const EventContext &keyinfo, void*);
 
-void registerMouseMove(EventContext mouseinfo, void*);
-void registerMousePress(EventContext mouseinfo, void*);
-void registerMouseWheel(EventContext mouseinfo, void*);
+void registerMouseMove(const EventContext &mouseinfo, void*);
+void registerMousePress(const EventContext &mouseinfo, void*);
+void registerMouseWheel(const EventContext &mouseinfo, void*);
 
-void registerRawMouseMove(EventContext mouseinfo, void*);
+void registerRawMouseMove(const EventContext &mouseinfo, void*);
 
 #ifdef KEY_EXECUTE // If defined in Windows
     #undef KEY_EXECUTE

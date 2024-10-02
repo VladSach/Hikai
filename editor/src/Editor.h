@@ -4,6 +4,8 @@
 #include "hikai.h"
 
 #include "AssetBrowser.h"
+#include "InspectorPanel.h"
+#include "HierarchyPanel.h"
 
 class Editor final : public Application {
 public:
@@ -31,6 +33,8 @@ private:
 // GUI part
 private:
     AssetBrowser assets;
+    InspectorPanel inspector;
+    HierarchyPanel hierarchy;
 };
 
 #endif // HK_EDITOR_H

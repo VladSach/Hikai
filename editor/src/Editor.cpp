@@ -11,9 +11,22 @@ void Editor::init()
     f32 aspect = static_cast<f32>(window_->getWidth())/window_->getHeight();
 
     camera_.setPerspective(45.f, aspect, .1f, 100.f);
-    camera_.setWorldOffset({ 0.f, 1.f, -2.f });
+    camera_.setWorldOffset({ 0.f, 0.5f, -1.5f });
+
 
     assets.init(renderer->ui());
+    hierarchy.init();
+    inspector.init(&renderer->ui());
+
+    u32 handle = 0;
+    handle = hk::assets()->load("Rei Plush.fbx");
+    hk::assets()->getModel(handle).model->transform_ = {
+        0.f, { .1f, .1f, .1f }
+    };
+    handle = hk::assets()->load("Knight_All.fbx");
+    hk::assets()->getModel(handle).model->transform_ = {
+        {3.f, 0.f, 0.f}, { .005f, .005f, .005f }
+    };
 }
 
 void Editor::update(f32 dt)
@@ -35,6 +48,9 @@ void Editor::update(f32 dt)
     time_ += dt;
 
     assets.display(renderer->ui());
+    hierarchy.display(renderer->ui());
+    u32 handle = hierarchy.selectedAssetHandle();
+    inspector.display(handle);
 }
 
 void Editor::processInput(f32 dt)

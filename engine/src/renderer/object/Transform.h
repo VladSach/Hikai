@@ -8,13 +8,13 @@ struct Transform {
     hkm::vec3f pos;
     hkm::quaternion rotation;
 
-    Transform() : rotation(), pos(), scale() {}
+    Transform() : rotation(), pos(.0f), scale(1.f) {}
 
     Transform(const hkm::vec3f &position,
               const hkm::vec3f &scale,
               const hkm::quaternion &rotation = hkm::quaternion::identity())
         : rotation(rotation), pos(position), scale(scale)
-        {}
+    {}
 
     Transform(hkm::mat4f M)
     {

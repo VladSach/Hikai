@@ -31,7 +31,7 @@ Application::Application(const AppDesc &desc)
     clock.record();
 
     // FIX: temp development fix
-    hk::assets()->init("..\\editor\\assets");
+    hk::assets()->init(hk::filesystem::canonical("..\\editor\\assets"));
 
     renderer = new Renderer();
     renderer->init(window);

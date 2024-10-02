@@ -10,7 +10,9 @@
 #include "loaders/ShaderLoader.h"
 
 #include "resources/loaders/ImageLoader.h"
+
 #include "renderer/object/Mesh.h"
+#include "renderer/object/Model.h"
 
 namespace hk {
 
@@ -23,12 +25,13 @@ struct Asset {
     std::string name = "Undefined";
     std::string path = "Void";
 
-    enum class Type {
+    enum class Type : u32 {
         NONE = 0,
 
         TEXTURE,
         SHADER,
         MESH,
+        MODEL,
 
         MAX_ASSET_TYPE,
     } type;
@@ -86,6 +89,10 @@ struct MeshAsset : public Asset {
 
     hk::vector<Transform> instances;
     // hk::vector<hkm::mat4f> instancesInv;
+};
+
+struct ModelAsset : public Asset {
+    hk::Model *model;
 };
 
 // struct ModelAsset : public Asset {

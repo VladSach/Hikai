@@ -1,11 +1,11 @@
 #include "ModelLoader.h"
 
 #include "utils/containers/hkvector.h"
+#include "resources/AssetManager.h"
 
 #include "vendor/assimp/Importer.hpp"
 #include "vendor/assimp/scene.h"
 #include "vendor/assimp/postprocess.h"
-
 
 // TODO: replace with Hikai implementation
 #include <unordered_map>
@@ -78,8 +78,29 @@ Model* loadModel(const std::string &path)
 
     loadInstances(assimpScene->mRootNode);
 
-    LOG_DEBUG("Loaded model:", path);
-    LOG_TRACE("Meshes:", model->meshes_.size());
+    u32 hndlTexture = 0;
+    hk::vector<u32> diffuseTextureHandles;
+    for (u32 i = 0; i < assimpScene->mNumMaterials; i++) {
+        auto &material = assimpScene->mMaterials[i];
+
+        u32 diffuseTextureCount = material->GetTextureCount(aiTextureType_DIFFUSE);
+        for (u32 j = 0; j < diffuseTextureCount; j++) {
+            aiString path;
+
+            if (material->GetTexture(aiTextureType_DIFFUSE, j, &path) == AI_SUCCESS) {
+                hndlTexture = hk::assets()->load(path.C_Str());
+                diffuseTextureHandles.push_back(hndlTexture);
+            }
+        }
+
+    }
+
+    if (diffuseTextureHandles.size()) {
+        model->diffuse = hk::assets()->getTexture(diffuseTextureHandles.at(0)).texture;
+    }
+
+    // LOG_DEBUG("Loaded model:", path);
+    // LOG_TRACE("Meshes:", model->meshes_.size());
     // LOG_TRACE("Verticies:", model->vertices.size());
     // LOG_TRACE("Indices:", model->indices.size());
     return model;

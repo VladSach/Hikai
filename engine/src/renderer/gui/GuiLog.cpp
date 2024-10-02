@@ -30,7 +30,7 @@ void addImGuiLog()
     log_.lineOffsets.clear();
     log_.lineOffsets.push_back(0);
 
-    deallocWinConsole();
+    // deallocWinConsole();
 
     Logger::getInstance()->addMessageHandler(logImGui);
 }

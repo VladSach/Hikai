@@ -38,6 +38,7 @@ public:
     void setColorBlend();
     void setDepthStencil();
     void setLayout(const hk::vector<VkDescriptorSetLayout> &layouts);
+    void setPushConstants(u32 structSize);
     void setRenderInfo(VkFormat colorFormat, VkFormat depthFormat);
 
     hk::Pipeline build(VkDevice device, VkRenderPass pass);
@@ -58,6 +59,9 @@ private:
 
     VkPipelineRenderingCreateInfo renderInfo = {};
     VkFormat colorAttachmentformat;
+
+    // FIX: temp
+    VkPushConstantRange pushConstant = {};
 };
 
 }

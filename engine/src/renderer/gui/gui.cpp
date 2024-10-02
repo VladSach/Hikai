@@ -14,6 +14,9 @@
 
 #include "platform/Monitor.h"
 
+// FIX: tmp
+#include "resources/AssetManager.h"
+
 int HK_ImGui_ImplWin32_CreateVkSurface(
     ImGuiViewport* viewport,
     ImU64 vk_instance,
@@ -168,6 +171,14 @@ void GUI::draw(VkCommandBuffer cmd)
         ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
         ImGui::Image(viewportImage,
                      ImVec2{viewportPanelSize.x, viewportPanelSize.y});
+
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PAYLOAD")) {
+                std::string path = *(std::string*)payload->Data;
+                hk::assets()->load(path);
+            }
+            ImGui::EndDragDropTarget();
+        }
 
         lockedInput = !ImGui::IsWindowHovered();
         ImGui::End();
@@ -415,9 +426,11 @@ void GUI::draw(VkCommandBuffer cmd)
         ImGui::ShowDemoWindow();
     }
 
+    auto tempCallbacks = callbacks;
     for (auto &callback : callbacks) {
         callback();
     }
+    tempCallbacks.clear();
     callbacks.clear();
 
     ImGui::Render();

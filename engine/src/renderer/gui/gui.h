@@ -7,6 +7,7 @@
 #include "utils/containers/hkvector.h"
 
 #include <functional>
+#include <vector>
 
 // INFO: For Dock Builder
 #include "vendor/imgui/imgui_internal.h"
@@ -39,7 +40,7 @@ private:
     void createVulkanBackend();
 
 private:
-    hk::vector<std::function<void()>> callbacks;
+    std::vector<std::function<void()>> callbacks;
 
     b8 lockedInput = false;
 

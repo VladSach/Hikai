@@ -2,6 +2,8 @@
 
 #include "utils/Logger.h"
 
+#include "resources/AssetManager.h"
+
 namespace hk {
 
 EventSystem *evesys()
@@ -17,6 +19,8 @@ EventSystem *evesys()
 void EventSystem::init()
 {
     LOG_INFO("Event System initialized");
+    buffer.clear();
+    subscribers.clear();
 }
 
 void EventSystem::deinit()
@@ -26,7 +30,7 @@ void EventSystem::deinit()
 }
 
 b8 EventSystem::subscribe(u32 code,
-                          EventCallback callback,
+                          const EventCallback &callback,
                           void *listener)
 {
     for (auto &sub : subscribers[code]) {
@@ -45,7 +49,7 @@ b8 EventSystem::subscribe(u32 code,
 
 // TODO: maybe unsubscribe by uuid?
 b8 EventSystem::unsubscribe(u32 code,
-                            EventCallback callback,
+                            const EventCallback &callback,
                             void *listener)
 {
     for (u32 i = 0; i < subscribers[code].size(); i++) {
@@ -68,6 +72,8 @@ b8 EventSystem::fireEvent(u32 code,
                           const hk::EventContext &userdata,
                           void *sender)
 {
+    // if (!subscribers[code].size()) { return true; }
+
     buffer.push({sender, code, userdata});
     return true;
 }
@@ -76,10 +82,43 @@ void EventSystem::dispatch()
 {
     Event event;
     while (buffer.pop(event)) {
+
+        // LOG_DEBUG("Dispatching",
+        //           getEventStr(static_cast<hk::EventCode>(event.code)),
+        //           "to", subscribers[event.code].size(),
+        //           "subscriber(s)");
+
         for (auto &sub : subscribers[event.code]) {
             sub.callback(event.userdata, sub.listener);
         }
     }
+}
+
+const char* getEventStr(hk::EventCode code)
+{
+    constexpr char const *lookup_events[hk::MAX_EVENT_CODES] = {
+        "Empty Event",
+
+        "App Shutdown Event",
+
+        "Key Pressed Event",
+        "Key Released Event",
+
+        "Mouse Pressed Event",
+        "Mouse Released Event",
+
+        "Mouse Moved Event",
+
+        "Raw Mouse Moved Event",
+
+        "Mouse Wheel Event",
+
+        "Window Resized Event",
+
+        "Asset Loaded Event",
+    };
+
+    return lookup_events[code];
 }
 
 const char* getErrocodeStr(hk::ErrorCode error)

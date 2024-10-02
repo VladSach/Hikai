@@ -1,6 +1,7 @@
 #include "AssetManager.h"
 
 #include "loaders/ShaderLoader.h"
+#include "loaders/ModelLoader.h"
 
 #include "utils/Filewatch.h"
 #include "platform/platform.h"
@@ -53,6 +54,36 @@ void AssetManager::deinit()
 
 u32 AssetManager::load(const std::string &path, void *data)
 {
+    std::string out;
+
+    if (hk::filesystem::findFile(folder_, path, &out)) {
+        // Path inside folder_
+    } else {
+        // Path outside folder_
+
+        // Check if path exist at all
+        if (!hk::filesystem::exists(path)) {
+            // Try to locate file by name inside folder_
+            std::string name = path.substr(path.find_last_of("/\\") + 1);
+            if (hk::filesystem::findFile(folder_, name, &out)) {
+                // found
+            } else if (false) { // Not inside folder_ or has other name
+                // TODO: add other possible ways to find file
+
+            } else {
+                LOG_WARN("File doesn't exists:", path);
+                ALWAYS_ASSERT(0); // TODO: add fallback
+                return 0;
+            }
+        } else {
+            out = path;
+        }
+    }
+
+    if (paths_.find(out) != paths_.end()) {
+        return paths_[out];
+    }
+
     Asset::Type type = Asset::Type::NONE;
 
     u32 dotPos = path.find_last_of('.');
@@ -60,19 +91,22 @@ u32 AssetManager::load(const std::string &path, void *data)
 
     if (ext == ".hlsl") {
         type = Asset::Type::SHADER;
-    } else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg") {
+    } else if (
+        ext == ".png"  ||
+        ext == ".jpg"  ||
+        ext == ".jpeg")
+    {
         type = Asset::Type::TEXTURE;
+    } else if (
+        ext == ".3ds"   ||
+        ext == ".blend" ||
+        ext == ".glTF"  ||
+        ext == ".fbx"   ||
+        ext == ".obj")
+    {
+        type = Asset::Type::MODEL;
     } else {
         LOG_ERROR("Unknown file extension:", ext);
-    }
-
-    std::string out;
-
-    if (hk::filesystem::findFile(folder_, path, &out)) {
-        // Path inside folder_
-    } else {
-        // Path outside folder_
-        out = path;
     }
 
     return load(out, type, data);
@@ -89,6 +123,9 @@ u32 AssetManager::load(const std::string &path, Asset::Type type, void *data)
     case Asset::Type::TEXTURE: {
         handle = loadTexture(path);
     } break;
+    case Asset::Type::MODEL: {
+        handle = loadModel(path);
+    } break;
     default:
         LOG_ERROR("Unknown asset type:", path);
     }
@@ -100,7 +137,7 @@ u32 AssetManager::load(const std::string &path, Asset::Type type, void *data)
     // all assets already inside asset folder on creation
     // should be loaded initialy
     paths_[path] = handle;
-    LOG_INFO("path:", path);
+    // LOG_INFO("path:", path);
 
     hk::EventContext context;
     context.u32[0] = handle;
@@ -128,6 +165,12 @@ void AssetManager::reload(u32 handle)
         TextureAsset *texture = reinterpret_cast<TextureAsset*>(asset);
         texture->texture = hk::loader::loadImage(texture->path);
     } break;
+    case Asset::Type::MODEL: {
+        // TextureAsset *texture = reinterpret_cast<TextureAsset*>(asset);
+        // texture->texture = hk::loader::loadImage(texture->path);
+        // TODO: do
+        LOG_ERROR("Model hot reload is not yet implemented");
+    } break;
     }
 }
 
@@ -143,15 +186,14 @@ void AssetManager::attachCallback(u32 handle, std::function<void()> callback)
 u32 AssetManager::loadTexture(const std::string &path)
 {
     TextureAsset *asset = new TextureAsset();
+    assets_.push_back(asset);
+    asset->handle = index_++;
+
     asset->name = path.substr(path.find_last_of("/\\") + 1);
     asset->path = path;
-    asset->handle = index_;
     asset->type = Asset::Type::TEXTURE;
 
     asset->texture = hk::loader::loadImage(path);
-
-    assets_.push_back(asset);
-    ++index_;
 
     return asset->handle;
 }
@@ -168,16 +210,32 @@ u32 AssetManager::loadShader(const std::string &path, void *data)
     }
 
     ShaderAsset *asset = new ShaderAsset();
+    assets_.push_back(asset);
+    asset->handle = index_++;
+
     asset->name = path.substr(path.find_last_of("/\\") + 1);
     asset->path = path;
-    asset->handle = index_;
     asset->type = Asset::Type::SHADER;
     asset->desc = desc;
     asset->code = code;
     asset->createShaderModule();
 
+    return asset->handle;
+}
+
+u32 AssetManager::loadModel(const std::string &path)
+{
+    ModelAsset *asset = new ModelAsset();
     assets_.push_back(asset);
-    ++index_;
+    asset->handle = index_++;
+
+    asset->name = path.substr(path.find_last_of("/\\") + 1);
+    asset->path = path;
+    asset->type = Asset::Type::MODEL;
+
+    asset->model = hk::loader::loadModel(path);
+
+    asset->model->populateBuffers();
 
     return asset->handle;
 }

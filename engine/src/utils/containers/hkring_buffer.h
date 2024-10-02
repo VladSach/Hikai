@@ -90,7 +90,7 @@ public:
         tail = 0; head = 0; size_ = 0;
     }
 
-    inline u32 size() const { return size_; }
+    constexpr u32 size() const { return size_; }
 };
 
 }

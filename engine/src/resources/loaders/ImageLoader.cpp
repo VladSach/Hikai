@@ -14,7 +14,10 @@ Image* loadImage(const std::string &path)
                                 &width, &height, &channels,
                                 STBI_rgb_alpha);
 
-    ALWAYS_ASSERT(pixels, "Failed to load texture: ", path);
+    if (!pixels) {
+        LOG_ERROR("Failed to load texture:", path);
+        return nullptr;
+    }
 
     Image *image = new Image();
     image->init({

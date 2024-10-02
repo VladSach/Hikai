@@ -170,18 +170,19 @@ void deinit()
     if (!initialized) { return; }
 
     EventSystem &evsys = *hk::evesys();
-    evsys.unsubscribe(EVENT_KEY_PRESSED, registerKeyPress);
+    evsys.unsubscribe(EVENT_KEY_PRESSED,  registerKeyPress);
     evsys.unsubscribe(EVENT_KEY_RELEASED, registerKeyPress);
 
-    evsys.unsubscribe(EVENT_MOUSE_MOVED, registerMouseMove);
-    evsys.unsubscribe(EVENT_MOUSE_PRESSED, registerMousePress);
-    evsys.unsubscribe(EVENT_MOUSE_RELEASED, registerMousePress);
-    evsys.unsubscribe(EVENT_MOUSE_WHEEL, registerMouseWheel);
+    evsys.unsubscribe(EVENT_MOUSE_MOVED,     registerMouseMove);
+    evsys.unsubscribe(EVENT_RAW_MOUSE_MOVED, registerRawMouseMove);
+    evsys.unsubscribe(EVENT_MOUSE_PRESSED,   registerMousePress);
+    evsys.unsubscribe(EVENT_MOUSE_RELEASED,  registerMousePress);
+    evsys.unsubscribe(EVENT_MOUSE_WHEEL,     registerMouseWheel);
 
     LOG_INFO("Input Subsystem deinitialized");
 }
 
-void registerKeyPress(hk::EventContext keyinfo, void*)
+void registerKeyPress(const hk::EventContext &keyinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");
@@ -198,7 +199,7 @@ void registerKeyPress(hk::EventContext keyinfo, void*)
     keyboard.keys[button] = pressed;
 }
 
-void registerMouseMove(EventContext mouseinfo, void*)
+void registerMouseMove(const EventContext &mouseinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");
@@ -217,7 +218,7 @@ void registerMouseMove(EventContext mouseinfo, void*)
     mouse.y = y;
 }
 
-void registerRawMouseMove(EventContext mouseinfo, void*)
+void registerRawMouseMove(const EventContext &mouseinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");
@@ -233,7 +234,7 @@ void registerRawMouseMove(EventContext mouseinfo, void*)
     // mouse.y += y_delta;
 }
 
-void registerMousePress(EventContext mouseinfo, void*)
+void registerMousePress(const EventContext &mouseinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");
@@ -250,7 +251,7 @@ void registerMousePress(EventContext mouseinfo, void*)
     mouse.buttons[button] = pressed;
 }
 
-void registerMouseWheel(EventContext mouseinfo, void*)
+void registerMouseWheel(const EventContext &mouseinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");

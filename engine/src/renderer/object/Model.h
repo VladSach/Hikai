@@ -5,6 +5,7 @@
 #include "Mesh.h"
 
 #include "renderer/vkwrappers/Buffer.h"
+#include "renderer/vkwrappers/Image.h"
 
 namespace hk {
 
@@ -99,6 +100,9 @@ public:
     Buffer vertexBuffer_; // stores vertices of all Meshes of this Model
     Buffer indexBuffer_;  // stores indices of all Meshes of this Model
 
+    hk::Image *diffuse = nullptr;
+
+    // info
     u32 vertexCnt = 0;
     u32 indexCnt = 0;
 };

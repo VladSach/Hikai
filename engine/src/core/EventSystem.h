@@ -13,6 +13,7 @@ namespace hk {
 
 // INFO: Codes from 0 to 100 reserved by Hikai
 enum EventCode : u32;
+HKAPI const char* getEventStr(hk::EventCode code);
 
 // INFO: Codes from 0 to 100 reserved by Hikai
 enum ErrorCode : u64;
@@ -50,10 +51,10 @@ public:
     };
 
 public:
-    HKAPI b8 subscribe(u32 code, EventCallback callback,
+    HKAPI b8 subscribe(u32 code, const EventCallback &callback,
                        void *listener = nullptr);
 
-    HKAPI b8 unsubscribe(u32 code, EventCallback callback,
+    HKAPI b8 unsubscribe(u32 code, const EventCallback &callback,
                          void *listener = nullptr);
 
     HKAPI b8 fireEvent(u32 code, const hk::EventContext &userdata,
@@ -64,10 +65,15 @@ public:
     void dispatch();
 
 private:
-    std::unordered_map<u32, hk::vector<Subscriber>> subscribers;
+    std::unordered_map<u32, std::vector<Subscriber>> subscribers;
     // TODO: make size customizable, maybe through init
-    hk::ring_buffer<Event, 100, true> buffer;
-
+    /* PERF: Don't want to add a separate event system for input
+     * but without separating other events and input events
+     * they just overflow buffer with mouse move events.
+     * So current size is a compromise, I guess.
+     * Probably will change it in the future, but right know it's not
+     * an issue */
+    hk::ring_buffer<Event, 1000, true> buffer;
 };
 
 HKAPI EventSystem* evesys();

@@ -1,9 +1,9 @@
 #include "globals.hlsli"
 
 [[vk::combinedImageSampler]]
-Texture2D<float4> myTexture : register(t1);
+Texture2D<float4> myTexture : register(t1, space1);
 [[vk::combinedImageSampler]]
-SamplerState mySampler : register(s1);
+SamplerState mySampler : register(s1, space1);
 
 struct PixelInput {
     float4 pos : SV_Position;

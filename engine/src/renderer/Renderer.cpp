@@ -15,10 +15,10 @@
 
 // FIX: temp
 #include "renderer/UBManager.h"
-#include "object/Model.h"
-#include "resources/loaders/ModelLoader.h"
-static hk::Model *model;
 #include "imgui/imgui_impl_vulkan.h"
+struct ModelToWorld {
+    hkm::mat4f transform;
+} modelToWorld;
 
 #include "vendor/vulkan/vk_enum_string_helper.h"
 #include "utils/strings/hklocale.h"
@@ -266,14 +266,24 @@ void Renderer::init(const Window *window)
         .addBinding(0,
                     VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     VK_SHADER_STAGE_ALL_GRAPHICS)
+        .build()
+    );
+    sceneDescriptorLayout = sceneDataDescriptorLayout->layout();
+
+    hk::DescriptorLayout *materialDescriptorLayoutT =
+        new hk::DescriptorLayout(hk::DescriptorLayout::Builder()
+        .addBinding(0,
+                    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    VK_SHADER_STAGE_ALL_GRAPHICS)
         .addBinding(1,
                     VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                     VK_SHADER_STAGE_FRAGMENT_BIT)
         .build()
     );
-    sceneDescriptorLayout = sceneDataDescriptorLayout->layout();
+    materialDescriptorLayout = materialDescriptorLayoutT->layout();
 
     hk::debug::setName(sceneDescriptorLayout, "Frame Descriptor Layout");
+    hk::debug::setName(materialDescriptorLayout, "Material Descriptor Layout");
 
     createSyncObjects();
     createDepthResources();
@@ -297,15 +307,18 @@ void Renderer::init(const Window *window)
     commandBuffer = context->graphics().createCommandBuffer();
     hk::debug::setName(commandBuffer, "Frame Command Buffer");
 
-    hk::evesys()->subscribe(hk::EVENT_WINDOW_RESIZE, resize, this);
+    hk::evesys()->subscribe(hk::EventCode::EVENT_WINDOW_RESIZE, resize, this);
 
-    // FIX: temp
-    model = hk::loader::loadModel("..\\editor\\assets\\models\\Rei Plush.fbx");
-    // model = hk::loader::loadModel("assets/models/dark-knight/Knight_All.fbx");
-    model->populateBuffers();
+    hk::evesys()->subscribe(hk::EventCode::EVENT_ASSET_LOADED,
+        [&](const hk::EventContext &context, void *listener) {
+            const u32 handle = context.u32[0];
+            const hk::Asset::Type type = static_cast<hk::Asset::Type>(context.u32[1]);
 
-    // hndlTexture = hk::assets()->load("assets/textures/viking_room.png");
-    hndlTexture = hk::assets()->load("Rei Plush Texture.png");
+            if (type != hk::Asset::Type::MODEL) { return; }
+
+            models.push_back(hk::assets()->getModel(handle).model);
+        },
+    this);
 
     createSamplers();
 }
@@ -319,7 +332,8 @@ void Renderer::deinit()
         framebuffer = nullptr;
     }
 
-    model->deinit();
+    for (auto &model : models)
+        model->deinit();
 
     vkDestroySampler(device, samplerLinear, nullptr);
     vkDestroySampler(device, samplerNearest, nullptr);
@@ -354,15 +368,44 @@ void Renderer::draw()
     VkDescriptorSet sceneDataDescriptor =
         frameDescriptors.allocate(sceneDescriptorLayout);
 
+
     hk::DescriptorWriter writer;
     writer.writeBuffer(0, hk::ubo::getFrameData().buffer(),
                        sizeof(hk::ubo::SceneData), 0,
                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
 
-    hk::Image *texture = hk::assets()->getTexture(hndlTexture).texture;
-    writer.writeImage(1, texture->view(), samplerLinear, texture->layout(),
-                      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    static u32 fallbackTextureHndl = hk::assets()->load("Purple\\texture_09.png");
+    struct MaterialInstance {
+        // MaterialPipeline* pipeline;
+        VkDescriptorSet materialSet;
+    };
+    hk::vector<MaterialInstance> materials;
+
+    hk::DescriptorWriter writer2;
+
+    for (auto &model : models) {
+        writer2.clear();
+
+        VkDescriptorSet materialDescriptor =
+            frameDescriptors.allocate(materialDescriptorLayout);
+
+        if (model->diffuse) {
+            writer2.writeImage(1, model->diffuse->view(), samplerLinear,
+                                model->diffuse->layout(),
+                                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+
+        } else {
+            hk::Image *fallback = hk::assets()->getTexture(fallbackTextureHndl).texture;
+            writer2.writeImage(1, fallback->view(), samplerLinear,
+                                fallback->layout(),
+                                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        }
+
+        writer2.updateSet(materialDescriptor);
+
+        materials.push_back({materialDescriptor});
+    }
 
     u32 imageIndex = 0;
     err = swapchain.acquireNextImage(acquireSemaphore, imageIndex);
@@ -419,8 +462,6 @@ void Renderer::draw()
         scissor.extent = swapchain.extent();
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        model->bind(commandBuffer);
-
         writer.updateSet(sceneDataDescriptor);
 
         vkCmdBindDescriptorSets(commandBuffer,
@@ -428,15 +469,50 @@ void Renderer::draw()
                                 offscreenPipeline.layout(), 0, 1,
                                 &sceneDataDescriptor, 0, nullptr);
 
-        vkCmdDrawIndexed(commandBuffer, model->indexCount(), 1, 0, 0, 0);
+        u32 renderedInstances = 0;
+        // for (auto &model : models) {
+        for (u32 i = 0; i < models.size(); i++) {
+            auto &model = models[i];
 
+            model->bind(commandBuffer);
 
+            modelToWorld.transform = model->transform_.toMat4f();
+
+            vkCmdPushConstants(commandBuffer, offscreenPipeline.layout(),
+                               VK_SHADER_STAGE_VERTEX_BIT, 0,
+                               sizeof(modelToWorld), &modelToWorld);
+
+            // if (model->diffuse) {
+            vkCmdBindDescriptorSets(commandBuffer,
+                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    offscreenPipeline.layout(), 1, 1,
+                                    &materials.at(i).materialSet, 0, nullptr);
+            // }
+
+            for (u32 meshIndex = 0; meshIndex < model->meshes_.size(); ++meshIndex) {
+                const hk::Mesh& mesh = model->meshes_[meshIndex];
+                const auto& meshRange = model->ranges_[meshIndex];
+
+                u32 numInstances = u32(mesh.instances.size());
+
+                vkCmdDrawIndexed(commandBuffer,
+                                 meshRange.indexNum,
+                                 numInstances,
+                                 meshRange.indexOffset,
+                                 meshRange.vertexOffset,
+                                 renderedInstances);
+
+                renderedInstances += numInstances;
+            }
+
+        }
+
+        // Draw grid shader
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                           gridPipeline.handle());
         vkCmdDraw(commandBuffer, 4, 1, 0, 0);
     }
     vkCmdEndRenderPass(commandBuffer);
-
 
     if (!viewport) {
         VkImageCopy copyRegion = {};
@@ -862,9 +938,11 @@ void Renderer::createOffscreenPipeline()
     builder.setColorBlend();
 
     hk::vector<VkDescriptorSetLayout> descriptorSetsLayouts = {
-        sceneDescriptorLayout,
+        sceneDescriptorLayout, materialDescriptorLayout
     };
     builder.setLayout(descriptorSetsLayouts);
+
+    builder.setPushConstants(sizeof(modelToWorld));
 
     builder.setDepthStencil();
     builder.setRenderInfo(swapchain.format(), depthImage.format());
@@ -929,6 +1007,8 @@ void Renderer::createGridPipeline()
         sceneDescriptorLayout,
     };
     builder.setLayout(descriptorSetsLayouts);
+
+    builder.setPushConstants(sizeof(modelToWorld));
 
     builder.setDepthStencil();
     builder.setRenderInfo(swapchain.format(), depthImage.format());
@@ -1027,7 +1107,7 @@ void Renderer::createSamplers()
     hk::debug::setName(samplerNearest, "Default Nearest Sampler");
 }
 
-void Renderer::resize(hk::EventContext size, void *listener)
+void Renderer::resize(const hk::EventContext &size, void *listener)
 {
     Renderer *renderer = reinterpret_cast<Renderer*>(listener);
     VkDevice device = hk::context()->device();

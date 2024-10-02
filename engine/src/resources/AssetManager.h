@@ -20,6 +20,10 @@ public:
 
     HKAPI void attachCallback(u32 handle, std::function<void()> callback);
 
+    inline std::string getAssetName(u32 handle)
+    {
+        return assets_.at(getIndex(handle))->name;
+    }
 
     inline std::string getAssetPath(u32 handle)
     {
@@ -33,14 +37,19 @@ public:
     }
 
     // FIX: temp
-    const hk::ShaderAsset& getShader(u32 handle) const
+    hk::ShaderAsset& getShader(u32 handle) const
     {
         return *static_cast<hk::ShaderAsset*>(assets_.at(getIndex(handle)));
     }
 
-    const hk::TextureAsset& getTexture(u32 handle) const
+    hk::TextureAsset& getTexture(u32 handle) const
     {
         return *static_cast<hk::TextureAsset*>(assets_.at(getIndex(handle)));
+    }
+
+    hk::ModelAsset& getModel(u32 handle) const
+    {
+        return *static_cast<hk::ModelAsset*>(assets_.at(getIndex(handle)));
     }
 
 public:
@@ -52,6 +61,7 @@ public:
 private:
     u32 loadTexture(const std::string &path);
     u32 loadShader(const std::string &path, void *data);
+    u32 loadModel(const std::string &path); // FIX: temp?
 
 private:
     std::string folder_ = "assets\\";

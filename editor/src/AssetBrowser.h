@@ -17,6 +17,7 @@ private:
 private:
     void* iconD = nullptr;
     void* iconF = nullptr;
+    void* iconB = nullptr;
 
     f32 iconSize;
     f32 iconAlphaNonloaded;
