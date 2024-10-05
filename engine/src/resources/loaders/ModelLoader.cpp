@@ -58,9 +58,16 @@ Model* loadModel(const std::string &path)
     }
 
     // Recursively load mesh instances (meshToModel transformation matrices)
-    std::function<void(aiNode*)> loadInstances;
-    loadInstances = [&loadInstances, &model](aiNode* node)
+    std::function<MeshAsset*(aiNode*, MeshAsset *parent)> loadInstances;
+    loadInstances = [&loadInstances, &model](aiNode* node, MeshAsset *parent = nullptr)
     {
+        MeshAsset *currentMesh = new MeshAsset();
+        currentMesh->name = node->mName.C_Str();
+
+        if (parent) {
+            parent->children.push_back(currentMesh);
+        }
+
         const hkm::mat4f nodeToParent = reinterpret_cast<const hkm::mat4f&>(node->mTransformation.Transpose());
         // const hkm::mat4f parentToNode = inverse(nodeToParent);
 
@@ -69,35 +76,39 @@ Model* loadModel(const std::string &path)
             u32 meshIndex = node->mMeshes[i];
             model->meshes_[meshIndex].instances.push_back(nodeToParent);
             // model->meshes_[meshIndex].instancesInv.push_back(parentToNode);
+            currentMesh->mesh = &model->meshes_[meshIndex];
         }
 
         for (u32 i = 0; i < node->mNumChildren; i++) {
-            loadInstances(node->mChildren[i]);
+            loadInstances(node->mChildren[i], currentMesh);
         }
+
+        return currentMesh;
     };
 
-    loadInstances(assimpScene->mRootNode);
+
+    MeshAsset *root = loadInstances(assimpScene->mRootNode, nullptr);
+
+    model->hndlRootMesh = hk::assets()->create(Asset::Type::MESH, root);
+
+    hk::Material *material = new Material();
 
     u32 hndlTexture = 0;
-    hk::vector<u32> diffuseTextureHandles;
     for (u32 i = 0; i < assimpScene->mNumMaterials; i++) {
-        auto &material = assimpScene->mMaterials[i];
+        auto &assMaterial = assimpScene->mMaterials[i];
 
-        u32 diffuseTextureCount = material->GetTextureCount(aiTextureType_DIFFUSE);
+        u32 diffuseTextureCount = assMaterial->GetTextureCount(aiTextureType_DIFFUSE);
         for (u32 j = 0; j < diffuseTextureCount; j++) {
             aiString path;
 
-            if (material->GetTexture(aiTextureType_DIFFUSE, j, &path) == AI_SUCCESS) {
+            if (assMaterial->GetTexture(aiTextureType_DIFFUSE, j, &path) == AI_SUCCESS) {
                 hndlTexture = hk::assets()->load(path.C_Str());
-                diffuseTextureHandles.push_back(hndlTexture);
+                material->diffuse = hk::assets()->getTexture(hndlTexture).texture;
             }
         }
-
     }
 
-    if (diffuseTextureHandles.size()) {
-        model->diffuse = hk::assets()->getTexture(diffuseTextureHandles.at(0)).texture;
-    }
+    model->hndlMaterial = hk::assets()->create(hk::Asset::Type::MATERIAL, material);
 
     // LOG_DEBUG("Loaded model:", path);
     // LOG_TRACE("Meshes:", model->meshes_.size());

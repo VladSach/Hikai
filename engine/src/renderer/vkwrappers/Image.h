@@ -53,6 +53,8 @@ public:
 
     void write(const void *pixels);
 
+    void copy();
+
 public:
     constexpr u32 width() const { return width_; }
     constexpr u32 height() const { return height_; }

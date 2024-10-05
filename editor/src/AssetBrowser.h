@@ -25,9 +25,11 @@ private:
     std::string root_;
     std::string curPath_;
 
-    std::string filter_ = "";
-
     hk::vector<std::string> cachedPaths;
+
+    // Control Panel
+    std::string filter_ = "";
+    u32 idxTypeFilter = 0;
 };
 
 #endif // HK_ASSET_BROWSER_H

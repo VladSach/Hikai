@@ -12,6 +12,8 @@ public:
     void init(const std::string &folder);
     void deinit();
 
+    HKAPI u32 create(Asset::Type type, void *data);
+
     HKAPI u32 load(const std::string &path, void *data = nullptr);
     HKAPI u32 load(const std::string &path, Asset::Type type, void *data = nullptr);
     HKAPI void unload(u32 handle);
@@ -47,9 +49,19 @@ public:
         return *static_cast<hk::TextureAsset*>(assets_.at(getIndex(handle)));
     }
 
+    hk::MaterialAsset& getMaterial(u32 handle) const
+    {
+        return *static_cast<hk::MaterialAsset*>(assets_.at(getIndex(handle)));
+    }
+
     hk::ModelAsset& getModel(u32 handle) const
     {
         return *static_cast<hk::ModelAsset*>(assets_.at(getIndex(handle)));
+    }
+
+    hk::MeshAsset& getMesh(u32 handle) const
+    {
+        return *static_cast<hk::MeshAsset*>(assets_.at(getIndex(handle)));
     }
 
 public:
@@ -62,6 +74,9 @@ private:
     u32 loadTexture(const std::string &path);
     u32 loadShader(const std::string &path, void *data);
     u32 loadModel(const std::string &path); // FIX: temp?
+
+    u32 createMaterial(void *data);
+    u32 createMesh(void *data);
 
 private:
     std::string folder_ = "assets\\";

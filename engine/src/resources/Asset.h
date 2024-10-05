@@ -13,6 +13,7 @@
 
 #include "renderer/object/Mesh.h"
 #include "renderer/object/Model.h"
+#include "renderer/Material.h"
 
 namespace hk {
 
@@ -31,6 +32,7 @@ struct Asset {
         TEXTURE,
         SHADER,
         MESH,
+        MATERIAL,
         MODEL,
 
         MAX_ASSET_TYPE,
@@ -85,8 +87,9 @@ struct TextureAsset : public Asset {
 };
 
 struct MeshAsset : public Asset {
-    Mesh mesh;
+    Mesh *mesh;
 
+    hk::vector<MeshAsset*> children;
     hk::vector<Transform> instances;
     // hk::vector<hkm::mat4f> instancesInv;
 };
@@ -95,11 +98,9 @@ struct ModelAsset : public Asset {
     hk::Model *model;
 };
 
-// struct ModelAsset : public Asset {
-//     hk::Model *model;
-//
-//     hk::vector<u32> children;
-// }
+struct MaterialAsset : public Asset {
+    hk::Material *material;
+};
 
 }
 

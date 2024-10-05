@@ -40,6 +40,12 @@ b8 findFile(const std::string &root, const std::string &target,
 
     searchPath += "\\*";
 
+    // FIX: ? a little quick fix, maybe should change this
+    if (searchPath.find(target) != std::string::npos) {
+        if (out) { *out = root; }
+        return true;
+    }
+
     WIN32_FIND_DATA data;
     HANDLE hFind = FindFirstFileEx(searchPath.c_str(),
                                    FindExInfoBasic,
@@ -91,6 +97,29 @@ b8 exists(const std::string &path)
     return true;
 }
 
+hk::vector<std::string> split(const std::string &path)
+{
+    hk::vector<std::string> subpaths;
+    std::string subpath;
+
+    for (auto &c : path) {
+        if (c == '\\' || c == '/') {
+            if (!subpath.empty()) {
+                subpaths.push_back(subpath);
+                subpath.clear();
+            }
+        } else {
+            subpath += c;
+        }
+    }
+
+    if (!subpath.empty()) {
+        subpaths.push_back(subpath);
+    }
+
+    return subpaths;
+}
+
 typedef HRESULT (WINAPI *PathCchCanonicalizeExFunc)(
     PWSTR pszPathOut,
     size_t cchPathOut,
@@ -98,13 +127,14 @@ typedef HRESULT (WINAPI *PathCchCanonicalizeExFunc)(
     ULONG dwFlags
 );
 
+// https://learn.microsoft.com/en-us/windows/win32/apiindex/windows-apisets
+HMODULE hModule = LoadLibraryExW(L"api-ms-win-core-path-l1-1-0.dll",
+                                    NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+
 std::string canonical(const std::string &path)
 {
     // FIX: works, but I don't like the way it's written
 
-    // https://learn.microsoft.com/en-us/windows/win32/apiindex/windows-apisets
-    HMODULE hModule = LoadLibraryExW(L"api-ms-win-core-path-l1-1-0.dll",
-                                     NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
     static PathCchCanonicalizeExFunc PathCchCanonicalizeEx =
         (PathCchCanonicalizeExFunc)GetProcAddress(hModule, "PathCchCanonicalizeEx");
 
@@ -146,6 +176,36 @@ std::string canonical(const std::string &path)
     }
 
     return wstring_convert(std::wstring(buffer2));
+}
+
+typedef BOOL (WINAPI *PathRelativePathToAFunc)(
+    LPSTR  pszPath,
+    LPCSTR pszFrom,
+    DWORD  dwAttrFrom,
+    LPCSTR pszTo,
+    DWORD  dwAttrTo
+);
+
+std::string relative(const std::string &path, const std::string &base)
+{
+    DWORD fromAttrs = GetFileAttributesA(base.c_str());
+    DWORD toAttrs = GetFileAttributesA(path.c_str());
+
+    char outBuf[MAX_PATH];
+    
+    static PathRelativePathToAFunc PathRelativePathToA =
+        (PathRelativePathToAFunc)GetProcAddress(hModule, "PathRelativePathToA");
+
+    BOOL success = PathRelativePathToA(outBuf, base.data(), 
+                                       (fromAttrs & FILE_ATTRIBUTE_DIRECTORY) ? FILE_ATTRIBUTE_DIRECTORY : 0,
+                                       path.data(),
+                                       (toAttrs & FILE_ATTRIBUTE_DIRECTORY) ? FILE_ATTRIBUTE_DIRECTORY : 0);
+
+    if (!success) {
+        LOG_WARN("Failed to calculate relative path");
+    }
+
+    return std::string(outBuf);
 }
 
 struct DirectoryIterator::Impl {

@@ -127,6 +127,7 @@ void GUI::draw(VkCommandBuffer cmd)
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
+    ImGuizmo::BeginFrame();
 
     ImGuiID mainDockSpaceID;
     if (viewportMode) {
@@ -174,7 +175,8 @@ void GUI::draw(VkCommandBuffer cmd)
 
         if (ImGui::BeginDragDropTarget()) {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PAYLOAD")) {
-                std::string path = *(std::string*)payload->Data;
+                //std::string path = *(std::string*)payload->Data;
+                std::string path = reinterpret_cast<const char*>(payload->Data);
                 hk::assets()->load(path);
             }
             ImGui::EndDragDropTarget();
@@ -187,24 +189,25 @@ void GUI::draw(VkCommandBuffer cmd)
     drawLog();
 
     if (viewportMode) { ImGui::SetNextWindowDockID(left); }
-    if (ImGui::Begin("Monitors Info")) {
-        hk::vector<hk::platform::MonitorInfo> infos = hk::platform::getMonitorInfos();
-
-        ImGui::Text("Monitors found: %i", infos.size());
-        for (auto &info : infos) {
-            ImGui::Separator();
-
-            ImGui::Text("Name: %s", info.name.c_str());
-            ImGui::Text("Resolution: %i x %i", info.width, info.height);
-            ImGui::Text("DPI: %1f", info.dpi);
-            ImGui::Text("Refresh rate: %i hz", info.hz);
-            ImGui::Text("Color depth: %i", info.depth);
-        }
-    } ImGui::End();
 
 
     if (viewportMode) { ImGui::SetNextWindowDockID(left); }
-    if (ImGui::Begin("Vulkan")) {
+    if (ImGui::Begin("Settings/Info")) {
+        if (ImGui::CollapsingHeader("Monitors")) {
+            hk::vector<hk::platform::MonitorInfo> infos = hk::platform::getMonitorInfos();
+
+            ImGui::Text("Monitors found: %i", infos.size());
+            for (auto &info : infos) {
+                ImGui::Separator();
+
+                ImGui::Text("Name: %s", info.name.c_str());
+                ImGui::Text("Resolution: %i x %i", info.width, info.height);
+                ImGui::Text("DPI: %1f", info.dpi);
+                ImGui::Text("Refresh rate: %i hz", info.hz);
+                ImGui::Text("Color depth: %i", info.depth);
+            }
+        }
+
         if (ImGui::CollapsingHeader("Instance")) {
             hk::VulkanContext::InstanceInfo &info = hk::context()->instanceInfo();
             ImGui::Text("API Version: %s", hk::vkApiToString(info.apiVersion).c_str());
@@ -426,11 +429,9 @@ void GUI::draw(VkCommandBuffer cmd)
         ImGui::ShowDemoWindow();
     }
 
-    auto tempCallbacks = callbacks;
     for (auto &callback : callbacks) {
         callback();
     }
-    tempCallbacks.clear();
     callbacks.clear();
 
     ImGui::Render();

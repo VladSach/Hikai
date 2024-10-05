@@ -48,7 +48,6 @@ private:
 
     hk::DescriptorAllocator frameDescriptors;
     VkDescriptorSetLayout sceneDescriptorLayout;
-    VkDescriptorSetLayout materialDescriptorLayout;
 
     VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
 
@@ -91,6 +90,7 @@ private:
 
     // FIX: temp
     hk::vector<hk::Model*> models;
+    hk::vector<hk::RenderMaterial*> savebuff;
 
 private:
     void createSurface();

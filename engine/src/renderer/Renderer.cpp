@@ -70,7 +70,7 @@ void Renderer::toggleUIMode()
 void Renderer::addUIInfo()
 {
     gui.pushCallback([this](){
-        if (ImGui::Begin("Vulkan")) {
+        if (ImGui::Begin("Settings/Info")) {
         if (ImGui::CollapsingHeader("Swapchain")) {
             if (ImGui::TreeNode("Surface Formats")) {
                 for (u32 i = 0; i < swapchain.surfaceFormats.size(); ++i) {
@@ -270,20 +270,7 @@ void Renderer::init(const Window *window)
     );
     sceneDescriptorLayout = sceneDataDescriptorLayout->layout();
 
-    hk::DescriptorLayout *materialDescriptorLayoutT =
-        new hk::DescriptorLayout(hk::DescriptorLayout::Builder()
-        .addBinding(0,
-                    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    VK_SHADER_STAGE_ALL_GRAPHICS)
-        .addBinding(1,
-                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    VK_SHADER_STAGE_FRAGMENT_BIT)
-        .build()
-    );
-    materialDescriptorLayout = materialDescriptorLayoutT->layout();
-
     hk::debug::setName(sceneDescriptorLayout, "Frame Descriptor Layout");
-    hk::debug::setName(materialDescriptorLayout, "Material Descriptor Layout");
 
     createSyncObjects();
     createDepthResources();
@@ -316,7 +303,16 @@ void Renderer::init(const Window *window)
 
             if (type != hk::Asset::Type::MODEL) { return; }
 
-            models.push_back(hk::assets()->getModel(handle).model);
+            hk::Model *model = hk::assets()->getModel(handle).model;
+            models.push_back(model);
+
+            hk::RenderMaterial *rm = new hk::RenderMaterial();
+            rm->material = hk::assets()->getMaterial(model->hndlMaterial).material;
+
+            rm->build(offscreenRenderPass, sizeof(modelToWorld),
+                      sceneDescriptorLayout, swapchain.format(), depthImage.format());
+            model->matInstance = rm->write(frameDescriptors, samplerLinear);
+            savebuff.push_back(rm);
         },
     this);
 
@@ -368,44 +364,10 @@ void Renderer::draw()
     VkDescriptorSet sceneDataDescriptor =
         frameDescriptors.allocate(sceneDescriptorLayout);
 
-
     hk::DescriptorWriter writer;
     writer.writeBuffer(0, hk::ubo::getFrameData().buffer(),
                        sizeof(hk::ubo::SceneData), 0,
                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-
-
-    static u32 fallbackTextureHndl = hk::assets()->load("Purple\\texture_09.png");
-    struct MaterialInstance {
-        // MaterialPipeline* pipeline;
-        VkDescriptorSet materialSet;
-    };
-    hk::vector<MaterialInstance> materials;
-
-    hk::DescriptorWriter writer2;
-
-    for (auto &model : models) {
-        writer2.clear();
-
-        VkDescriptorSet materialDescriptor =
-            frameDescriptors.allocate(materialDescriptorLayout);
-
-        if (model->diffuse) {
-            writer2.writeImage(1, model->diffuse->view(), samplerLinear,
-                                model->diffuse->layout(),
-                                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-        } else {
-            hk::Image *fallback = hk::assets()->getTexture(fallbackTextureHndl).texture;
-            writer2.writeImage(1, fallback->view(), samplerLinear,
-                                fallback->layout(),
-                                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        }
-
-        writer2.updateSet(materialDescriptor);
-
-        materials.push_back({materialDescriptor});
-    }
 
     u32 imageIndex = 0;
     err = swapchain.acquireNextImage(acquireSemaphore, imageIndex);
@@ -464,30 +426,34 @@ void Renderer::draw()
 
         writer.updateSet(sceneDataDescriptor);
 
-        vkCmdBindDescriptorSets(commandBuffer,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                offscreenPipeline.layout(), 0, 1,
-                                &sceneDataDescriptor, 0, nullptr);
-
         u32 renderedInstances = 0;
         // for (auto &model : models) {
         for (u32 i = 0; i < models.size(); i++) {
             auto &model = models[i];
 
+            hk::MaterialInstance mat = savebuff.at(i)->write(frameDescriptors, samplerLinear);
+
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                              mat.pipeline->pipeline);
+
             model->bind(commandBuffer);
 
             modelToWorld.transform = model->transform_.toMat4f();
 
-            vkCmdPushConstants(commandBuffer, offscreenPipeline.layout(),
+            vkCmdPushConstants(commandBuffer, mat.pipeline->layout,
                                VK_SHADER_STAGE_VERTEX_BIT, 0,
                                sizeof(modelToWorld), &modelToWorld);
 
-            // if (model->diffuse) {
+
             vkCmdBindDescriptorSets(commandBuffer,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    offscreenPipeline.layout(), 1, 1,
-                                    &materials.at(i).materialSet, 0, nullptr);
-            // }
+                                    mat.pipeline->layout, 0, 1,
+                                    &sceneDataDescriptor, 0, nullptr);
+
+            vkCmdBindDescriptorSets(commandBuffer,
+                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    mat.pipeline->layout, 1, 1,
+                                    &mat.materialSet, 0, nullptr);
 
             for (u32 meshIndex = 0; meshIndex < model->meshes_.size(); ++meshIndex) {
                 const hk::Mesh& mesh = model->meshes_[meshIndex];
@@ -506,6 +472,9 @@ void Renderer::draw()
             }
 
         }
+
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          offscreenPipeline.handle());
 
         // Draw grid shader
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -938,7 +907,7 @@ void Renderer::createOffscreenPipeline()
     builder.setColorBlend();
 
     hk::vector<VkDescriptorSetLayout> descriptorSetsLayouts = {
-        sceneDescriptorLayout, materialDescriptorLayout
+        sceneDescriptorLayout
     };
     builder.setLayout(descriptorSetsLayouts);
 

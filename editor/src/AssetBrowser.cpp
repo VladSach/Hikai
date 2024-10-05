@@ -16,6 +16,7 @@ void AssetBrowser::init(GUI &gui)
     curPath_ = root_;
 
     filter_ = "";
+    idxTypeFilter = 0;
 
     // FIX: tmp, because assets loading in renderer happens before editor init
     for (auto &asset : hk::assets()->assets()) {
@@ -149,6 +150,46 @@ void AssetBrowser::addControlPanel()
 
     ImGui::InputTextWithHint("##FilterArea", "Filter", filter_.data(), 256);
 
+    ImGui::SameLine();
+
+    constexpr const char *asset_types[] = {
+        "None",
+        "Shaders",
+        "Textures",
+        "Meshes",
+        "Materials",
+        "Models",
+    };
+
+    const char *asset_type_preview = (idxTypeFilter) ? asset_types[idxTypeFilter] : "Type";
+
+    if (ImGui::BeginCombo("##AssetTypeFilter", asset_type_preview, ImGuiComboFlags_WidthFitPreview)) {
+        for (u32 i = 0; i < IM_ARRAYSIZE(asset_types); ++i) {
+            const b8 is_selected = (idxTypeFilter == i);
+            if (ImGui::Selectable(asset_types[i], is_selected)) {
+                idxTypeFilter = i;
+            }
+
+            // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+            if (is_selected) { ImGui::SetItemDefaultFocus(); }
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+    for (auto &subpath : hk::filesystem::split(hk::filesystem::relative(curPath_, root_))) {
+        if (ImGui::Button(subpath.c_str())) {
+            //curPath_ = hk::filesystem::canonical(subpath);
+        }
+
+        ImGui::SameLine();
+        ImGui::Text("/");
+        ImGui::SameLine();
+    }
+    ImGui::PopStyleColor();
+
+    // TODO: at to right side buttons "Render directory", "Render only loaded assets"
+
     ImGui::EndChild();
 
     ImGui::PopStyleVar();
@@ -183,6 +224,7 @@ void AssetBrowser::addAssetsPanel()
             }
         }
 
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
         if (ImGui::ImageButton(entry.name.c_str(), icon, {iconSize, iconSize},
                                {0, 0}, {1, 1}, {0, 0, 0, 0},
@@ -196,10 +238,11 @@ void AssetBrowser::addAssetsPanel()
             }
         }
         ImGui::PopStyleColor();
+        ImGui::PopStyleVar();
 
         if (!entry.isDirectory && ImGui::BeginDragDropSource()) {
-            ImGui::SetDragDropPayload("ASSET_PAYLOAD", entry.path.c_str(), entry.path.size());
-            ImGui::Text("%s", entry.path.c_str());
+            ImGui::SetDragDropPayload("ASSET_PAYLOAD", entry.path.c_str(), entry.path.size() + 1);
+            ImGui::Text("%s", entry.name.c_str());
             ImGui::EndDragDropSource();
         }
 
@@ -215,5 +258,5 @@ void AssetBrowser::addAssetsPanel()
         }
     }
 
-    ImGui::EndChild();
+    ImGui::EndChild(); // Asset Panel
 }

@@ -11,6 +11,7 @@
 
 // INFO: For Dock Builder
 #include "vendor/imgui/imgui_internal.h"
+#include "vendor/imgui/ImGuizmo.h"
 
 class GUI {
 public:
@@ -24,6 +25,7 @@ public:
 
     HKAPI void* addTexture(VkImageView view);
 
+    // TODO: rename to something like "isMouseInsideViewport"
     HKAPI b8 isInputLocked() const;
     HKAPI inline void pushCallback(const std::function<void()> &callback)
     {

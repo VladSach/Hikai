@@ -9,13 +9,13 @@ public:
 
     void display(GUI &gui);
 
-    constexpr u32 selectedAssetHandle() const { return hndlSelectedModel; }
+    inline u32 selectedAssetHandle() const { return hndlSelectedAsset; }
 
 private:
-    hk::vector<hk::ModelAsset> models;
+    hk::vector<hk::ModelAsset*> models;
 
 private:
-    u32 hndlSelectedModel = 0;
+    u32 hndlSelectedAsset = 0;
 };
 
 #endif // HK_HIERARCHY_PANEL_H

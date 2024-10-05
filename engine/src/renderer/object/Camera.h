@@ -3,54 +3,60 @@
 
 #include "math/hkmath.h"
 
-class HKAPI Camera {
+class Camera {
 public:
-    void setPerspective(f32 fov, f32 aspect, f32 nearPlane, f32 farPlane);
-    void lookAt(const hkm::vec3f &direction);
+    HKAPI void setPerspective(f32 fov, f32 aspect, f32 nearPlane, f32 farPlane);
 
-    void setWorldOffset(const hkm::vec3f &offset);
-    void addWorldOffset(const hkm::vec3f &offset);
-    void addRelativeOffset(const hkm::vec3f &offset);
+    HKAPI void lookAt(const hkm::vec3f &direction);
+    HKAPI void fixedBottomRotation(const hkm::vec2f &angles);
 
-    // FIX: they don't work as expected when there multiple angles
-    void setWorldAngles(const hkm::vec3f &angles);
-    void addWorldAngles(const hkm::vec3f &angles);
-    void addRelativeAngles(const hkm::vec3f &angles);
+    HKAPI void setWorldOffset(const hkm::vec3f &offset);
+    HKAPI void addWorldOffset(const hkm::vec3f &offset);
+    HKAPI void addRelativeOffset(const hkm::vec3f &offset);
 
-    void update();
+    HKAPI void setWorldAngles(const hkm::vec3f &angles);
+    HKAPI void addWorldAngles(const hkm::vec3f &angles);
+    HKAPI void addRelativeAngles(const hkm::vec3f &angles);
+
+    HKAPI void update();
 
 public:
-    constexpr hkm::vec3f right()    const { return viewInv.getRowAsVec3(0); }
-    constexpr hkm::vec3f top()      const { return viewInv.getRowAsVec3(1); }
-    constexpr hkm::vec3f forward()  const { return viewInv.getRowAsVec3(2); }
-    constexpr hkm::vec3f position() const { return viewInv.getRowAsVec3(3); }
+    HKAPI constexpr hkm::vec3f right()    const { return viewInv_.getRowAsVec3(0); }
+    HKAPI constexpr hkm::vec3f top()      const { return viewInv_.getRowAsVec3(1); }
+    HKAPI constexpr hkm::vec3f forward()  const { return viewInv_.getRowAsVec3(2); }
+    HKAPI constexpr hkm::vec3f position() const { return viewInv_.getRowAsVec3(3); }
 
-    constexpr hkm::mat4f getView() const { return view; }
-    constexpr hkm::mat4f getProjection() const { return proj; }
-    constexpr hkm::mat4f getViewProjection() const { return viewProj; }
+    HKAPI constexpr hkm::mat4f view() const { return view_; }
+    HKAPI constexpr hkm::mat4f projection() const { return proj_; }
+    HKAPI constexpr hkm::mat4f viewProjection() const { return viewProj_; }
 
-    constexpr hkm::mat4f getInvViewProjection() const { return viewProjInv; }
+    HKAPI constexpr hkm::mat4f viewInv() const { return viewInv_; }
+    HKAPI constexpr hkm::mat4f projectionInv() const { return projInv_; }
+    HKAPI constexpr hkm::mat4f viewProjectionInv() const { return viewProjInv_; }
+
+    HKAPI constexpr f32 fov() const { return fov_; }
+    HKAPI constexpr f32 aspect() const { return aspectRatio_; }
 
 private:
     hkm::vec3f& pos()
     {
         updated = false;
-        return viewInv.getRowAsVec3(3);
+        return viewInv_.getRowAsVec3(3);
     }
 
 private:
     f32 fov_ = 0;
     f32 aspectRatio_ = 0;
 
-    hkm::mat4f view = hkm::mat4f::identity();
-    hkm::mat4f proj = hkm::mat4f::identity();
-    hkm::mat4f viewProj = hkm::mat4f::identity();
+    hkm::mat4f view_ = hkm::mat4f::identity();
+    hkm::mat4f proj_ = hkm::mat4f::identity();
+    hkm::mat4f viewProj_ = hkm::mat4f::identity();
 
-    hkm::mat4f viewInv = hkm::mat4f::identity();
-    hkm::mat4f projInv = hkm::mat4f::identity();
-    hkm::mat4f viewProjInv = hkm::mat4f::identity();
+    hkm::mat4f viewInv_ = hkm::mat4f::identity();
+    hkm::mat4f projInv_ = hkm::mat4f::identity();
+    hkm::mat4f viewProjInv_ = hkm::mat4f::identity();
 
-    hkm::quaternion rotation = hkm::quaternion::identity();
+    hkm::quaternion rotation_ = hkm::quaternion::identity();
 
     b8 updated = false;
 };

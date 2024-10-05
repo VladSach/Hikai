@@ -7,6 +7,8 @@
 #include "renderer/vkwrappers/Buffer.h"
 #include "renderer/vkwrappers/Image.h"
 
+#include "renderer/Material.h"
+
 namespace hk {
 
 class Model : public Entity {
@@ -87,7 +89,6 @@ public:
 
 public:
     hk::vector<Mesh> meshes_;
-    // hk::vector<u32> meshes; // handles
 
     struct MeshRange {
         u32 vertexOffset; // offset in vertices
@@ -100,7 +101,10 @@ public:
     Buffer vertexBuffer_; // stores vertices of all Meshes of this Model
     Buffer indexBuffer_;  // stores indices of all Meshes of this Model
 
-    hk::Image *diffuse = nullptr;
+    u32 hndlMaterial;
+    MaterialInstance matInstance;
+
+    u32 hndlRootMesh;
 
     // info
     u32 vertexCnt = 0;

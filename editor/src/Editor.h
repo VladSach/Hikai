@@ -30,6 +30,12 @@ private:
 
     f32 time_ = .0f;
 
+    f32 snapValue = 10;
+    u32 selected = 0;
+
+    b8 wasInViewport = false;
+    b8 isInViewport = false;
+
 // GUI part
 private:
     AssetBrowser assets;

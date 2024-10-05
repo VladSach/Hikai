@@ -10,12 +10,14 @@ public:
     void display(u32 hdnl);
 
 private:
+    void addBasicAssetProperties(hk::Asset *asset);
     void addTransform(Transform &tr);
     void addMaterials(hk::Model *model);
 
 private:
     GUI *gui;
-    // u32 hndlSelectedModel;
+
+    void *diffuseThumbnailGui;
 };
 
 #endif // HK_INSPECTOR_PANEL_H

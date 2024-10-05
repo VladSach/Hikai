@@ -2,14 +2,15 @@
 #define HK_QUATERNION_H
 
 #include "defines.h"
+
+#include "constants.h"
 #include "vec3f.h"
 #include "mat3f.h"
 #include "mat4f.h"
 
 namespace hkm {
 
-// FIX: temp, before Camera is fixed, so it can be header only
-struct HKAPI quaternion {
+struct quaternion {
     f32 x, y, z, w;
 
     constexpr quaternion() : x(0), y(0), z(0), w(1) {}
@@ -187,7 +188,8 @@ constexpr vec3f operator *(const quaternion &q, const vec3f &v)
 }
 
 // angle passed in radians
-inline quaternion fromAxisAngle(const vec3f &v, f32 angle) {
+inline quaternion fromAxisAngle(const vec3f &v, f32 angle)
+{
     vec3f N = normalize(v);
 
     f32 halfAngle = angle * .5f;
@@ -201,7 +203,8 @@ inline quaternion fromAxisAngle(const vec3f &v, f32 angle) {
     return normalize(quaternion(x, y, z, cosAngle));
 }
 
-inline quaternion fromEulerAngles(const vec3f &angles) {
+inline quaternion fromEulerAngles(const vec3f &angles)
+{
     f32 yaw   = angles.x;
     f32 pitch = angles.y;
     f32 roll  = angles.z;
@@ -218,6 +221,38 @@ inline quaternion fromEulerAngles(const vec3f &angles) {
     f32 x = cr * sp * cy + sr * cp * sy;
     f32 z = sr * cp * cy - cr * sp * sy;
     return quaternion(x, y, z, w);
+}
+
+inline vec3f toEulerAngles(const quaternion &quat)
+{
+    f32 roll = 0;
+    f32 pitch = 0;
+    f32 yaw = 0;
+
+    f32 x = quat.x;
+    f32 y = quat.y;
+    f32 z = quat.z;
+    f32 w = quat.w;
+
+    // Pitch (x-axis rotation)
+    f32 sinr_cosp = 2.f * (w * x + y * z);
+    f32 cosr_cosp = 1.f - 2.f * (x * x + y * y);
+    pitch = std::atan2(sinr_cosp, cosr_cosp);
+
+    // Yaw (y-axis rotation)
+    f32 sinp = 2.f * (w * y - z * x);
+    if (std::abs(sinp) >= 1.f) {
+        yaw = std::copysign(3.14f / 2.f, sinp);
+    } else {
+        yaw = std::asin(sinp);
+    }
+
+    // Roll (z-axis rotation)
+    f32 siny_cosp = 2.f * (w * z + x * y);
+    f32 cosy_cosp = 1.f - 2.f * (y * y + z * z);
+    roll = std::atan2(siny_cosp, cosy_cosp);
+
+    return vec3f(pitch, yaw, roll);
 }
 
 }

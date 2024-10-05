@@ -52,6 +52,30 @@ void AssetManager::deinit()
     callbacks_.clear();
 }
 
+u32 AssetManager::create(Asset::Type type, void *data)
+{
+    u32 handle;
+
+    switch(type) {
+    case Asset::Type::MESH: {
+        handle = createMesh(data);
+    } break;
+    case Asset::Type::MATERIAL: {
+        handle = createMaterial(data);
+    } break;
+    default: {
+        ALWAYS_ASSERT(0);
+    }
+    }
+
+    hk::EventContext context;
+    context.u32[0] = handle;
+    context.u32[1] = static_cast<u32>(type);
+    hk::evesys()->fireEvent(hk::EventCode::EVENT_ASSET_LOADED, context);
+
+    return handle;
+}
+
 u32 AssetManager::load(const std::string &path, void *data)
 {
     std::string out;
@@ -94,7 +118,8 @@ u32 AssetManager::load(const std::string &path, void *data)
     } else if (
         ext == ".png"  ||
         ext == ".jpg"  ||
-        ext == ".jpeg")
+        ext == ".jpeg" ||
+        ext == ".tga")
     {
         type = Asset::Type::TEXTURE;
     } else if (
@@ -164,6 +189,10 @@ void AssetManager::reload(u32 handle)
     case Asset::Type::TEXTURE: {
         TextureAsset *texture = reinterpret_cast<TextureAsset*>(asset);
         texture->texture = hk::loader::loadImage(texture->path);
+    } break;
+    case Asset::Type::MATERIAL: {
+        // TODO: do
+        LOG_ERROR("Material hot reload is not yet implemented");
     } break;
     case Asset::Type::MODEL: {
         // TextureAsset *texture = reinterpret_cast<TextureAsset*>(asset);
@@ -236,6 +265,37 @@ u32 AssetManager::loadModel(const std::string &path)
     asset->model = hk::loader::loadModel(path);
 
     asset->model->populateBuffers();
+
+    return asset->handle;
+}
+
+u32 AssetManager::createMaterial(void *data)
+{
+    MaterialAsset *asset = new MaterialAsset();
+    assets_.push_back(asset);
+    asset->handle = index_++;
+
+    asset->type = Asset::Type::MATERIAL;
+
+    asset->material = reinterpret_cast<hk::Material*>(data);
+
+    if (!asset->material->diffuse) {
+        asset->material->diffuse = getTexture(load("PNG\\Purple\\texture_08.png")).texture;
+    }
+
+    return asset->handle;
+}
+
+u32 AssetManager::createMesh(void *data)
+{
+    MeshAsset *asset = reinterpret_cast<MeshAsset*>(data);
+    assets_.push_back(asset);
+    asset->handle = index_++;
+    asset->type = Asset::Type::MESH;
+
+    for (auto &mesh : asset->children) {
+        create(Asset::Type::MESH, mesh);
+    }
 
     return asset->handle;
 }
