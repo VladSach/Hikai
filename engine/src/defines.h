@@ -63,7 +63,7 @@ STATIC_ASSERT(sizeof(f64) == 8, "Type error: i64 should be 8 bytes");
 
 #if _MSVC_TRADITIONAL
     #define LOG_FATAL_HELPER(message, ...) \
-        LOG(Logger::Level::LVL_FATAL, message, __VA_ARGS__)
+        LOG(hk::log::Level::LVL_FATAL, message, __VA_ARGS__)
 
     #define ALWAYS_ASSERT(expression, ...) \
         if (!(expression)) \

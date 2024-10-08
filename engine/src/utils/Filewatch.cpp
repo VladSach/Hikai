@@ -27,10 +27,15 @@ public:
         path_ = path;
         callback_ = callback;
         watcher_ = std::thread([this](){ watch(); });
+
+        destroy_ = CreateEvent(NULL, TRUE, FALSE, NULL);
+        watching_ = true;
     }
 
     void deinit()
     {
+        watching_ = false;
+        SetEvent(destroy_);
         watcher_.join();
         CloseHandle(handle_);
     }
@@ -56,7 +61,9 @@ public:
         overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
         ALWAYS_ASSERT(overlapped.hEvent, "Failed to create overlapped data event");
 
-        while (true) {
+        HANDLE events[] = { overlapped.hEvent, destroy_ };
+
+        while (watching_) {
             BOOL result = ReadDirectoryChangesW(
                 handle_,
                 buffer.data(), static_cast<DWORD>(buffer.size()),
@@ -68,38 +75,45 @@ public:
                 break;
             }
 
-            WaitForSingleObject(overlapped.hEvent, INFINITE);
+            switch (WaitForMultipleObjects(2, events, FALSE, INFINITE)) {
+            case WAIT_OBJECT_0 + 0: {
+                GetOverlappedResult(handle_, &overlapped, &bytes_returned, TRUE);
 
-            GetOverlappedResult(handle_, &overlapped, &bytes_returned, TRUE);
+                if (!bytes_returned) { break; }
 
-            if (!bytes_returned) { break; }
+                FILE_NOTIFY_INFORMATION *notify_info =
+                    reinterpret_cast<FILE_NOTIFY_INFORMATION*>(buffer.data());
 
-            FILE_NOTIFY_INFORMATION *notify_info =
-                reinterpret_cast<FILE_NOTIFY_INFORMATION*>(buffer.data());
+                do {
+                    constexpr State states[] = {
+                        State::NONE,
 
-            do {
-                constexpr State states[] = {
-                    State::NONE,
+                        State::ADDED,
+                        State::REMOVED,
+                        State::MODIFIED,
+                        State::RENAMED_OLD,
+                        State::RENAMED_NEW,
+                    };
 
-                    State::ADDED,
-                    State::REMOVED,
-                    State::MODIFIED,
-                    State::RENAMED_OLD,
-                    State::RENAMED_NEW,
-                };
+                    std::wstring in(notify_info->FileName,
+                                    notify_info->FileNameLength);
+                    callback_(hk::wstring_convert(in), states[notify_info->Action]);
 
-                std::wstring in(notify_info->FileName,
-                                notify_info->FileNameLength);
-                callback_(hk::wstring_convert(in), states[notify_info->Action]);
+                    if (!notify_info->NextEntryOffset) { break; }
 
-                if (!notify_info->NextEntryOffset) { break; }
-
-                notify_info = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(
-                    reinterpret_cast<LPBYTE>(notify_info) +
-                    notify_info->NextEntryOffset
-                );
-            } while (true);
+                    notify_info = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(
+                        reinterpret_cast<LPBYTE>(notify_info) +
+                        notify_info->NextEntryOffset
+                    );
+                } while (true);
+            } break;
+            case WAIT_OBJECT_0 + 1:
+            case WAIT_TIMEOUT:
+            default:
+                break;
+            }
         }
+        return;
     }
 
 private:
@@ -107,6 +121,9 @@ private:
     onStateChange callback_;
     HANDLE handle_;
     std::thread watcher_;
+
+    HANDLE destroy_;
+    b8 watching_;
 };
 
 static std::unordered_map<std::string, target*> targets;

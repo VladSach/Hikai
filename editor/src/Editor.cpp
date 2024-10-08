@@ -16,6 +16,7 @@ void Editor::init()
     assets.init(renderer->ui());
     hierarchy.init();
     inspector.init(&renderer->ui());
+    log.init(&renderer->ui());
 
     hkm::quaternion rot = hkm::fromAxisAngle({0.f, 1.f, 0.f}, 180.f * hkm::degree2rad);
 
@@ -141,6 +142,7 @@ void Editor::render()
     hierarchy.display(renderer->ui());
     selected = hierarchy.selectedAssetHandle();
     inspector.display(selected);
+    log.display();
 
     renderer->ui().pushCallback([&](){
         // TODO: move to gui utils

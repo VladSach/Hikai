@@ -10,8 +10,6 @@
 
 #include "renderer/VulkanContext.h"
 
-#include "GuiLog.h"
-
 #include "platform/Monitor.h"
 
 // FIX: tmp
@@ -53,8 +51,6 @@ void GUI::init(const Window *window)
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(reinterpret_cast<const WinWindow*>(window)->getHWnd());
     createVulkanBackend();
-
-    addImGuiLog();
 }
 
 void GUI::deinit()
@@ -64,8 +60,6 @@ void GUI::deinit()
 
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplWin32_Shutdown();
-
-    removeImGuiLog();
 }
 
 void GUI::setViewportMode(VkImageView view)
@@ -185,8 +179,6 @@ void GUI::draw(VkCommandBuffer cmd)
         lockedInput = !ImGui::IsWindowHovered();
         ImGui::End();
     }
-
-    drawLog();
 
     if (viewportMode) { ImGui::SetNextWindowDockID(left); }
 

@@ -5,14 +5,17 @@
 
 // console log
 static HANDLE hConsole = nullptr;
+static u32 hndlConsole = 0;
+
+static constexpr u32 MaxFuncNameLength = 45;
+
 // file log
 static std::string logFile = "";
+static u32 hndlFile = 0;
 
-bool setConsoleSize(i16 cols, i16 rows);
-void logWinConsole(const Logger::MsgInfo& info,
-                   const Logger::MsgAddInfo &misc);
-void logWinFile(const Logger::MsgInfo& info,
-                const Logger::MsgAddInfo &misc);
+b8 setConsoleSize(i16 cols, i16 rows);
+void logWinConsole(const hk::log::Log &log);
+void logWinFile(const hk::log::Log &log);
 
 BOOL WINAPI HandlerRoutine(DWORD dwCtrlType)
 {
@@ -47,7 +50,7 @@ void allocWinConsole()
                                          CONSOLE_TEXTMODE_BUFFER, NULL);
     SetConsoleActiveScreenBuffer(hConsole);
 
-    SetConsoleTitle("Hikai DevConsole");
+    SetConsoleTitle("Hikai Log Console");
 
     SetConsoleCtrlHandler(HandlerRoutine, TRUE);
 
@@ -75,7 +78,7 @@ void allocWinConsole()
     GetConsoleScreenBufferInfo(hConsole, &csbi);
     setConsoleSize(maxBufferLineSize, csbi.srWindow.Bottom);
 
-    Logger::getInstance()->addMessageHandler(logWinConsole);
+    hndlConsole = hk::log::addMessageHandler(logWinConsole);
 }
 
 void deallocWinConsole()
@@ -87,25 +90,23 @@ void deallocWinConsole()
 
     FreeConsole();
 
-    Logger::getInstance()->removeMessageHandler(logWinConsole);
+    hk::log::removeMessageHandler(hndlConsole);
 }
-
 
 void setLogFile(const std::string &file)
 {
     logFile = file;
     if (logFile.empty()) { return; }
 
-    Logger::getInstance()->addMessageHandler(logWinFile);
+    hndlFile = hk::log::addMessageHandler(logWinFile);
 }
 
 void removeLogFile()
 {
-    Logger::getInstance()->removeMessageHandler(logWinFile);
+    hk::log::removeMessageHandler(hndlFile);
 }
 
-void logWinConsole(const Logger::MsgInfo& info,
-                   const Logger::MsgAddInfo &misc)
+void logWinConsole(const hk::log::Log &log)
 {
     /* Colored output
      * time [log_lvl]: caller message [opt]: args file line
@@ -115,8 +116,7 @@ void logWinConsole(const Logger::MsgInfo& info,
 
     if (!hConsole) { return; }
 
-    constexpr char const *
-        lookup_color[static_cast<int>(Logger::Level::max_levels)] =
+    constexpr char const *lookup_color[] =
     {
         "0;41m",
         "1;31m",
@@ -126,19 +126,28 @@ void logWinConsole(const Logger::MsgInfo& info,
         "1;30m"
     };
 
+    b8 is_error = log.level  < hk::log::Level::LVL_WARN;
+    b8 is_trace = log.level == hk::log::Level::LVL_TRACE;
+
     std::wstringstream wss;
     wss << std::left;
-    wss << "\033[1;90m" << misc.time.c_str() << "\033[0;10m" << ' ';
+    wss << "\033[1;90m" << log.time.c_str() << "\033[0;10m" << ' ';
 
-    wss << "\033[" << lookup_color[misc.log_lvl]
-        << std::setw(8) << Logger::lookup_level[misc.log_lvl]
+    wss << "\033[" << lookup_color[static_cast<u32>(log.level)]
+        << std::setw(8) << hk::log::levelToString(log.level).c_str()
         << "\033[0;10m" << ' ';
+
+    std::string caller = log.caller;
+    if (caller.size() > MaxFuncNameLength) {
+        caller.erase(MaxFuncNameLength - 3, std::string::npos);
+        caller.append("...");
+    }
 
     wss << "\033[1;36m"
-        << std::setw(Logger::MaxFuncNameLength) << misc.caller.c_str()
+        << std::setw(MaxFuncNameLength) << caller.c_str()
         << "\033[0;10m" << ' ';
 
-    if (misc.is_trace) {
+    if (is_trace) {
         wss << "\033[1;97m"
             <<  "---" << ' '
             << "\033[0;10m";
@@ -146,28 +155,9 @@ void logWinConsole(const Logger::MsgInfo& info,
 
     // Max message length is 160 chars
     wss << "\033[1;97m";
-        std::string message = info.args;
+        std::string message = log.args;
         u64 msg_length = message.length();
         if (msg_length > 85) {
-            // std::string row, word;
-            // u32 row_length = 0;
-            // for (u32 i = 0; i < message.length(); i++) {
-            //     if (row_length <= 140 && message.at(i) != ' ') {
-            //         word.push_back(message.at(i));
-            //     } else if (row_length <= 140 && message.at(i) == ' ') {
-            //         word.push_back(message.at(i));
-            //         row.append(word);
-            //         word.clear();
-            //     } else if (row_length > 140) {
-            //         wss << "\n   + " << row.c_str();
-            //         row.clear();
-            //         word.push_back(message.at(i));
-            //         row_length = 0;
-            //     }
-            //
-            //     ++row_length;
-            // }
-
             u64 pos = 0;
             std::string row, token;
             std::string delimiter = " ";
@@ -189,32 +179,39 @@ void logWinConsole(const Logger::MsgInfo& info,
 
     wss << "\033[1;31m"
         << (msg_length > 85 ? "\n   -> " : "")
-        << (misc.is_error ? misc.file.c_str() : "")
-        << (misc.is_error ? info.lineNumber.c_str() : "")
+        << (is_error ? log.file.c_str() : "")
+        << (is_error ? log.line.c_str() : "")
     << "\033[0;10m" << ' ';
 
     wss << '\n';
 
     DWORD dwBytesWritten = 0;
-    unsigned length = static_cast<unsigned>(wss.str().size());
+    u32 length = static_cast<unsigned>(wss.str().size());
     WriteConsoleW(hConsole, wss.str().c_str(), length, &dwBytesWritten, NULL);
 }
 
-void logWinFile(const Logger::MsgInfo& info,
-                const Logger::MsgAddInfo &misc)
+void logWinFile(const hk::log::Log &log)
 {
     // TODO: test and fix log to file
     // No coloring
     std::wstringstream wss;
     wss << std::left;
-    wss << misc.time.c_str() << ' ';
-    wss << std::setw(8)  << Logger::lookup_level[misc.log_lvl] << ' ';
-    wss << std::setw(Logger::MaxFuncNameLength) << misc.caller.c_str() << ' ';
+    wss << log.time.c_str() << ' ';
+    wss << std::setw(8) << hk::log::levelToString(log.level).c_str() << ' ';
+    std::string caller = log.caller;
+    if (caller.size() > MaxFuncNameLength) {
+        caller.erase(MaxFuncNameLength - 3, std::string::npos);
+        caller.append("...");
+    }
+    wss << std::setw(MaxFuncNameLength) << caller.c_str() << ' ';
     // if (is_trace) { wss << "---" << ' '; }
     // wss << std::setw(40) << (info.message + " " + info.args).c_str() << ' ';
-    wss << std::setw(30) << (info.args).c_str() << ' ';
-    wss << std::setw(12) << (misc.is_error ? misc.file.c_str() : "");
-    wss << std::setw(3)  << (misc.is_error ? info.lineNumber.c_str() : "") << ' ';
+    wss << std::setw(30) << (log.args).c_str() << ' ';
+
+    b8 is_error = log.level  < hk::log::Level::LVL_WARN;
+    b8 is_trace = log.level == hk::log::Level::LVL_TRACE;
+    wss << std::setw(12) << (is_error ? log.file.c_str() : "");
+    wss << std::setw(3)  << (is_error ? log.line.c_str() : "") << ' ';
     wss << '\n';
 
     std::wofstream file(logFile, std::ios::app);
@@ -224,11 +221,11 @@ void logWinFile(const Logger::MsgInfo& info,
     }
 }
 
-bool setConsoleSize(i16 cols, i16 rows)
+b8 setConsoleSize(i16 cols, i16 rows)
 {
     CONSOLE_FONT_INFO fi;
     CONSOLE_SCREEN_BUFFER_INFO bi;
-    int w, h, bw, bh;
+    i32 w, h, bw, bh;
     RECT rect = {0, 0, 0, 0};
     COORD coord = {0, 0};
 

@@ -1,57 +1,70 @@
 #include "utils/Logger.h"
 
+#include "defines.h"
+
+#include "utils/containers/hkvector.h"
+#include "utils/containers/hkring_buffer.h"
+
 #include <chrono>
 #include <iomanip>
+#include <forward_list>
 
-Logger *Logger::singleton = nullptr;
+namespace hk::log {
 
-Logger *Logger::getInstance()
-{
-    if (singleton == nullptr) {
-        singleton = new Logger();
-        singleton->init();
-    }
-    return singleton;
-}
+// For now handles will just be indexes
+// Don't even think there is a need for more complicated logic
+u32 cntHandlers = 0;
+/* PERF: Could be 2 vectors as well, inspect which option is faster
+ * https://stackoverflow.com/questions/77546017/
+   best-c-data-structure-for-fast-iteration-and-fast-insertion-removal-time
+*/
+static std::forward_list<LoggerCallback> handlers;
 
-void Logger::init()
+// Messages set to initial size and then all unprinted messages got deleted?
+static hk::ring_buffer<Log, 100, true> logs;
+// Or should better use dynamic array for having an ability to dump logs
+// all at one to some file instead of constantly adding to it
+// Guess in that case handler should save all received the logs in himself <--- THIS IDEA
+
+void init()
 {
     LOG_INFO("Logger initialized");
+    handlers.clear();
+    cntHandlers = 0;
 }
 
-void Logger::deinit()
+void deinit()
 {
-    delete singleton;
 }
 
-void Logger::addMessageHandler(LoggerHandlerCallback callback)
+u32 addMessageHandler(LoggerCallback callback)
 {
-    if (cntHandlers >= maxHandlers) {
-        LOG_WARN("Currently supported only up to", maxHandlers, "handlers");
+    if (handlers.empty()) {
+        handlers.push_front(callback);
+        return cntHandlers++;
+    }
+
+    auto it = handlers.begin();
+    std::advance(it, cntHandlers - 1);
+    handlers.insert_after(it, callback);
+    return cntHandlers++;
+}
+
+void removeMessageHandler(u32 handle)
+{
+    if (handle == 0) {
+        handlers.pop_front();
+        --cntHandlers;
         return;
     }
-    handlers[cntHandlers++] = callback;
-}
-
-void Logger::removeMessageHandler(LoggerHandlerCallback callback)
-{
-    unsigned i;
-    for (i = 0; i < cntHandlers; ++i) {
-        if (handlers[i] == callback) { break; }
-    }
-
+    auto it = handlers.begin();
+    std::advance(it, handle - 1);
+    handlers.erase_after(it);
     --cntHandlers;
-    memset(&handlers[i], 0, sizeof(handlers[i]));
 }
 
-void Logger::log(const MsgInfo &info)
+void log(const MsgInfo &info)
 {
-    if (!cntHandlers) return;
-
-    bool is_error = info.level < Level::LVL_WARN;
-    bool is_trace = info.level == Level::LVL_TRACE;
-    int log_lvl = static_cast<int>(info.level);
-
     std::time_t now = std::time(nullptr);
     std::tm tm;
     char time_str[32];
@@ -71,20 +84,37 @@ void Logger::log(const MsgInfo &info)
     }
 #endif
 
-    if (caller.size() > MaxFuncNameLength) {
-        caller.erase(MaxFuncNameLength - 3, std::string::npos);
-        caller.append("...");
-    }
-
     // Obtaining only file name instead of full path
-    std::string file = info.fileName.substr(
-                            info.fileName.find_last_of("/\\") + 1) + ":";
+    std::string file = info.filePath.substr(info.filePath.find_last_of("/\\") + 1);
 
-    MsgAddInfo misc {is_error, is_trace, log_lvl, time_str, caller, file};
+    Log log = { info.level, caller, file, info.lineNumber, time_str, info.args };
 
-    for (unsigned i = 0; i < cntHandlers; ++i) {
-        if (!handlers[i]) { continue; }
+    logs.push(log);
+}
 
-        handlers[i](info, misc);
+void dispatch()
+{
+    Log log;
+    while (logs.pop(log)) {
+        for (auto &handle : handlers) {
+            handle(log);
+        }
     }
+}
+
+inline std::string levelToString(const Level &level)
+{
+    constexpr char const *lookup_level[] =
+    {
+        "[FATAL]:",
+        "[ERROR]:",
+        "[WARN]:",
+        "[INFO]:",
+        "[DEBUG]:",
+        "[TRACE]:"
+    };
+
+    return lookup_level[static_cast<u32>(level)];
+}
+
 }

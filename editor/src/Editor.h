@@ -6,6 +6,7 @@
 #include "AssetBrowser.h"
 #include "InspectorPanel.h"
 #include "HierarchyPanel.h"
+#include "LogPanel.h"
 
 class Editor final : public Application {
 public:
@@ -41,6 +42,7 @@ private:
     AssetBrowser assets;
     InspectorPanel inspector;
     HierarchyPanel hierarchy;
+    LogPanel log;
 };
 
 #endif // HK_EDITOR_H

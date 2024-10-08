@@ -9,6 +9,8 @@
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                    LPSTR lpCmdLine, int nShowCmd)
 {
+    hk::log::init();
+
 #ifdef HKDEBUG
     allocWinConsole();
     setLogFile("hikai_log.txt");
@@ -32,10 +34,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
     delete app;
 
 #ifdef HKDEBUG
-    deallocWinConsole();
     removeLogFile();
+    deallocWinConsole();
 #endif
 
+    hk::log::deinit();
     return 0;
 }
 

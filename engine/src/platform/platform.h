@@ -19,5 +19,6 @@
 #endif // Platform dependent includes
 
 #include "filesystem.h"
+#include "utils.h"
 
 #endif // HK_PLATFORM_H

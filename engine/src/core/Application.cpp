@@ -78,7 +78,10 @@ void Application::run()
 
         render();
         renderer->draw();
+
+        hk::log::dispatch();
     }
+
 }
 
 void Application::deinit()

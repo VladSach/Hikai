@@ -10,16 +10,12 @@
 inline std::string getErrorMessage(HRESULT hr)
 {
     char buffer[4096] = {};
-    if(FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM,
-                      nullptr,
-                      hr,
-                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                      buffer,
-                      _countof(buffer),
-                      nullptr))
-    {
-        return buffer;
-    }
+    FormatMessageA(
+        FORMAT_MESSAGE_FROM_SYSTEM,
+        nullptr, hr,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        buffer, _countof(buffer),
+        nullptr);
 
     return buffer;
 }
