@@ -6,6 +6,7 @@
 
 #include "renderer/VulkanContext.h"
 #include "renderer/Descriptors.h"
+#include "renderer/DrawContext.h"
 
 #include "renderer/vkwrappers/Pipeline.h"
 #include "renderer/vkwrappers/Swapchain.h"
@@ -16,7 +17,10 @@
 #include "core/EventSystem.h"
 #include "utils/containers/hkvector.h"
 
-#include "object/Model.h"
+// FIX: temp
+struct ModelToWorld {
+    hkm::mat4f transform;
+};
 
 class Renderer {
 public:
@@ -26,7 +30,7 @@ public:
     void init(const Window *window);
     void deinit();
 
-    void draw();
+    void draw(hk::DrawContext &context);
 
     static void resize(const hk::EventContext &size, void *listener);
     void recreateSwapchain();
@@ -36,7 +40,8 @@ public:
     HKAPI void toggleUIMode();
     void addUIInfo();
 
-private:
+// FIX: temp public
+public:
     const Window *window_;
 
     hk::VulkanContext *context = hk::context();
@@ -87,10 +92,6 @@ private:
 
     u32 curShaderVS;
     u32 curShaderPS;
-
-    // FIX: temp
-    hk::vector<hk::Model*> models;
-    hk::vector<hk::RenderMaterial*> savebuff;
 
 private:
     void createSurface();

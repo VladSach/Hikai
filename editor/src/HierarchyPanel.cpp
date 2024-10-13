@@ -1,110 +1,129 @@
 #include "HierarchyPanel.h"
 
-void HierarchyPanel::init()
+#include <algorithm>
+
+void HierarchyPanel::init(hk::SceneGraph *scene, GUI *gui)
 {
-    hndlSelectedAsset = 0;
-
-    // FIX: tmp, don't have a scene graph yet
-    hk::evesys()->subscribe(hk::EventCode::EVENT_ASSET_LOADED,
-        [&](const hk::EventContext &context, void *listener) {
-            const u32 handle = context.u32[0];
-            const hk::Asset::Type type = static_cast<hk::Asset::Type>(context.u32[1]);
-
-            if (type != hk::Asset::Type::MODEL) { return; }
-
-            models.push_back(&hk::assets()->getModel(handle));
-        },
-    this);
+    this->scene = scene;
+    this->gui = gui;
 }
 
-void HierarchyPanel::display(GUI &gui)
+void HierarchyPanel::display()
 {
-    gui.pushCallback([&](){
+    gui->pushCallback([&](){
         if (ImGui::Begin("Scene")) {
 
-            static i32 selection_mask = (1 << 2);
-            i32 node_clicked = -1;
-
-            for (i32 i = 0; i < models.size(); ++i) {
-                hk::ModelAsset &asset = *models[i];
-
-                // Disable the default "open on single-click behavior" + set
-                // Selected flag according to our selection.
-                //
-                // To alter selection we use
-                // IsItemClicked() && !IsItemToggledOpen(),
-                // so clicking on an arrow doesn't alter selection.
-                ImGuiTreeNodeFlags node_flags =
-                    ImGuiTreeNodeFlags_OpenOnArrow |
-                    ImGuiTreeNodeFlags_OpenOnDoubleClick;
-
-                const b8 is_selected = (selection_mask & (1 << i)) != 0;
-
-                if (is_selected) {
-                    node_flags |= ImGuiTreeNodeFlags_Selected;
-                }
-
-                // The only reason we use TreeNode at all is to allow selection of the leaf. Otherwise we can
-                // use BulletText() or advance the cursor by GetTreeNodeToLabelSpacing() and call Text().
-                //node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-                b8 node_open = ImGui::TreeNodeEx(asset.name.c_str(), node_flags);
-
-                if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
-                    node_clicked = i;
-                    hndlSelectedAsset = asset.handle;
-                }
-
-                if (ImGui::BeginDragDropSource()) {
-                    ImGui::SetDragDropPayload("_TREENODE", NULL, 0);
-                    ImGui::Text("Just a test");
-                    ImGui::EndDragDropSource();
-                }
-
-                if (node_open) {
-
-                    std::function<void(hk::MeshAsset *root)> loadMeshes;
-                    loadMeshes = [&](hk::MeshAsset *root){
-                        ImGuiTreeNodeFlags node_flags =
-                            ImGuiTreeNodeFlags_OpenOnArrow |
-                            ImGuiTreeNodeFlags_OpenOnDoubleClick;
-                        b8 is_leaf = false;
-
-                        if (!root->children.size()) {
-                            node_flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-                            is_leaf = true;
-                        }
-
-                        b8 node_open = (ImGui::TreeNodeEx(root->name.c_str(), node_flags) && !is_leaf);
-
-                        if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
-                            hndlSelectedAsset = root->handle;
-                        }
-
-                        if (node_open) {
-                            for (u32 i = 0; i < root->children.size(); ++i) {
-                                hk::MeshAsset *child = root->children.at(i);
-                                loadMeshes(child);
-                            }
-
-                            ImGui::TreePop();
-                        }
-                    };
-
-                    loadMeshes(&hk::assets()->getMesh(asset.model->hndlRootMesh));
-
-                    ImGui::TreePop();
-                }
+            if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(0)) {
+                node_clicked = -1;
+                selected_ = nullptr;
             }
 
-            if (node_clicked != -1) {
-                // Update selection state
-                // (process outside of tree loop to avoid visual inconsistencies during the clicking frame)
-                if (ImGui::GetIO().KeyCtrl)
-                    selection_mask ^= (1 << node_clicked);          // CTRL+click to toggle
-                else //if (!(selection_mask & (1 << node_clicked))) // Depending on selection behavior you want, may want to preserve selection when clicking on item that is part of the selection
-                    selection_mask = (1 << node_clicked);           // Click to single-select
-            }
+            u32 node_idx = 0;
+
+            std::function<void(hk::SceneNode*, u32&)> drawSceneGraph;
+            drawSceneGraph = [&](hk::SceneNode *root, u32 &idx){
+                for (i32 i = 0; i < root->children.size(); ++i) {
+                    hk::SceneNode *child = root->children.at(i);
+
+                    ++idx;
+
+                    // Disable the default "open on single-click behavior" + set
+                    // Selected flag according to our selection.
+                    //
+                    // To alter selection we use
+                    // IsItemClicked() && !IsItemToggledOpen(),
+                    // so clicking on an arrow doesn't alter selection.
+                    ImGuiTreeNodeFlags node_flags =
+                        ImGuiTreeNodeFlags_OpenOnArrow |
+                        ImGuiTreeNodeFlags_OpenOnDoubleClick;
+
+                    b8 is_leaf = false;
+                    if (!child->children.size()) {
+                        node_flags = ImGuiTreeNodeFlags_Leaf |
+                            ImGuiTreeNodeFlags_NoTreePushOnOpen;
+                        is_leaf = true;
+                    }
+
+                    if (node_clicked == idx) {
+                        node_flags |= ImGuiTreeNodeFlags_Selected;
+                    }
+
+                    b8 node_open = (ImGui::TreeNodeEx(child->name.c_str(), node_flags) && !is_leaf);
+
+                    if ((ImGui::IsItemClicked(0) || ImGui::IsItemClicked(1)) && !ImGui::IsItemToggledOpen()) {
+                        node_clicked = idx;
+                        selected_ = child;
+                    }
+
+                    if (ImGui::BeginDragDropSource()) {
+                        ImGui::SetDragDropPayload("SCENE_NODE", &child, sizeof(child));
+                        ImGui::Text("%s", child->name.c_str());
+                        ImGui::EndDragDropSource();
+                    }
+
+                    if (ImGui::BeginDragDropTarget()) {
+                        const ImGuiPayload *payload;
+                        if (!child->object && (payload = ImGui::AcceptDragDropPayload("SCENE_NODE"))) {
+                            hk::SceneNode *node = *reinterpret_cast<hk::SceneNode**>(payload->Data);
+                            child->children.push_back(node);
+                            child->dirty = true;
+
+                            auto it = std::find(node->parent->children.begin(), node->parent->children.end(), node);
+                            node->parent->children.erase(it);
+
+                            node->parent = child;
+                        }
+                        ImGui::EndDragDropTarget();
+                    }
+
+                    if (node_open) {
+                        drawSceneGraph(child, idx);
+
+                        ImGui::TreePop();
+                    }
+                }
+            };
+
+            drawSceneGraph(scene->root(), node_idx);
 
         } ImGui::End();
+    });
+}
+
+void HierarchyPanel::controls()
+{
+    gui->pushCallback([&](){
+        ImGui::Begin("Scene");
+
+        if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(1)) {
+            ImGui::OpenPopup("ScenePopup", ImGuiPopupFlags_NoOpenOverExistingPopup);
+        }
+        if (ImGui::BeginPopup("ScenePopup")) {
+            if (ImGui::MenuItem("Create Group")) {
+                hk::SceneNode node;
+                node.name = "New Group";
+                node.object = false;
+
+                if (node_clicked > 0) {
+                    node.parent = selected_->object ? selected_->parent : selected_;
+                }
+
+                scene->addNode(node);
+                ImGui::CloseCurrentPopup();
+            }
+
+            ImGui::EndPopup();
+        }
+
+        auto current_window = ImGui::GetCurrentWindow();
+        if (ImGui::BeginDragDropTargetCustom(current_window->InnerRect, current_window->ID)) {
+            if (const ImGuiPayload *payload = ImGui::AcceptDragDropPayload("ASSET_PAYLOAD")) {
+                std::string path = reinterpret_cast<const char*>(payload->Data);
+                scene->addModel(hk::assets()->load(path));
+            }
+            ImGui::EndDragDropTarget();
+        }
+
+        ImGui::End();
     });
 }

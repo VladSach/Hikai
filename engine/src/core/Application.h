@@ -4,6 +4,7 @@
 #include "defines.h"
 #include "Timer.h"
 #include "EventSystem.h"
+#include "SceneGraph.h"
 #include "platform/platform.h"
 #include "renderer/Renderer.h"
 
@@ -39,16 +40,18 @@ public:
     static void shutdown(hk::EventContext errorCode, void*);
     static b8 running;
 
+protected:
+    hk::SceneGraph scene;
+    Renderer *renderer;
+    Window *window;
+
 private:
     b8 initialized = false;
 
     AppDesc desc;
-    Window *window;
     hk::EventSystem *evsys;
 
     hk::Timer clock;
-public: // FIX: temp, delete public
-    Renderer *renderer;
 };
 
 // Defined by user

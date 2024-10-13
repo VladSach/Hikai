@@ -106,9 +106,8 @@ MaterialInstance RenderMaterial::write(DescriptorAllocator &allocator, VkSampler
                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
     writer.writeImage(1, material->diffuse->view(), sampler,
-                        material->diffuse->layout(),
-                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
+                      material->diffuse->layout(),
+                      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     writer.updateSet(matData.materialSet);
 

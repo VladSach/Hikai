@@ -9,25 +9,22 @@ void InspectorPanel::init(GUI *gui)
     // gui->addTexture(diffuseThumbnail.view());
 }
 
-void InspectorPanel::display(u32 selected)
+void InspectorPanel::display(hk::SceneNode *node)
 {
-    gui->pushCallback([&, selected](){
+    gui->pushCallback([&, node](){
         if (ImGui::Begin("Inspector")) {
-            if (selected) {
-                hk::Asset *asset = hk::assets()->get(selected);
-                addBasicAssetProperties(asset);
+            if (node) {
+                addBasicAssetProperties(node);
+                addTransform(node);
 
-                switch (asset->type) {
-                case hk::Asset::Type::MODEL: {
+                if (!node->object && node->handle) {
+                    hk::Asset *asset = hk::assets()->get(node->handle);
                     hk::ModelAsset *model = reinterpret_cast<hk::ModelAsset*>(asset);
-                    addTransform(model->model->transform_);
-                    addMaterials(model->model);
-                } break;
-                case hk::Asset::Type::MESH: {
+                } else if (node->object) {
+                    hk::MeshAsset &mesh = hk::assets()->getMesh(node->entity->hndlMesh);
+                    addMeshInfo(mesh);
 
-                } break;
-                defaul:
-                    LOG_ERROR("Unknown asset type selected");
+                    addMaterials(hk::assets()->getMaterial(node->entity->hndlMaterial).material);
                 }
             }
 
@@ -35,57 +32,69 @@ void InspectorPanel::display(u32 selected)
     });
 }
 
-void InspectorPanel::addBasicAssetProperties(hk::Asset *asset)
+void InspectorPanel::addBasicAssetProperties(hk::SceneNode *node)
 {
     char buffer[256] = {};
-    strcpy_s(buffer, asset->name.c_str());
+    strcpy_s(buffer, node->name.c_str());
     if (ImGui::InputTextWithHint("##AssetName", "Name", buffer, 256,
                                  ImGuiInputTextFlags_EnterReturnsTrue))
     {
-        if (buffer[0] != '\0') { asset->name = buffer; }
+        if (buffer[0] != '\0') { node->name = buffer; }
+    }
+
+    ImGui::Text("Children: %d", node->children.size());
+    ImGui::Text("Index: %d", node->idx);
+    ImGui::Checkbox("Object", &node->object);
+}
+
+void InspectorPanel::addMeshInfo(const hk::MeshAsset &mesh)
+{
+    if (ImGui::CollapsingHeader("Info", ImGuiTreeNodeFlags_DefaultOpen)) {
+        ImGui::Text("Vertices: %d",  mesh.mesh.vertices.size());
+        ImGui::Text("Indices: %d",   mesh.mesh.indices.size());
+        ImGui::Text("Instances: %d", mesh.instances.size());
     }
 }
 
-void InspectorPanel::addTransform(Transform &tr)
+void InspectorPanel::addTransform(hk::SceneNode *node)
 {
     if (ImGui::CollapsingHeader("Transform", ImGuiTreeNodeFlags_DefaultOpen)) {
-        // https://github.com/CedricGuillemet/ImGuizmo/issues/294
-        f32 matrixTranslation[3], matrixRotation[3], matrixScale[3];
-        ImGuizmo::DecomposeMatrixToComponents(tr.toMat4f().n[0],
-                                              matrixTranslation,
-                                              matrixRotation,
-                                              matrixScale);
 
-        ImGui::DragFloat3("Position", matrixTranslation, .1f);
-        ImGui::DragFloat3("Scale",    matrixScale, .1f, 0.001f, 100.f);
-        ImGui::DragFloat3("Rotation", matrixRotation, .1f);
+        Transform tr = node->local;
 
-        hkm::mat4f matrix;
-        ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation,
-                                                matrixRotation,
-                                                matrixScale, matrix.n[0]);
+        b8 pos   = ImGui::DragFloat3("Position", &tr.pos[0], .1f);
+        b8 scale = ImGui::DragFloat3("Scale",    &tr.scale[0], .1f, 0.001f, 100.f);
+        hkm::vec3f rot = hkm::toEulerAngles(tr.rotation) * hkm::rad2degree;
+        b8 rota = ImGui::DragFloat3("Rotation", &rot[0], .1f);
+        tr.rotation = hkm::fromEulerAngles(rot * hkm::degree2rad);
 
-        tr = Transform(matrix);
+        if (pos || scale || rota) {
+            node->local = tr;
+            node->dirty = true;
+        }
 
-        // ImGui::DragFloat3("Position", &tr.pos[0], .1f);
-        // ImGui::DragFloat3("Scale",    &tr.scale[0], .1f, 0.001f, 100.f);
-        // hkm::vec3f rot = hkm::toEulerAngles(tr.rotation);
-        // rot *= hkm::rad2degree;
-        // ImGui::DragFloat3("Rotation", &rot[0], .1f);
-        // f64 rotat[3] = {rot.x, rot.y, rot.z};
-        // ImGui::DragScalarN("Rotation", ImGuiDataType_Double, rotat, 3, .1f);
-        // tr.rotation = hkm::fromEulerAngles(rot * hkm::degree2rad);
+        // FIX: debug
+        if (ImGui::TreeNodeEx("WorldTransform")) {
+            drawMatrix4x4(node->world.toMat4f());
+            ImGui::TreePop();
+        }
+
+        if (ImGui::Button("Reset")) {
+            node->local = node->loaded;
+            node->dirty = true;
+        }
     }
 }
 
-void InspectorPanel::addMaterials(hk::Model *model)
+void InspectorPanel::addMaterials(hk::Material *material)
 {
     if (ImGui::CollapsingHeader("Materials", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::TreeNodeEx("Diffuse", ImGuiTreeNodeFlags_DefaultOpen)) {
-            hk::Material *material = hk::assets()->getMaterial(model->hndlMaterial).material;
-            static void* thumbnail = gui->addTexture(material->diffuse->view());
+            if (!material->diffuse->set_) {
+                gui->addTexture(material->diffuse);
+            }
 
-            ImGui::Image(thumbnail, {100.f, 100.f});
+            ImGui::Image(material->diffuse->set_, {100.f, 100.f});
 
             if (ImGui::BeginDragDropTarget()) {
                 if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PAYLOAD")) {

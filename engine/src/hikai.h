@@ -7,6 +7,7 @@
 #include "core/EventSystem.h"
 #include "core/Timer.h"
 #include "core/input.h"
+#include "core/SceneGraph.h"
 
 #include "math/hkmath.h"
 

@@ -8,9 +8,6 @@
 #include <fstream>
 #include <iomanip>
 
-// FIX: This file is a temp solution
-// Later: rewrite whole imgui log
-
 #include "platform/Windows/WinLog.h"
 
 void LogPanel::init(GUI *gui)
@@ -135,47 +132,56 @@ void LogPanel::addLogsPanel()
         ImGui::TableSetupScrollFreeze(0, 1);
         ImGui::TableHeadersRow();
 
-        for (u32 row = 0; row < buf.size(); ++row) {
-            hk::log::Log log = buf.at(row);
 
-            if (severities && !(severities & (1 << (static_cast<u32>(log.level))))) {
-                continue;
-            }
+        ImGuiListClipper clipper;
+        clipper.Begin(buf.size());
+        // if (item_curr_idx_to_focus != -1)
+        //     clipper.IncludeItemByIndex(item_curr_idx_to_focus); // Ensure focused item is not clipped.
 
-            if (search.length() && !(
-                log.caller.find(search) != std::string::npos ||
-                log.file.find(search)   != std::string::npos ||
-                log.line.find(search)   != std::string::npos ||
-                log.time.find(search)   != std::string::npos ||
-                log.args.find(search)   != std::string::npos)
-            ) {
-                continue;
-            }
 
-            ImGui::TableNextRow();
+        while (clipper.Step()) {
+            for (u32 row = clipper.DisplayStart; row < clipper.DisplayEnd; row++) {
+                hk::log::Log log = buf.at(row);
 
-            ImGui::TableSetColumnIndex(0);
-            ImGui::TextColored(lookup_color[static_cast<u32>(log.level)],
-                                "%s", levelToString(log.level).c_str());
+                if (severities && !(severities & (1 << (static_cast<u32>(log.level))))) {
+                    continue;
+                }
 
-            ImGui::TableNextColumn();
-            ImGui::Text("%s", log.caller.c_str());
+                if (search.length() && !(
+                    log.caller.find(search) != std::string::npos ||
+                    log.file.find(search)   != std::string::npos ||
+                    log.line.find(search)   != std::string::npos ||
+                    log.time.find(search)   != std::string::npos ||
+                    log.args.find(search)   != std::string::npos)
+                ) {
+                    continue;
+                }
 
-            ImGui::TableNextColumn();
-            ImGui::Text("%s", log.file.c_str());
+                ImGui::TableNextRow();
 
-            ImGui::TableNextColumn();
-            ImGui::Text("%s", log.line.c_str());
+                ImGui::TableSetColumnIndex(0);
+                ImGui::TextColored(lookup_color[static_cast<u32>(log.level)],
+                                    "%s", levelToString(log.level).c_str());
 
-            ImGui::TableNextColumn();
-            ImGui::Text("%s", log.time.c_str());
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", log.caller.c_str());
 
-            ImGui::TableNextColumn();
-            ImGui::Text("%s", log.args.c_str());
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", log.file.c_str());
 
-            i32 idx = ImGui::TableGetHoveredRow() - 1;
-            if (idx == row) {
-                table->RowBgColor[1] = ImGui::GetColorU32(ImGuiCol_Border);
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", log.line.c_str());
+
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", log.time.c_str());
+
+                ImGui::TableNextColumn();
+                ImGui::Text("%s", log.args.c_str());
+
+                i32 idx = ImGui::TableGetHoveredRow() - 1;
+                if (idx == row) {
+                    table->RowBgColor[1] = ImGui::GetColorU32(ImGuiCol_Border);
+                }
             }
         }
 

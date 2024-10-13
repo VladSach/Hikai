@@ -14,7 +14,11 @@ HKAPI b8 findFile(const std::string &root, const std::string &target,
                   std::string *out = nullptr);
 
 HKAPI b8 exists(const std::string &path);
+
+// Converts path to weakly canonical absolute path
 HKAPI std::string canonical(const std::string &path);
+
+// Returns relative path from base to path
 HKAPI std::string relative(const std::string &path, const std::string &base);
 
 HKAPI hk::vector<std::string> split(const std::string &path);

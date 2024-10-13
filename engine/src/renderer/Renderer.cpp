@@ -16,9 +16,7 @@
 // FIX: temp
 #include "renderer/UBManager.h"
 #include "imgui/imgui_impl_vulkan.h"
-struct ModelToWorld {
-    hkm::mat4f transform;
-} modelToWorld;
+static ModelToWorld modelToWorld;
 
 #include "vendor/vulkan/vk_enum_string_helper.h"
 #include "utils/strings/hklocale.h"
@@ -296,26 +294,6 @@ void Renderer::init(const Window *window)
 
     hk::evesys()->subscribe(hk::EventCode::EVENT_WINDOW_RESIZE, resize, this);
 
-    hk::evesys()->subscribe(hk::EventCode::EVENT_ASSET_LOADED,
-        [&](const hk::EventContext &context, void *listener) {
-            const u32 handle = context.u32[0];
-            const hk::Asset::Type type = static_cast<hk::Asset::Type>(context.u32[1]);
-
-            if (type != hk::Asset::Type::MODEL) { return; }
-
-            hk::Model *model = hk::assets()->getModel(handle).model;
-            models.push_back(model);
-
-            hk::RenderMaterial *rm = new hk::RenderMaterial();
-            rm->material = hk::assets()->getMaterial(model->hndlMaterial).material;
-
-            rm->build(offscreenRenderPass, sizeof(modelToWorld),
-                      sceneDescriptorLayout, swapchain.format(), depthImage.format());
-            model->matInstance = rm->write(frameDescriptors, samplerLinear);
-            savebuff.push_back(rm);
-        },
-    this);
-
     createSamplers();
 }
 
@@ -327,9 +305,6 @@ void Renderer::deinit()
         vkDestroyFramebuffer(device, framebuffer, nullptr);
         framebuffer = nullptr;
     }
-
-    for (auto &model : models)
-        model->deinit();
 
     vkDestroySampler(device, samplerLinear, nullptr);
     vkDestroySampler(device, samplerNearest, nullptr);
@@ -351,11 +326,11 @@ void Renderer::deinit()
     hk::context()->deinit();
 }
 
-void Renderer::draw()
+void Renderer::draw(hk::DrawContext &ctx)
 {
     VkResult err;
 
-    addUIInfo();
+    // addUIInfo();
 
     vkWaitForFences(context->device(), 1, &inFlightFence, VK_TRUE, UINT64_MAX);
 
@@ -426,49 +401,40 @@ void Renderer::draw()
 
         writer.updateSet(sceneDataDescriptor);
 
-        u32 renderedInstances = 0;
-        // for (auto &model : models) {
-        for (u32 i = 0; i < models.size(); i++) {
-            auto &model = models[i];
-
-            hk::MaterialInstance mat = savebuff.at(i)->write(frameDescriptors, samplerLinear);
+        for (auto &object : ctx.objects) {
+            // hk::MaterialInstance &mat = object.materials.at(0);
+            hk::MaterialInstance mat = object.materials.at(0).write(frameDescriptors, samplerLinear);
 
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                               mat.pipeline->pipeline);
-
-            model->bind(commandBuffer);
-
-            modelToWorld.transform = model->transform_.toMat4f();
-
-            vkCmdPushConstants(commandBuffer, mat.pipeline->layout,
-                               VK_SHADER_STAGE_VERTEX_BIT, 0,
-                               sizeof(modelToWorld), &modelToWorld);
-
 
             vkCmdBindDescriptorSets(commandBuffer,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     mat.pipeline->layout, 0, 1,
                                     &sceneDataDescriptor, 0, nullptr);
 
+            object.bind(commandBuffer);
+
             vkCmdBindDescriptorSets(commandBuffer,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     mat.pipeline->layout, 1, 1,
                                     &mat.materialSet, 0, nullptr);
 
-            for (u32 meshIndex = 0; meshIndex < model->meshes_.size(); ++meshIndex) {
-                const hk::Mesh& mesh = model->meshes_[meshIndex];
-                const auto& meshRange = model->ranges_[meshIndex];
+            u32 numInstances = u32(object.instances.size());
 
-                u32 numInstances = u32(mesh.instances.size());
+            for (u32 meshIndex = 0; meshIndex < object.instances.size(); ++meshIndex) {
+                modelToWorld.transform = object.instances.at(meshIndex);
+
+                vkCmdPushConstants(commandBuffer, mat.pipeline->layout,
+                                    VK_SHADER_STAGE_VERTEX_BIT, 0,
+                                    sizeof(modelToWorld), &modelToWorld);
 
                 vkCmdDrawIndexed(commandBuffer,
-                                 meshRange.indexNum,
+                                 object.indexBuffer.size(),
                                  numInstances,
-                                 meshRange.indexOffset,
-                                 meshRange.vertexOffset,
-                                 renderedInstances);
-
-                renderedInstances += numInstances;
+                                 0,
+                                 0,
+                                 meshIndex);
             }
 
         }

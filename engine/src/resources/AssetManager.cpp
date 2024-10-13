@@ -7,6 +7,8 @@
 #include "platform/platform.h"
 #include "core/EventSystem.h"
 
+#include <algorithm>
+
 namespace hk {
 
 AssetManager *assets()
@@ -112,6 +114,8 @@ u32 AssetManager::load(const std::string &path, void *data)
 
     u32 dotPos = path.find_last_of('.');
     std::string ext = path.substr(dotPos);
+    std::transform(ext.begin(), ext.end(), ext.begin(),
+        [](unsigned char c){ return std::tolower(c); });
 
     if (ext == ".hlsl") {
         type = Asset::Type::SHADER;
@@ -262,9 +266,7 @@ u32 AssetManager::loadModel(const std::string &path)
     asset->path = path;
     asset->type = Asset::Type::MODEL;
 
-    asset->model = hk::loader::loadModel(path);
-
-    asset->model->populateBuffers();
+    asset->hndlRootMesh = hk::loader::loadModel(path);
 
     return asset->handle;
 }

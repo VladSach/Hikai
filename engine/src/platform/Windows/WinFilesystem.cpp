@@ -192,11 +192,11 @@ std::string relative(const std::string &path, const std::string &base)
     DWORD toAttrs = GetFileAttributesA(path.c_str());
 
     char outBuf[MAX_PATH];
-    
+
     static PathRelativePathToAFunc PathRelativePathToA =
         (PathRelativePathToAFunc)GetProcAddress(hModule, "PathRelativePathToA");
 
-    BOOL success = PathRelativePathToA(outBuf, base.data(), 
+    BOOL success = PathRelativePathToA(outBuf, base.data(),
                                        (fromAttrs & FILE_ATTRIBUTE_DIRECTORY) ? FILE_ATTRIBUTE_DIRECTORY : 0,
                                        path.data(),
                                        (toAttrs & FILE_ATTRIBUTE_DIRECTORY) ? FILE_ATTRIBUTE_DIRECTORY : 0);

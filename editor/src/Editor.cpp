@@ -6,15 +6,13 @@ void Editor::init()
 {
     LOG_INFO("Editor created");
 
-    window_ = getDesc().window;
+    f32 aspect = static_cast<f32>(window->getWidth())/window->getHeight();
 
-    f32 aspect = static_cast<f32>(window_->getWidth())/window_->getHeight();
-
-    camera_.setPerspective(60.f, aspect, .1f, 100.f);
+    camera_.setPerspective(60.f, aspect, .01f, 100.f);
     camera_.setWorldOffset({ 0.f, 0.5f, -1.5f });
 
     assets.init(renderer->ui());
-    hierarchy.init();
+    hierarchy.init(&scene, &renderer->ui());
     inspector.init(&renderer->ui());
     log.init(&renderer->ui());
 
@@ -22,13 +20,27 @@ void Editor::init()
 
     u32 handle = 0;
     handle = hk::assets()->load("Rei Plush.fbx");
-    hk::assets()->getModel(handle).model->transform_ = {
-        0.f, { .1f, .1f, .1f }, rot
-    };
+    scene.addModel(handle, { 0.f, .001f, rot });
+
     handle = hk::assets()->load("Knight_All.fbx");
-    hk::assets()->getModel(handle).model->transform_ = {
-        {1.5f, 0.f, 0.f}, { .005f, .005f, .005f }, rot
-    };
+    scene.addModel(handle, { {1.5f, 0.f, 0.f}, .001f, rot });
+
+    handle = hk::assets()->load("Samurai.fbx");
+    scene.addModel(handle, { {-1.5f, 0.f, 0.f}, .001f, rot });
+
+    handle = hk::assets()->load("warrior.fbx");
+    scene.addModel(handle, { {.0f, 0.f, 1.5f}, .001f, rot });
+
+    // hk::evesys()->subscribe(hk::EventCode::EVENT_ASSET_LOADED,
+    //     [&](const hk::EventContext &context, void *listener) {
+    //         const u32 handle = context.u32[0];
+    //         const hk::Asset::Type type = static_cast<hk::Asset::Type>(context.u32[1]);
+    //
+    //         if (type != hk::Asset::Type::MODEL) { return; }
+    //
+    //         scene.addModel(handle);
+    //     },
+    // this);
 }
 
 void Editor::update(f32 dt)
@@ -39,8 +51,8 @@ void Editor::update(f32 dt)
     hk::ubo::setFrameData(
     {
         {
-            static_cast<f32>(window_->getWidth()),
-            static_cast<f32>(window_->getHeight())
+            static_cast<f32>(window->getWidth()),
+            static_cast<f32>(window->getHeight())
         },
         time_,
         camera_.position(),
@@ -83,8 +95,8 @@ void Editor::processInput(f32 dt)
         angles = {0.f, 0.f, 1.f};
 
     if (hk::input::isMouseDown(hk::input::Button::BUTTON_RIGHT)) {
-        window_->hideCursor();
-        window_->lockCursor();
+        window->hideCursor();
+        window->lockCursor();
 
         i32 pitch, yaw;
         hk::input::getMouseDelta(yaw, pitch);
@@ -123,8 +135,8 @@ void Editor::processInput(f32 dt)
     }
 
     if (hk::input::isMouseReleased(hk::input::Button::BUTTON_RIGHT)) {
-        window_->showCursor();
-        window_->unlockCursor();
+        window->showCursor();
+        window->unlockCursor();
     }
 
     constexpr f32 rotationSpeed = 75.f;
@@ -139,30 +151,17 @@ void Editor::processInput(f32 dt)
 void Editor::render()
 {
     assets.display(renderer->ui());
-    hierarchy.display(renderer->ui());
-    selected = hierarchy.selectedAssetHandle();
+    hierarchy.display();
+    selected = hierarchy.selectedNode();
     inspector.display(selected);
     log.display();
 
-    renderer->ui().pushCallback([&](){
-        // TODO: move to gui utils
-        auto drawMatrix4x4 = [](hkm::mat4f matrix){
-            ImGuiTableFlags flags = ImGuiTableFlags_RowBg;
-            flags |= ImGuiTableFlags_BordersOuter;
-            if (ImGui::BeginTable("Matrix", 4, flags)) {
-                for (u32 i = 0; i < 4; ++i) {
-                    ImGui::TableNextRow();
-                    for (u32 j = 0; j < 4; ++j) {
-                        ImGui::TableSetColumnIndex(j);
-                        ImGui::Text("%f", matrix(i, j));
-                    }
-                }
-                ImGui::EndTable();
-            }
-        };
 
+    hierarchy.controls();
+
+    renderer->ui().pushCallback([&](){
         static ImGuizmo::OPERATION gizmoOp   = ImGuizmo::TRANSLATE;
-        static ImGuizmo::MODE      gizmoMode = ImGuizmo::WORLD;
+        static ImGuizmo::MODE      gizmoMode = ImGuizmo::LOCAL;
 
         ImGuiWindow *viewport = ImGui::FindWindowByName("Viewport");
         ImGuizmo::SetRect(viewport->Pos.x, viewport->Pos.y,
@@ -182,36 +181,40 @@ void Editor::render()
             useSnap = true;
         }
 
-
         if (ImGui::Begin("Viewport")) {
             if (selected) {
-                hk::Asset *asset = hk::assets()->get(selected);
-                if (asset->type != hk::Asset::Type::MODEL) { return; }
-
-                hk::ModelAsset *model = reinterpret_cast<hk::ModelAsset*>(asset);
-                hkm::mat4f matrix = model->model->transform_.toMat4f();
                 // ImGuizmo accepts LH coordinate system
                 // Quick fix for RH to LH, maybe there is another way
                 hkm::mat4f proj = camera_.projection(); proj(1, 1) *= -1;
-                ImGuizmo::Manipulate(*camera_.view().n, *proj.n,
-                                    gizmoOp, gizmoMode, *matrix.n, NULL, useSnap ? &snapValue : NULL);
-                model->model->transform_ = Transform(matrix);
+
+                hkm::mat4f matrix = selected->world.toMat4f();
+                if (ImGuizmo::Manipulate(
+                        *camera_.view().n, *proj.n,
+                        gizmoOp, gizmoMode,
+                        *matrix.n, NULL,
+                        useSnap ? &snapValue : NULL)
+                )
+                {
+                    hkm::mat4f parentInv = hkm::inverse(selected->parent->world.toMat4f());
+
+                    // FIX: ffs, why the work in wrong order(
+                    selected->local = Transform(matrix * parentInv);
+                    selected->dirty = true;
+                }
             }
 
-            ImGui::SetItemAllowOverlap();
-            ImGui::SetCursorPos(ImGui::GetWindowContentRegionMin());
-            ImGui::BeginGroup();
-                if (ImGui::Button("Translate"))
-                    gizmoOp = ImGuizmo::TRANSLATE;
-                ImGui::SameLine();
-                if (ImGui::Button("Scale"))
-                    gizmoOp = ImGuizmo::SCALE;
-                ImGui::SameLine();
-                if (ImGui::Button("Rotate"))
-                    gizmoOp = ImGuizmo::ROTATE;
-                // if (ImGui::Button("Universal"))
-                //     gizmoOp = ImGuizmo::UNIVERSAL;
-            ImGui::EndGroup();
+            {
+                ImGui::SetItemAllowOverlap();
+                ImGui::SetCursorPos(ImGui::GetWindowContentRegionMin());
+
+                ImGui::BeginGroup();
+                    if (ImGui::Button("Translate")) { gizmoOp = ImGuizmo::TRANSLATE; }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Scale"))     { gizmoOp = ImGuizmo::SCALE; }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Rotate"))    { gizmoOp = ImGuizmo::ROTATE; }
+                ImGui::EndGroup();
+            }
 
         } ImGui::End();
     });

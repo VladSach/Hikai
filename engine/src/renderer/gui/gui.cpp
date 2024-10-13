@@ -99,14 +99,12 @@ void GUI::setViewportMode(VkImageView view)
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-void* GUI::addTexture(VkImageView view)
+void GUI::addTexture(hk::Image *texture)
 {
-    VkDescriptorSet texture = ImGui_ImplVulkan_AddTexture(
+    texture->set_ = ImGui_ImplVulkan_AddTexture(
         viewportSampler_,
-        view,
+        texture->view(),
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-    return texture;
 }
 
 void GUI::setOverlayMode()
@@ -150,9 +148,9 @@ void GUI::draw(VkCommandBuffer cmd)
         ImGui::DockBuilderAddNode(mainDockSpaceID);
 
         upper = mainDockSpaceID;
-        left  = ImGui::DockBuilderSplitNode(upper, ImGuiDir_Left, 0.25f, nullptr, &upper);
-        lower = ImGui::DockBuilderSplitNode(upper, ImGuiDir_Down, 0.25f, nullptr, &upper);
-        right = ImGui::DockBuilderSplitNode(upper, ImGuiDir_Right, 0.25f, nullptr, &upper);
+        right = ImGui::DockBuilderSplitNode(upper, ImGuiDir_Right, 0.20f, nullptr, &upper);
+        lower = ImGui::DockBuilderSplitNode(upper, ImGuiDir_Down, 0.30f, nullptr, &upper);
+        left  = ImGui::DockBuilderSplitNode(upper, ImGuiDir_Left, 0.20f, nullptr, &upper);
 
         ImGui::DockBuilderDockWindow("Viewport", upper);
         ImGui::DockBuilderDockWindow("Log", lower);
@@ -167,250 +165,238 @@ void GUI::draw(VkCommandBuffer cmd)
         ImGui::Image(viewportImage,
                      ImVec2{viewportPanelSize.x, viewportPanelSize.y});
 
-        if (ImGui::BeginDragDropTarget()) {
-            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PAYLOAD")) {
-                //std::string path = *(std::string*)payload->Data;
-                std::string path = reinterpret_cast<const char*>(payload->Data);
-                hk::assets()->load(path);
-            }
-            ImGui::EndDragDropTarget();
-        }
-
         lockedInput = !ImGui::IsWindowHovered();
         ImGui::End();
     }
 
-    if (viewportMode) { ImGui::SetNextWindowDockID(left); }
-
-
-    if (viewportMode) { ImGui::SetNextWindowDockID(left); }
-    if (ImGui::Begin("Settings/Info")) {
-        if (ImGui::CollapsingHeader("Monitors")) {
-            hk::vector<hk::platform::MonitorInfo> infos = hk::platform::getMonitorInfos();
-
-            ImGui::Text("Monitors found: %i", infos.size());
-            for (auto &info : infos) {
-                ImGui::Separator();
-
-                ImGui::Text("Name: %s", info.name.c_str());
-                ImGui::Text("Resolution: %i x %i", info.width, info.height);
-                ImGui::Text("DPI: %1f", info.dpi);
-                ImGui::Text("Refresh rate: %i hz", info.hz);
-                ImGui::Text("Color depth: %i", info.depth);
-            }
-        }
-
-        if (ImGui::CollapsingHeader("Instance")) {
-            hk::VulkanContext::InstanceInfo &info = hk::context()->instanceInfo();
-            ImGui::Text("API Version: %s", hk::vkApiToString(info.apiVersion).c_str());
-
-            ImGui::Separator();
-
-            if (ImGui::TreeNode("Extensions")) {
-                for (u32 i = 0; i < info.extensions.size(); ++i) {
-                    auto &ext = info.extensions.at(i);
-
-                    ImGui::PushID(i);
-                    if (ImGui::Checkbox("", &ext.first)) {
-                        // hk::context()->deinit();
-                        // hk::context()->init();
-                    }
-                    ImGui::SameLine();
-
-                    if (ImGui::TreeNode(ext.second.extensionName)) {
-                        ImGui::Text("Ext Version: %d", ext.second.specVersion);
-
-                        ImGui::TreePop();
-                    }
-                    ImGui::PopID();
-                }
-                ImGui::TreePop();
-            }
-
-            if (ImGui::TreeNode("Layers")) {
-                for (u32 i = 0; i < info.layers.size(); ++i) {
-                    auto &layer = info.layers.at(i);
-
-                    ImGui::PushID(i);
-                    ImGui::Checkbox("", &layer.first);
-                    ImGui::SameLine();
-
-                    if (ImGui::TreeNode(layer.second.layerName)) {
-                        ImGui::Text("Desc: %s", layer.second.description);
-                        ImGui::Text("Spec Version: %s",
-                                    hk::vkApiToString(layer.second.specVersion).c_str());
-                        ImGui::Text("Implementation Version: %d",
-                                    layer.second.implementationVersion);
-
-                        ImGui::TreePop();
-                    }
-                    ImGui::PopID();
-                }
-                ImGui::TreePop();
-            }
-        }
-
-        if (ImGui::CollapsingHeader("Physical Device")) {
-            const auto &infos = hk::context()->physicalInfos();
-
-            for (u32 i = 0; i < infos.size(); ++i) {
-                auto &device = infos.at(i);
-                auto &properties = device.properties;
-                if (ImGui::TreeNode(properties.deviceName)) {
-                    ImGui::Text("Type: %s", hk::vkDeviceTypeToString(properties.deviceType).c_str());
-                    ImGui::Text("API Version: %s", hk::vkApiToString(properties.apiVersion).c_str());
-                    ImGui::Text("Driver Version: %s", hk::vkDeviceDriveToString(properties.driverVersion, properties.vendorID).c_str());
-                    ImGui::Text("Vendor: %s", hk::vkDeviceVendorToString(properties.vendorID).c_str());
-                    // ImGui::Text("Device ID: %d", device.deviceID);
-
-                    if (ImGui::TreeNode("Queue Families")) {
-                        ImGuiTableFlags flags = ImGuiTableFlags_RowBg;
-                        flags |= ImGuiTableFlags_BordersOuter;
-                        if (ImGui::BeginTable("Families", 6, flags)) {
-                            ImGui::TableSetupColumn("Index");
-                            ImGui::TableSetupColumn("Graphics");
-                            ImGui::TableSetupColumn("Compute");
-                            ImGui::TableSetupColumn("Transfer");
-                            ImGui::TableSetupColumn("Sparse");
-                            ImGui::TableSetupColumn("Protected");
-                            ImGui::TableHeadersRow();
-                            for (u32 j = 0; j < infos.at(i).families.size(); ++j) {
-                                auto &family = infos.at(i).families.at(j);
-                                ImGui::TableNextRow();
-                                ImGui::TableSetColumnIndex(0);
-                                ImGui::Text("%u", j);
-                                ImGui::TableSetColumnIndex(1);
-                                ImGui::Text("%c", (family.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? 'X' : ' ');
-                                ImGui::TableSetColumnIndex(2);
-                                ImGui::Text("%c", (family.queueFlags & VK_QUEUE_COMPUTE_BIT) ? 'X' : ' ');
-                                ImGui::TableSetColumnIndex(3);
-                                ImGui::Text("%c", (family.queueFlags & VK_QUEUE_TRANSFER_BIT) ? 'X' : ' ');
-                                ImGui::TableSetColumnIndex(4);
-                                ImGui::Text("%c", (family.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'X' : ' ');
-                                ImGui::TableSetColumnIndex(5);
-                                ImGui::Text("%c", (family.queueFlags & VK_QUEUE_PROTECTED_BIT) ? 'X' : ' ');
-                            }
-                            ImGui::EndTable();
-                        }
-                        ImGui::TreePop();
-                    }
-
-                    if (ImGui::TreeNode("Extensions")) {
-                        for (auto &ext : device.extensions) {
-                            if (ImGui::TreeNode(ext.extensionName)) {
-                                ImGui::Text("Spec Version: %d", ext.specVersion);
-
-                                ImGui::TreePop();
-                            }
-                        }
-                        ImGui::TreePop();
-                    }
-
-                    ImGui::TreePop();
-                }
-
-            }
-        }
-
-        if (ImGui::CollapsingHeader("Logical Device")) {
-            hk::VulkanContext::LogicalDeviceInfo info = hk::context()->deviceInfo();
-
-            if (ImGui::TreeNode("Chosen Queues")) {
-                ImGuiTableFlags flags = ImGuiTableFlags_RowBg;
-                flags |= ImGuiTableFlags_BordersOuter;
-
-                ImGui::Text("Graphics Family");
-
-                if (ImGui::BeginTable("Graphics Family", 6, flags)) {
-                    ImGui::TableSetupColumn("Index");
-                    ImGui::TableSetupColumn("Graphics");
-                    ImGui::TableSetupColumn("Compute");
-                    ImGui::TableSetupColumn("Transfer");
-                    ImGui::TableSetupColumn("Sparse");
-                    ImGui::TableSetupColumn("Protected");
-                    ImGui::TableHeadersRow();
-
-                    hk::QueueFamily &family = info.graphicsFamily;
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("%u", family.index_);
-                    ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? 'X' : ' ');
-                    ImGui::TableSetColumnIndex(2);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_COMPUTE_BIT) ? 'X' : ' ');
-                    ImGui::TableSetColumnIndex(3);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_TRANSFER_BIT) ? 'X' : ' ');
-                    ImGui::TableSetColumnIndex(4);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'X' : ' ');
-                    ImGui::TableSetColumnIndex(5);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_PROTECTED_BIT) ? 'X' : ' ');
-
-                    ImGui::EndTable();
-                }
-
-                ImGui::Text("Compute Family");
-
-                if (ImGui::BeginTable("Compute Family", 6, flags)) {
-                    ImGui::TableSetupColumn("Index");
-                    ImGui::TableSetupColumn("Graphics");
-                    ImGui::TableSetupColumn("Compute");
-                    ImGui::TableSetupColumn("Transfer");
-                    ImGui::TableSetupColumn("Sparse");
-                    ImGui::TableSetupColumn("Protected");
-                    ImGui::TableHeadersRow();
-
-                    hk::QueueFamily &family = info.computeFamily;
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("%u", family.index_);
-                    ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? 'X' : ' ');
-                    ImGui::TableSetColumnIndex(2);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_COMPUTE_BIT) ? 'X' : ' ');
-                    ImGui::TableSetColumnIndex(3);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_TRANSFER_BIT) ? 'X' : ' ');
-                    ImGui::TableSetColumnIndex(4);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'X' : ' ');
-                    ImGui::TableSetColumnIndex(5);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_PROTECTED_BIT) ? 'X' : ' ');
-
-                    ImGui::EndTable();
-                }
-
-                ImGui::Text("Transfer Family");
-
-                if (ImGui::BeginTable("Transfer Family", 6, flags)) {
-                    ImGui::TableSetupColumn("Index");
-                    ImGui::TableSetupColumn("Graphics");
-                    ImGui::TableSetupColumn("Compute");
-                    ImGui::TableSetupColumn("Transfer");
-                    ImGui::TableSetupColumn("Sparse");
-                    ImGui::TableSetupColumn("Protected");
-                    ImGui::TableHeadersRow();
-
-                    hk::QueueFamily &family = info.transferFamily;
-                    ImGui::TableNextRow();
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("%u", family.index_);
-                    ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? 'X' : ' ');
-                    ImGui::TableSetColumnIndex(2);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_COMPUTE_BIT) ? 'X' : ' ');
-                    ImGui::TableSetColumnIndex(3);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_TRANSFER_BIT) ? 'X' : ' ');
-                    ImGui::TableSetColumnIndex(4);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'X' : ' ');
-                    ImGui::TableSetColumnIndex(5);
-                    ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_PROTECTED_BIT) ? 'X' : ' ');
-
-                    ImGui::EndTable();
-                }
-
-                ImGui::TreePop();
-            }
-        }
-
-    } ImGui::End();
+    // if (viewportMode) { ImGui::SetNextWindowDockID(left); }
+    // if (ImGui::Begin("Settings/Info")) {
+    //     if (ImGui::CollapsingHeader("Monitors")) {
+    //         hk::vector<hk::platform::MonitorInfo> infos = hk::platform::getMonitorInfos();
+    //
+    //         ImGui::Text("Monitors found: %i", infos.size());
+    //         for (auto &info : infos) {
+    //             ImGui::Separator();
+    //
+    //             ImGui::Text("Name: %s", info.name.c_str());
+    //             ImGui::Text("Resolution: %i x %i", info.width, info.height);
+    //             ImGui::Text("DPI: %1f", info.dpi);
+    //             ImGui::Text("Refresh rate: %i hz", info.hz);
+    //             ImGui::Text("Color depth: %i", info.depth);
+    //         }
+    //     }
+    //
+    //     if (ImGui::CollapsingHeader("Instance")) {
+    //         hk::VulkanContext::InstanceInfo &info = hk::context()->instanceInfo();
+    //         ImGui::Text("API Version: %s", hk::vkApiToString(info.apiVersion).c_str());
+    //
+    //         ImGui::Separator();
+    //
+    //         if (ImGui::TreeNode("Extensions")) {
+    //             for (u32 i = 0; i < info.extensions.size(); ++i) {
+    //                 auto &ext = info.extensions.at(i);
+    //
+    //                 ImGui::PushID(i);
+    //                 if (ImGui::Checkbox("", &ext.first)) {
+    //                     // hk::context()->deinit();
+    //                     // hk::context()->init();
+    //                 }
+    //                 ImGui::SameLine();
+    //
+    //                 if (ImGui::TreeNode(ext.second.extensionName)) {
+    //                     ImGui::Text("Ext Version: %d", ext.second.specVersion);
+    //
+    //                     ImGui::TreePop();
+    //                 }
+    //                 ImGui::PopID();
+    //             }
+    //             ImGui::TreePop();
+    //         }
+    //
+    //         if (ImGui::TreeNode("Layers")) {
+    //             for (u32 i = 0; i < info.layers.size(); ++i) {
+    //                 auto &layer = info.layers.at(i);
+    //
+    //                 ImGui::PushID(i);
+    //                 ImGui::Checkbox("", &layer.first);
+    //                 ImGui::SameLine();
+    //
+    //                 if (ImGui::TreeNode(layer.second.layerName)) {
+    //                     ImGui::Text("Desc: %s", layer.second.description);
+    //                     ImGui::Text("Spec Version: %s",
+    //                                 hk::vkApiToString(layer.second.specVersion).c_str());
+    //                     ImGui::Text("Implementation Version: %d",
+    //                                 layer.second.implementationVersion);
+    //
+    //                     ImGui::TreePop();
+    //                 }
+    //                 ImGui::PopID();
+    //             }
+    //             ImGui::TreePop();
+    //         }
+    //     }
+    //
+    //     if (ImGui::CollapsingHeader("Physical Device")) {
+    //         const auto &infos = hk::context()->physicalInfos();
+    //
+    //         for (u32 i = 0; i < infos.size(); ++i) {
+    //             auto &device = infos.at(i);
+    //             auto &properties = device.properties;
+    //             if (ImGui::TreeNode(properties.deviceName)) {
+    //                 ImGui::Text("Type: %s", hk::vkDeviceTypeToString(properties.deviceType).c_str());
+    //                 ImGui::Text("API Version: %s", hk::vkApiToString(properties.apiVersion).c_str());
+    //                 ImGui::Text("Driver Version: %s", hk::vkDeviceDriveToString(properties.driverVersion, properties.vendorID).c_str());
+    //                 ImGui::Text("Vendor: %s", hk::vkDeviceVendorToString(properties.vendorID).c_str());
+    //                 // ImGui::Text("Device ID: %d", device.deviceID);
+    //
+    //                 if (ImGui::TreeNode("Queue Families")) {
+    //                     ImGuiTableFlags flags = ImGuiTableFlags_RowBg;
+    //                     flags |= ImGuiTableFlags_BordersOuter;
+    //                     if (ImGui::BeginTable("Families", 6, flags)) {
+    //                         ImGui::TableSetupColumn("Index");
+    //                         ImGui::TableSetupColumn("Graphics");
+    //                         ImGui::TableSetupColumn("Compute");
+    //                         ImGui::TableSetupColumn("Transfer");
+    //                         ImGui::TableSetupColumn("Sparse");
+    //                         ImGui::TableSetupColumn("Protected");
+    //                         ImGui::TableHeadersRow();
+    //                         for (u32 j = 0; j < infos.at(i).families.size(); ++j) {
+    //                             auto &family = infos.at(i).families.at(j);
+    //                             ImGui::TableNextRow();
+    //                             ImGui::TableSetColumnIndex(0);
+    //                             ImGui::Text("%u", j);
+    //                             ImGui::TableSetColumnIndex(1);
+    //                             ImGui::Text("%c", (family.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? 'X' : ' ');
+    //                             ImGui::TableSetColumnIndex(2);
+    //                             ImGui::Text("%c", (family.queueFlags & VK_QUEUE_COMPUTE_BIT) ? 'X' : ' ');
+    //                             ImGui::TableSetColumnIndex(3);
+    //                             ImGui::Text("%c", (family.queueFlags & VK_QUEUE_TRANSFER_BIT) ? 'X' : ' ');
+    //                             ImGui::TableSetColumnIndex(4);
+    //                             ImGui::Text("%c", (family.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'X' : ' ');
+    //                             ImGui::TableSetColumnIndex(5);
+    //                             ImGui::Text("%c", (family.queueFlags & VK_QUEUE_PROTECTED_BIT) ? 'X' : ' ');
+    //                         }
+    //                         ImGui::EndTable();
+    //                     }
+    //                     ImGui::TreePop();
+    //                 }
+    //
+    //                 if (ImGui::TreeNode("Extensions")) {
+    //                     for (auto &ext : device.extensions) {
+    //                         if (ImGui::TreeNode(ext.extensionName)) {
+    //                             ImGui::Text("Spec Version: %d", ext.specVersion);
+    //
+    //                             ImGui::TreePop();
+    //                         }
+    //                     }
+    //                     ImGui::TreePop();
+    //                 }
+    //
+    //                 ImGui::TreePop();
+    //             }
+    //
+    //         }
+    //     }
+    //
+    //     if (ImGui::CollapsingHeader("Logical Device")) {
+    //         hk::VulkanContext::LogicalDeviceInfo info = hk::context()->deviceInfo();
+    //
+    //         if (ImGui::TreeNode("Chosen Queues")) {
+    //             ImGuiTableFlags flags = ImGuiTableFlags_RowBg;
+    //             flags |= ImGuiTableFlags_BordersOuter;
+    //
+    //             ImGui::Text("Graphics Family");
+    //
+    //             if (ImGui::BeginTable("Graphics Family", 6, flags)) {
+    //                 ImGui::TableSetupColumn("Index");
+    //                 ImGui::TableSetupColumn("Graphics");
+    //                 ImGui::TableSetupColumn("Compute");
+    //                 ImGui::TableSetupColumn("Transfer");
+    //                 ImGui::TableSetupColumn("Sparse");
+    //                 ImGui::TableSetupColumn("Protected");
+    //                 ImGui::TableHeadersRow();
+    //
+    //                 hk::QueueFamily &family = info.graphicsFamily;
+    //                 ImGui::TableNextRow();
+    //                 ImGui::TableSetColumnIndex(0);
+    //                 ImGui::Text("%u", family.index_);
+    //                 ImGui::TableSetColumnIndex(1);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? 'X' : ' ');
+    //                 ImGui::TableSetColumnIndex(2);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_COMPUTE_BIT) ? 'X' : ' ');
+    //                 ImGui::TableSetColumnIndex(3);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_TRANSFER_BIT) ? 'X' : ' ');
+    //                 ImGui::TableSetColumnIndex(4);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'X' : ' ');
+    //                 ImGui::TableSetColumnIndex(5);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_PROTECTED_BIT) ? 'X' : ' ');
+    //
+    //                 ImGui::EndTable();
+    //             }
+    //
+    //             ImGui::Text("Compute Family");
+    //
+    //             if (ImGui::BeginTable("Compute Family", 6, flags)) {
+    //                 ImGui::TableSetupColumn("Index");
+    //                 ImGui::TableSetupColumn("Graphics");
+    //                 ImGui::TableSetupColumn("Compute");
+    //                 ImGui::TableSetupColumn("Transfer");
+    //                 ImGui::TableSetupColumn("Sparse");
+    //                 ImGui::TableSetupColumn("Protected");
+    //                 ImGui::TableHeadersRow();
+    //
+    //                 hk::QueueFamily &family = info.computeFamily;
+    //                 ImGui::TableNextRow();
+    //                 ImGui::TableSetColumnIndex(0);
+    //                 ImGui::Text("%u", family.index_);
+    //                 ImGui::TableSetColumnIndex(1);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? 'X' : ' ');
+    //                 ImGui::TableSetColumnIndex(2);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_COMPUTE_BIT) ? 'X' : ' ');
+    //                 ImGui::TableSetColumnIndex(3);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_TRANSFER_BIT) ? 'X' : ' ');
+    //                 ImGui::TableSetColumnIndex(4);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'X' : ' ');
+    //                 ImGui::TableSetColumnIndex(5);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_PROTECTED_BIT) ? 'X' : ' ');
+    //
+    //                 ImGui::EndTable();
+    //             }
+    //
+    //             ImGui::Text("Transfer Family");
+    //
+    //             if (ImGui::BeginTable("Transfer Family", 6, flags)) {
+    //                 ImGui::TableSetupColumn("Index");
+    //                 ImGui::TableSetupColumn("Graphics");
+    //                 ImGui::TableSetupColumn("Compute");
+    //                 ImGui::TableSetupColumn("Transfer");
+    //                 ImGui::TableSetupColumn("Sparse");
+    //                 ImGui::TableSetupColumn("Protected");
+    //                 ImGui::TableHeadersRow();
+    //
+    //                 hk::QueueFamily &family = info.transferFamily;
+    //                 ImGui::TableNextRow();
+    //                 ImGui::TableSetColumnIndex(0);
+    //                 ImGui::Text("%u", family.index_);
+    //                 ImGui::TableSetColumnIndex(1);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_GRAPHICS_BIT) ? 'X' : ' ');
+    //                 ImGui::TableSetColumnIndex(2);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_COMPUTE_BIT) ? 'X' : ' ');
+    //                 ImGui::TableSetColumnIndex(3);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_TRANSFER_BIT) ? 'X' : ' ');
+    //                 ImGui::TableSetColumnIndex(4);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) ? 'X' : ' ');
+    //                 ImGui::TableSetColumnIndex(5);
+    //                 ImGui::Text("%c", (family.properties.queueFlags & VK_QUEUE_PROTECTED_BIT) ? 'X' : ' ');
+    //
+    //                 ImGui::EndTable();
+    //             }
+    //
+    //             ImGui::TreePop();
+    //         }
+    //     }
+    //
+    // } ImGui::End();
 
     if (viewportMode) { ImGui::SetNextWindowDockID(lower); }
     if (ImGui::Begin("Assets")) {

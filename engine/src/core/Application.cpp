@@ -33,6 +33,8 @@ Application::Application(const AppDesc &desc)
     // FIX: temp development fix
     hk::assets()->init(hk::filesystem::canonical("..\\editor\\assets"));
 
+    scene.init();
+
     renderer = new Renderer();
     renderer->init(window);
 
@@ -46,6 +48,8 @@ void Application::run()
     const f32 msPerFrame = 1.0f / desiredFrameRate;
 
     f32 fixedTimestamp = .0f;
+
+    hk::DrawContext ctx;
 
     while (running) {
         if (!window->ProcessMessages()) {
@@ -76,12 +80,14 @@ void Application::run()
             fixedTimestamp -= msPerFrame;
         }
 
+        scene.update();
+        scene.updateDrawContext(ctx, *renderer);
+
         render();
-        renderer->draw();
+        renderer->draw(ctx);
 
         hk::log::dispatch();
     }
-
 }
 
 void Application::deinit()

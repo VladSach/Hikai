@@ -13,7 +13,40 @@
 
 namespace hk::loader {
 
-Model* loadModel(const std::string &path)
+u32 loadMaterial(const aiMaterial* material, const std::string &path)
+{
+    hk::Material *mat = new Material();
+
+    // f32 diffuse[4];
+    // material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
+    // mat->diffuse = hkm::vec4f(diffuse);
+    //
+    // f32 specular[4];
+    // material->Get(AI_MATKEY_COLOR_SPECULAR, specular);
+    // mat->specular = hkm::vec4f(specular);
+    //
+    // f32 shininess;
+    // material->Get(AI_MATKEY_SHININESS, shininess);
+    // mat->shininess = shininess;
+
+    // Load textures
+    u32 hndlTexture = 0;
+    for (u32 i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); ++i) {
+        aiString asspath;
+        if (material->GetTexture(aiTextureType_DIFFUSE, i, &asspath) == AI_SUCCESS) {
+            hndlTexture = hk::assets()->load(path.substr(0, path.find_last_of("/\\") + 1) + asspath.C_Str());
+            mat->diffuse = hk::assets()->getTexture(hndlTexture).texture;
+        }
+    }
+
+    // aiString name;
+    // material->Get(AI_MATKEY_NAME, name);
+    // mat->name = name.C_Str();
+
+    return hk::assets()->create(hk::Asset::Type::MATERIAL, mat);
+}
+
+u32 loadModel(const std::string &path)
 {
     Assimp::Importer importer;
 
@@ -26,19 +59,28 @@ Model* loadModel(const std::string &path)
     ALWAYS_ASSERT(assimpScene, "Failed to load model:", path);
 
     const u32 numMeshes = assimpScene->mNumMeshes;
+    const u32 numMaterials = assimpScene->mNumMaterials;
 
-    Model *model = new Model();
-    model->meshes_.resize(numMeshes);
+    hk::vector<Mesh> meshes;
+    hk::vector<u32> materials;
+
+    meshes.resize(numMeshes);
+    materials.reserve(numMaterials);
+
+    for (u32 i = 0; i < numMaterials; ++i) {
+        const aiMaterial* material = assimpScene->mMaterials[i];
+        u32 hndlMaterial = loadMaterial(material, path);
+        materials.push_back(hndlMaterial);
+    }
 
     for (u32 i = 0; i < numMeshes; ++i) {
         const aiMesh* srcMesh = assimpScene->mMeshes[i];
-        Mesh& dstMesh = model->meshes_[i];
+        Mesh &dstMesh = meshes[i];
 
         dstMesh.vertices.resize(srcMesh->mNumVertices);
-        dstMesh.triangles.resize(srcMesh->mNumFaces);
 
         for (u32 v = 0; v < srcMesh->mNumVertices; ++v) {
-            Vertex& vertex = dstMesh.vertices[v];
+            Vertex &vertex = dstMesh.vertices[v];
 
             vertex.pos       = reinterpret_cast<hkm::vec3f&>(srcMesh->mVertices[v]);
             vertex.tc        = reinterpret_cast<hkm::vec2f&>(srcMesh->mTextureCoords[0][v]);
@@ -50,71 +92,58 @@ Model* loadModel(const std::string &path)
         for (u32 f = 0; f < srcMesh->mNumFaces; ++f) {
             const aiFace& face = srcMesh->mFaces[f];
             ALWAYS_ASSERT(face.mNumIndices == 3); // Triangulated model
-            dstMesh.triangles[f] = *reinterpret_cast<hk::Mesh::triangle*>(face.mIndices);
-            // indices.push_back(static_cast<u32>(vertices.size() - srcMesh->mNumVertices + face.mIndices[0]));
-            // indices.push_back(static_cast<u32>(vertices.size() - srcMesh->mNumVertices + face.mIndices[1]));
-            // indices.push_back(static_cast<u32>(vertices.size() - srcMesh->mNumVertices + face.mIndices[2]));
+            dstMesh.indices.push_back(static_cast<u32>(face.mIndices[0]));
+            dstMesh.indices.push_back(static_cast<u32>(face.mIndices[1]));
+            dstMesh.indices.push_back(static_cast<u32>(face.mIndices[2]));
         }
     }
 
-    // Recursively load mesh instances (meshToModel transformation matrices)
-    std::function<MeshAsset*(aiNode*, MeshAsset *parent)> loadInstances;
-    loadInstances = [&loadInstances, &model](aiNode* node, MeshAsset *parent = nullptr)
+    // Recursively load mesh instances and material
+    std::function<void(aiNode*, MeshAsset *parent)> loadInstances;
+    loadInstances = [&](aiNode* node, MeshAsset *parent = nullptr)
     {
-        MeshAsset *currentMesh = new MeshAsset();
-        currentMesh->name = node->mName.C_Str();
+        MeshAsset *currentMesh;
 
-        if (parent) {
-            parent->children.push_back(currentMesh);
-        }
+        // Skip nodes without mesh
+        // TEST: this might result in skipping transforms, should test this
+        if (node->mNumMeshes > 0) {
+            currentMesh = new MeshAsset();
+            currentMesh->name = node->mName.C_Str();
 
-        const hkm::mat4f nodeToParent = reinterpret_cast<const hkm::mat4f&>(node->mTransformation.Transpose());
-        // const hkm::mat4f parentToNode = inverse(nodeToParent);
+            if (parent) {
+                parent->children.push_back(currentMesh);
+            }
 
-        // The same node may contain multiple meshes in its space, referring to them by indices
-        for (u32 i = 0; i < node->mNumMeshes; i++) {
-            u32 meshIndex = node->mMeshes[i];
-            model->meshes_[meshIndex].instances.push_back(nodeToParent);
-            // model->meshes_[meshIndex].instancesInv.push_back(parentToNode);
-            currentMesh->mesh = &model->meshes_[meshIndex];
+            const hkm::mat4f nodeToParent = reinterpret_cast<const hkm::mat4f&>(node->mTransformation.Transpose());
+            const hkm::mat4f parentToNode = inverse(nodeToParent);
+
+            // The same node may contain multiple meshes in its space, referring to them by indices
+            for (u32 i = 0; i < node->mNumMeshes; i++) {
+                u32 meshIndex = node->mMeshes[i];
+
+                // Load Instances
+                currentMesh->mesh = meshes[meshIndex];
+                currentMesh->instances.push_back(nodeToParent);
+                currentMesh->instancesInv.push_back(parentToNode);
+
+                // Load Materials
+                const aiMesh* mesh = assimpScene->mMeshes[meshIndex];
+                currentMesh->hndlTextures.push_back(materials[mesh->mMaterialIndex]);
+            }
+        } else {
+            currentMesh = parent;
         }
 
         for (u32 i = 0; i < node->mNumChildren; i++) {
             loadInstances(node->mChildren[i], currentMesh);
         }
-
-        return currentMesh;
     };
 
+    MeshAsset *root = new MeshAsset();
+    root->name = "Meshes";
+    loadInstances(assimpScene->mRootNode, root);
 
-    MeshAsset *root = loadInstances(assimpScene->mRootNode, nullptr);
-
-    model->hndlRootMesh = hk::assets()->create(Asset::Type::MESH, root);
-
-    hk::Material *material = new Material();
-
-    u32 hndlTexture = 0;
-    for (u32 i = 0; i < assimpScene->mNumMaterials; i++) {
-        auto &assMaterial = assimpScene->mMaterials[i];
-
-        u32 diffuseTextureCount = assMaterial->GetTextureCount(aiTextureType_DIFFUSE);
-        for (u32 j = 0; j < diffuseTextureCount; j++) {
-            aiString path;
-
-            if (assMaterial->GetTexture(aiTextureType_DIFFUSE, j, &path) == AI_SUCCESS) {
-                hndlTexture = hk::assets()->load(path.C_Str());
-                material->diffuse = hk::assets()->getTexture(hndlTexture).texture;
-            }
-        }
-    }
-
-    model->hndlMaterial = hk::assets()->create(hk::Asset::Type::MATERIAL, material);
-
-    // LOG_DEBUG("Loaded model:", path);
-    // LOG_TRACE("Meshes:", model->meshes_.size());
-    // LOG_TRACE("Verticies:", model->vertices.size());
-    // LOG_TRACE("Indices:", model->indices.size());
-    return model;
+    return hk::assets()->create(Asset::Type::MESH, root);
 }
 
 }

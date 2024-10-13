@@ -25,14 +25,12 @@ private:
     void processInput(f32 dt);
 
 private:
-    Window *window_ = nullptr;
-
     Camera camera_;
 
     f32 time_ = .0f;
 
     f32 snapValue = 10;
-    u32 selected = 0;
+    hk::SceneNode *selected = nullptr;
 
     b8 wasInViewport = false;
     b8 isInViewport = false;

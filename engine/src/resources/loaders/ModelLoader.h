@@ -2,11 +2,10 @@
 #define HK_MODEL_LOADER_H
 
 #include "defines.h"
-#include "renderer/object/Model.h"
 
 namespace hk::loader {
 
-Model* loadModel(const std::string &path);
+u32 loadModel(const std::string &path);
 
 }
 

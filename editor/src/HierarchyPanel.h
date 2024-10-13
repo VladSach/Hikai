@@ -5,17 +5,22 @@
 
 class HierarchyPanel {
 public:
-    void init();
+    void init(hk::SceneGraph *scene, GUI *gui);
 
-    void display(GUI &gui);
+    void display();
 
-    inline u32 selectedAssetHandle() const { return hndlSelectedAsset; }
+    void controls();
+
+public:
+    constexpr hk::SceneNode* selectedNode() const { return selected_; }
 
 private:
-    hk::vector<hk::ModelAsset*> models;
+    GUI *gui;
 
-private:
-    u32 hndlSelectedAsset = 0;
+    i32 node_clicked = -1;
+
+    hk::SceneGraph *scene;
+    hk::SceneNode *selected_ = nullptr;
 };
 
 #endif // HK_HIERARCHY_PANEL_H

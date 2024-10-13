@@ -1,15 +1,25 @@
 #ifndef HK_ENTITY_H
 #define HK_ENTITY_H
 
-#include "Transform.h"
-
-#include <string>
+#include "defines.h"
 
 namespace hk {
 
 struct Entity {
-    std::string name_;
-    Transform transform_;
+    u32 id;
+    u32 hndlMesh = 0;
+    u32 hndlMaterial = 0;
+
+    // TODO: entity-component
+    void attachMesh(u32 handle)
+    {
+        hndlMesh = handle;
+    }
+
+    void attachMaterial(u32 handle)
+    {
+        hndlMaterial = handle;
+    }
 };
 
 }

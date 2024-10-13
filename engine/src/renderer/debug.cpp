@@ -183,6 +183,8 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         break;
     }
 
+    // hk::log::dispatch();
+
     // HKBREAK;
 
     return VK_FALSE;

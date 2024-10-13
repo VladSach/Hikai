@@ -12,7 +12,6 @@
 #include "resources/loaders/ImageLoader.h"
 
 #include "renderer/object/Mesh.h"
-#include "renderer/object/Model.h"
 #include "renderer/Material.h"
 
 namespace hk {
@@ -86,21 +85,26 @@ struct TextureAsset : public Asset {
     hk::Image *texture;
 };
 
-struct MeshAsset : public Asset {
-    Mesh *mesh;
-
-    hk::vector<MeshAsset*> children;
-    hk::vector<Transform> instances;
-    // hk::vector<hkm::mat4f> instancesInv;
-};
-
-struct ModelAsset : public Asset {
-    hk::Model *model;
-};
-
 struct MaterialAsset : public Asset {
     hk::Material *material;
 };
+
+struct MeshAsset : public Asset {
+    Mesh mesh;
+
+    u32 cntInstances = 1;
+
+    hk::vector<MeshAsset*> children;
+    hk::vector<hkm::mat4f> instances;
+    hk::vector<hkm::mat4f> instancesInv;
+
+    hk::vector<u32> hndlTextures;
+};
+
+struct ModelAsset : public Asset {
+    u32 hndlRootMesh;
+};
+
 
 }
 

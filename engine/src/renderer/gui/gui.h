@@ -13,6 +13,26 @@
 #include "vendor/imgui/imgui_internal.h"
 #include "vendor/imgui/ImGuizmo.h"
 
+#include "renderer/vkwrappers/Image.h"
+
+// TODO: move to gui utils
+#include "math/hkmath.h"
+inline void drawMatrix4x4(const hkm::mat4f &matrix)
+{
+    ImGuiTableFlags flags = ImGuiTableFlags_RowBg;
+    flags |= ImGuiTableFlags_BordersOuter;
+    if (ImGui::BeginTable("Matrix", 4, flags)) {
+        for (u32 i = 0; i < 4; ++i) {
+            ImGui::TableNextRow();
+            for (u32 j = 0; j < 4; ++j) {
+                ImGui::TableSetColumnIndex(j);
+                ImGui::Text("%f", matrix(i, j));
+            }
+        }
+        ImGui::EndTable();
+    }
+};
+
 class GUI {
 public:
     void init(const Window *window);
@@ -23,7 +43,7 @@ public:
 
     void draw(VkCommandBuffer cmd);
 
-    HKAPI void* addTexture(VkImageView view);
+    HKAPI void addTexture(hk::Image *texture);
 
     // TODO: rename to something like "isMouseInsideViewport"
     HKAPI b8 isInputLocked() const;

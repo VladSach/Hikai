@@ -7,12 +7,17 @@ class InspectorPanel {
 public:
     void init(GUI *gui);
 
-    void display(u32 hdnl);
+    void display(hk::SceneNode *node);
 
 private:
-    void addBasicAssetProperties(hk::Asset *asset);
-    void addTransform(Transform &tr);
-    void addMaterials(hk::Model *model);
+    void addBasicAssetProperties(hk::SceneNode *node);
+    void addTransform(hk::SceneNode *node);
+
+    // Mesh Inspect
+    void addMeshInfo(const hk::MeshAsset &mesh);
+    void addMaterials(hk::Material *material);
+
+    // Model Inspect
 
 private:
     GUI *gui;

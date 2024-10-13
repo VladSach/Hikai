@@ -73,6 +73,11 @@ struct Transform {
 
         return scaleMatrix * rotationMatrix * translateMatrix;
     }
+
 };
 
+inline Transform operator *(const Transform &a, const Transform &b)
+{
+    return Transform(a.toMat4f() * b.toMat4f());
+}
 #endif // HK_TRANSFORM_H
