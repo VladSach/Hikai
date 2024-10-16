@@ -32,12 +32,8 @@ void hk::RenderMaterial::build(VkRenderPass renderpass, u32 pushConstSize,
 
     PipelineBuilder builder;
 
-    const std::string path = "..\\engine\\assets\\shaders\\";
-    u32 hndlVertexShader = hk::assets()->load(path + "DefaultVS.hlsl");
-    u32 hndlPixelShader = hk::assets()->load(path + "TexturePS.hlsl");
-
-    builder.setShader(ShaderType::Vertex, assets()->getShader(hndlVertexShader).module);
-    builder.setShader(ShaderType::Pixel,  assets()->getShader(hndlPixelShader).module);
+    builder.setShader(ShaderType::Vertex, assets()->getShader(material->hndlVS).module);
+    builder.setShader(ShaderType::Pixel,  assets()->getShader(material->hndlPS).module);
 
     hk::vector<hk::Format> layout = {
         // position
@@ -81,14 +77,9 @@ void hk::RenderMaterial::build(VkRenderPass renderpass, u32 pushConstSize,
     uniformDisc.usage = Buffer::Usage::NONE;
     uniformDisc.property = Buffer::Property::CPU_ACESSIBLE;
     uniformDisc.size = 1; // FIX: temp, make depend on framebuffers size
-    uniformDisc.stride = sizeof(MaterialConstants);
+    uniformDisc.stride = sizeof(Material::constants);
 
     buf.init(uniformDisc);
-
-    MaterialConstants cons;
-    cons.color = 1.f;
-    cons.metal = 1.f;
-    buf.update(&cons);
 }
 
 MaterialInstance RenderMaterial::write(DescriptorAllocator &allocator, VkSampler sampler)
@@ -100,13 +91,13 @@ MaterialInstance RenderMaterial::write(DescriptorAllocator &allocator, VkSampler
 
     writer.clear();
 
+    buf.update(&material->cons);
     writer.writeBuffer(0, buf.buffer(),
-                       sizeof(MaterialConstants),
-                       0,
+                       sizeof(Material::constants), 0,
                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
-    writer.writeImage(1, material->diffuse->view(), sampler,
-                      material->diffuse->layout(),
+    hk::Image *diffuse = hk::assets()->getTexture(material->hndlDiffuse).texture;
+    writer.writeImage(1, diffuse->view(), sampler, diffuse->layout(),
                       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     writer.updateSet(matData.materialSet);

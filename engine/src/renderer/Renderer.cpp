@@ -402,7 +402,7 @@ void Renderer::draw(hk::DrawContext &ctx)
         writer.updateSet(sceneDataDescriptor);
 
         for (auto &object : ctx.objects) {
-            // hk::MaterialInstance &mat = object.materials.at(0);
+            // hk::MaterialInstance mat = object.materials2.at(0);
             hk::MaterialInstance mat = object.materials.at(0).write(frameDescriptors, samplerLinear);
 
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,

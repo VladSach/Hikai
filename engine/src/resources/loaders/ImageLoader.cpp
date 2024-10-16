@@ -3,8 +3,6 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "vendor/stb/stb_image.h"
 
-#include <unordered_map>
-
 namespace hk::loader {
 
 Image* loadImage(const std::string &path)

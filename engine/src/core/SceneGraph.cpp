@@ -119,24 +119,35 @@ void SceneGraph::updateDrawContext(DrawContext &context, Renderer &renderer)
         SceneNode *node = dirty_.front();
         RenderObject &object = context.objects.at(node->idxObject);
 
-        hk::MeshAsset mesh = hk::assets()->getMesh(node->entity->hndlMesh);
-        object.create(mesh.mesh);
+        // TODO: build only once
+        if ((node->entity->dirty >> 7) & 1) {
+            hk::MeshAsset mesh = hk::assets()->getMesh(node->entity->hndlMesh);
+            object.create(mesh.mesh);
+
+            node->entity->dirty ^= 0b10000000;
+        }
 
         object.instances.clear();
         object.instances.push_back(node->world.toMat4f());
 
-        object.materials.clear();
-        object.materials.resize(1);
-        object.materials.at(0).material = hk::assets()->getMaterial(node->entity->hndlMaterial).material;
+        if ((node->entity->dirty >> 6) & 1) {
+            // object.materials.clear();
+            object.materials.resize(1);
+            object.materials.at(0).material =
+                &hk::assets()->getMaterial(node->entity->hndlMaterial).data;
 
-        object.materials.at(0).build(
-            renderer.offscreenRenderPass,
-            sizeof(ModelToWorld),
-            renderer.sceneDescriptorLayout,
-            renderer.swapchain.format(),
-            renderer.depthImage.format());
+            object.materials.at(0).build(
+                renderer.offscreenRenderPass,
+                sizeof(ModelToWorld),
+                renderer.sceneDescriptorLayout,
+                renderer.swapchain.format(),
+                renderer.depthImage.format());
 
-        // object.materials.push_back(rm->write(frameDescriptors, samplerLinear));
+            // object.materials2.resize(1);
+            // object.materials2.at(0) = object.materials.at(0).write(renderer.frameDescriptors, renderer.samplerLinear);
+
+            node->entity->dirty ^= 0b01000000;
+        }
     }
 }
 

@@ -12,16 +12,26 @@
 namespace hk {
 
 struct Material {
-    // TODO: change to handles
-    hk::Image *diffuse;
+    struct constants {
+        hkm::vec4f color = 1.f;
+        hkm::vec4f emissive;
+        f32 alpha = 1.f
+        f32 shininess = 0.f;
+        f32 reflectivity = 0.f;
+    } cons;
+
+    u32 hndlDiffuse = 0;
+    u32 hndlNormal = 0;
+    // hk::Image *diffuse;
     // hk::Image *normal;
     // hk::Image *emissive;
     // hk::Image *metalness;
     // hk::Image *roughness;
     // hk::Image *lightmap; // Ambient Occlusion
 
-    u32 hndlVertexShader;
-    u32 hndlPixelShader;
+    // Shanders
+    u32 hndlVS;
+    u32 hndlPS;
 };
 
 
@@ -40,27 +50,8 @@ struct RenderMaterial {
     DescriptorWriter writer;
     VkDescriptorSetLayout materialLayout;
 
-    struct MaterialConstants {
-        hkm::vec4f color;
-        hkm::vec4f metal;
-        //padding, we need it anyway for uniform buffers
-        // hkm::vec4f extra[14];
-    };
-
     Buffer buf;
     Material *material;
-
-    // struct MaterialResources {
-    //     hk::Image *diffuse;
-    //     // VkSampler colorSampler;
-    //     // AllocatedImage metalRoughImage;
-    //     // VkSampler metalRoughSampler;
-    //
-    //     VkBuffer dataBuffer;
-    //     u32 dataBufferOffset;
-    // };
-    // const MaterialResources resources;
-
 
     void build(VkRenderPass renderpass, u32 pushConstSize,
                VkDescriptorSetLayout sceneDescriptorLayout,

@@ -15,9 +15,9 @@ private:
     void addAssetsPanel();
 
 private:
-    hk::Image *iconD;
-    hk::Image *iconF;
-    hk::Image *iconB;
+    u32 hndlIconD;
+    u32 hndlIconF;
+    u32 hndlIconB;
 
     f32 iconSize;
     f32 iconAlphaNonloaded;

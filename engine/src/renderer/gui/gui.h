@@ -43,7 +43,7 @@ public:
 
     void draw(VkCommandBuffer cmd);
 
-    HKAPI void addTexture(hk::Image *texture);
+    HKAPI void* addTexture(hk::Image *texture);
 
     // TODO: rename to something like "isMouseInsideViewport"
     HKAPI b8 isInputLocked() const;

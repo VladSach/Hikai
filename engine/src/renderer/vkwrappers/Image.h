@@ -62,10 +62,6 @@ public:
     constexpr VkImageView view() const { return view_; }
     constexpr VkImageLayout layout() const { return layout_; }
 
-
-    // FIX: temp
-    VkDescriptorSet set_;
-
 private:
     void allocateImage(const VulkanImageDesc &desc);
     void transitionImageLayout(

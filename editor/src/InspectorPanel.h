@@ -13,16 +13,14 @@ private:
     void addBasicAssetProperties(hk::SceneNode *node);
     void addTransform(hk::SceneNode *node);
 
-    // Mesh Inspect
+    // Entity Info
     void addMeshInfo(const hk::MeshAsset &mesh);
-    void addMaterials(hk::Material *material);
-
-    // Model Inspect
+    void addMaterialInfo(hk::SceneNode *node);
 
 private:
     GUI *gui;
 
-    void *diffuseThumbnailGui;
+    hk::vector<hk::MaterialAsset*> materials;
 };
 
 #endif // HK_INSPECTOR_PANEL_H

@@ -273,17 +273,19 @@ u32 AssetManager::loadModel(const std::string &path)
 
 u32 AssetManager::createMaterial(void *data)
 {
-    MaterialAsset *asset = new MaterialAsset();
+    MaterialAsset *asset = reinterpret_cast<MaterialAsset*>(data);
     assets_.push_back(asset);
     asset->handle = index_++;
 
     asset->type = Asset::Type::MATERIAL;
 
-    asset->material = reinterpret_cast<hk::Material*>(data);
-
-    if (!asset->material->diffuse) {
-        asset->material->diffuse = getTexture(load("PNG\\Purple\\texture_08.png")).texture;
+    if (!asset->data.hndlDiffuse) {
+        asset->data.hndlDiffuse = load("PNG\\Purple\\texture_08.png");
     }
+
+    const std::string path = "..\\engine\\assets\\shaders\\";
+    asset->data.hndlVS = hk::assets()->load(path + "DefaultVS.hlsl");
+    asset->data.hndlPS = hk::assets()->load(path + "TexturePS.hlsl");
 
     return asset->handle;
 }

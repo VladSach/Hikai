@@ -1,16 +1,12 @@
 #include "AssetBrowser.h"
 
+#include "utils/thumbnails.h"
+
 void AssetBrowser::init(GUI &gui)
 {
-    u32 hndlIconD = hk::assets()->load("hk_icon_directory.png");
-    u32 hndlIconF = hk::assets()->load("hk_icon_file.png");
-    u32 hndlIconB = hk::assets()->load("hk_icon_arrow_back.png");
-    iconD = hk::assets()->getTexture(hndlIconD).texture;
-    iconF = hk::assets()->getTexture(hndlIconF).texture;
-    iconB = hk::assets()->getTexture(hndlIconB).texture;
-    gui.addTexture(iconD);
-    gui.addTexture(iconF);
-    gui.addTexture(iconB);
+    hndlIconD = hk::assets()->load("hk_icon_directory.png");
+    hndlIconF = hk::assets()->load("hk_icon_file.png");
+    hndlIconB = hk::assets()->load("hk_icon_arrow_back.png");
 
     iconSize = 128.f;
     iconAlphaNonloaded = 0.5f;
@@ -144,7 +140,7 @@ void AssetBrowser::addControlPanel()
                       ImGuiChildFlags_None);
 
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-    if (ImGui::ImageButton("Back", iconB->set_, {16, 16})) {
+    if (ImGui::ImageButton("Back", hke::thumbnail::get(hndlIconB), {16, 16})) {
         curPath_ = curPath_.substr(0, curPath_.find_last_of('\\'));
     }
     ImGui::PopStyleColor();
@@ -213,7 +209,8 @@ void AssetBrowser::addAssetsPanel()
 
     for (auto &entry : hk::filesystem::directory_iterator(curPath_)) {
 
-        auto icon = entry.isDirectory ? iconD->set_ : iconF->set_;
+        auto icon = entry.isDirectory ?
+            hke::thumbnail::get(hndlIconD) : hke::thumbnail::get(hndlIconF);
 
         alpha = entry.isDirectory ? 1.f : iconAlphaNonloaded;
 

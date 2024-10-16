@@ -14,6 +14,7 @@
 
 // FIX: tmp
 #include "resources/AssetManager.h"
+#include "../../../assets/fonts/Inter/InterVariable.h"
 
 int HK_ImGui_ImplWin32_CreateVkSurface(
     ImGuiViewport* viewport,
@@ -39,7 +40,7 @@ void GUI::init(const Window *window)
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
@@ -47,6 +48,14 @@ void GUI::init(const Window *window)
     // io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     // ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
     // platform_io.Platform_CreateVkSurface=HK_ImGui_ImplWin32_CreateVkSurface;
+
+    ImFontConfig font;
+    font.FontDataOwnedByAtlas = false;
+
+    ImFont *inter = io.Fonts->AddFontFromMemoryTTF(
+        hk::fonts::inter::variable::data,
+        hk::fonts::inter::variable::size,
+        16.f, &font);
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(reinterpret_cast<const WinWindow*>(window)->getHWnd());
@@ -99,9 +108,9 @@ void GUI::setViewportMode(VkImageView view)
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 }
 
-void GUI::addTexture(hk::Image *texture)
+void* GUI::addTexture(hk::Image *texture)
 {
-    texture->set_ = ImGui_ImplVulkan_AddTexture(
+    return ImGui_ImplVulkan_AddTexture(
         viewportSampler_,
         texture->view(),
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);

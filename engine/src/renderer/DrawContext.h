@@ -20,7 +20,7 @@ struct RenderObject {
     // TODO: Would want to keep here material instance and not render material
     // but can't figure out descriptor set lifetime right now
     hk::vector<RenderMaterial> materials;
-    // hk::vector<MaterialInstance> materials;
+    // hk::vector<MaterialInstance> materials2;
 
     ~RenderObject() { deinit(); }
 

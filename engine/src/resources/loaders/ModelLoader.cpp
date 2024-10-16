@@ -15,35 +15,36 @@ namespace hk::loader {
 
 u32 loadMaterial(const aiMaterial* material, const std::string &path)
 {
-    hk::Material *mat = new Material();
+    hk::MaterialAsset *asset = new MaterialAsset();
 
-    // f32 diffuse[4];
-    // material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse);
-    // mat->diffuse = hkm::vec4f(diffuse);
-    //
-    // f32 specular[4];
-    // material->Get(AI_MATKEY_COLOR_SPECULAR, specular);
-    // mat->specular = hkm::vec4f(specular);
-    //
-    // f32 shininess;
-    // material->Get(AI_MATKEY_SHININESS, shininess);
-    // mat->shininess = shininess;
+    aiString name;
+    material->Get(AI_MATKEY_NAME, name);
+    asset->name = name.C_Str();
+    asset->path = path;
+
+    hk::Material &mat = asset->data;
+
+    // Get constants
+    material->Get(AI_MATKEY_COLOR_DIFFUSE,  mat.cons.color);
+    material->Get(AI_MATKEY_COLOR_SPECULAR, mat.cons.emissive);
+    material->Get(AI_MATKEY_OPACITY,        mat.cons.alpha);
+    material->Get(AI_MATKEY_SHININESS,      mat.cons.shininess);
+    material->Get(AI_MATKEY_REFLECTIVITY,   mat.cons.reflectivity);
 
     // Load textures
-    u32 hndlTexture = 0;
+    aiString asspath;
     for (u32 i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); ++i) {
-        aiString asspath;
         if (material->GetTexture(aiTextureType_DIFFUSE, i, &asspath) == AI_SUCCESS) {
-            hndlTexture = hk::assets()->load(path.substr(0, path.find_last_of("/\\") + 1) + asspath.C_Str());
-            mat->diffuse = hk::assets()->getTexture(hndlTexture).texture;
+            mat.hndlDiffuse = hk::assets()->load(path.substr(0, path.find_last_of("/\\") + 1) + asspath.C_Str());
+        }
+    }
+    for (u32 i = 0; i < material->GetTextureCount(aiTextureType_NORMALS); ++i) {
+        if (material->GetTexture(aiTextureType_NORMALS, i, &asspath) == AI_SUCCESS) {
+            mat.hndlNormal = hk::assets()->load(path.substr(0, path.find_last_of("/\\") + 1) + asspath.C_Str());
         }
     }
 
-    // aiString name;
-    // material->Get(AI_MATKEY_NAME, name);
-    // mat->name = name.C_Str();
-
-    return hk::assets()->create(hk::Asset::Type::MATERIAL, mat);
+    return hk::assets()->create(hk::Asset::Type::MATERIAL, asset);
 }
 
 u32 loadModel(const std::string &path)

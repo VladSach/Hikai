@@ -1,6 +1,7 @@
 #include "Editor.h"
 
 #include "utils/Filewatch.h"
+#include "utils/thumbnails.h"
 
 void Editor::init()
 {
@@ -10,6 +11,8 @@ void Editor::init()
 
     camera_.setPerspective(60.f, aspect, .01f, 100.f);
     camera_.setWorldOffset({ 0.f, 0.5f, -1.5f });
+
+    hke::thumbnail::init(&renderer->ui());
 
     assets.init(renderer->ui());
     hierarchy.init(&scene, &renderer->ui());
@@ -187,12 +190,14 @@ void Editor::render()
                 // Quick fix for RH to LH, maybe there is another way
                 hkm::mat4f proj = camera_.projection(); proj(1, 1) *= -1;
 
+                f32 bounding_size = 0.f;
                 hkm::mat4f matrix = selected->world.toMat4f();
                 if (ImGuizmo::Manipulate(
                         *camera_.view().n, *proj.n,
                         gizmoOp, gizmoMode,
                         *matrix.n, NULL,
-                        useSnap ? &snapValue : NULL)
+                        useSnap ? &snapValue : NULL,
+                        bounding_size ? &bounding_size : NULL)
                 )
                 {
                     hkm::mat4f parentInv = hkm::inverse(selected->parent->world.toMat4f());

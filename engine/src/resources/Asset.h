@@ -86,7 +86,7 @@ struct TextureAsset : public Asset {
 };
 
 struct MaterialAsset : public Asset {
-    hk::Material *material;
+    hk::Material data;
 };
 
 struct MeshAsset : public Asset {

@@ -10,15 +10,19 @@ struct Entity {
     u32 hndlMesh = 0;
     u32 hndlMaterial = 0;
 
+    u8 dirty = 0; // TODO: change to bitfield
+
     // TODO: entity-component
     void attachMesh(u32 handle)
     {
         hndlMesh = handle;
+        dirty ^= 0b10000000;
     }
 
     void attachMaterial(u32 handle)
     {
         hndlMaterial = handle;
+        dirty ^= 0b01000000;
     }
 };
 
