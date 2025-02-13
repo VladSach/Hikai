@@ -3,54 +3,68 @@
 
 #include "vendor/vulkan/vulkan.h"
 
-#include "renderer/VulkanContext.h"
-
-#include "math/utils.h"
+#include "platform/platform.h"
 #include "utils/containers/hkvector.h"
+#include "renderer/vkwrappers/Queue.h"
+#include "renderer/vkwrappers/Image.h"
 
 namespace hk {
 
 class Swapchain {
 public:
-    void init(VkSurfaceKHR surface, VkExtent2D size);
+    void init(const Window *window);
     void deinit();
+
+    HKAPI void recreate(
+        const VkExtent2D &size = { 0, 0 },
+        const VkSurfaceFormatKHR &preferred_format = {},
+        const VkPresentModeKHR &preferred_mode = VK_PRESENT_MODE_FIFO_KHR
+    );
 
     VkResult acquireNextImage(VkSemaphore semaphore, u32 &index);
     VkResult present(u32 index, VkSemaphore semaphore);
 
-    void setSurfaceFormat(const VkSurfaceFormatKHR &preferredFormat);
-    void setPresentMode(const VkPresentModeKHR &preferredMode);
+private:
+    struct SurfaceInfo {
+        hk::vector<VkSurfaceFormatKHR> formats;
+        hk::vector<VkPresentModeKHR> present_modes;
+        VkSurfaceCapabilitiesKHR caps;
+    };
 
 public:
     constexpr VkSwapchainKHR handle() const { return handle_; }
-    constexpr VkFormat format() const { return format_; }
+    constexpr VkFormat format() const { return surface_format_.format; }
+    constexpr VkExtent2D extent() const { return extent_; }
 
     constexpr hk::vector<VkImage> &images() { return images_; }
     constexpr hk::vector<VkImageView> &views() { return views_; }
 
-    constexpr VkExtent2D extent() const { return extent_; }
+    constexpr const SurfaceInfo& info() const { return surf_info_; }
 
 private:
-    void getPhysicalInfo(VkPhysicalDevice physical, VkSurfaceKHR surface);
+    void createSurface(const Window *window);
+    void setSurfaceFormat(const VkSurfaceFormatKHR &format);
+    void setPresentMode(const VkPresentModeKHR &mode);
 
 private:
+    VkSurfaceKHR surface_ = VK_NULL_HANDLE;
     VkSwapchainKHR handle_ = VK_NULL_HANDLE;
-    VkFormat format_;
 
-    // TODO: chane to Image class
     hk::vector<VkImage> images_;
     hk::vector<VkImageView> views_;
 
     VkExtent2D extent_;
     Queue present_;
 
-    // FIX: temp
-public:
-    VkSurfaceFormatKHR surfaceFormat = {};
-    hk::vector<VkSurfaceFormatKHR> surfaceFormats;
-    VkPresentModeKHR presentMode = VK_PRESENT_MODE_MAX_ENUM_KHR;
-    hk::vector<VkPresentModeKHR> presentModes;
-    VkSurfaceCapabilitiesKHR surfaceCaps;
+    VkSurfaceFormatKHR surface_format_;
+    VkPresentModeKHR present_mode_;
+
+    SurfaceInfo surf_info_;
+
+    // Convenience
+    VkInstance instance_;
+    VkDevice device_;
+    VkPhysicalDevice physical_;
 };
 
 }

@@ -2,6 +2,7 @@
 #define HK_VEC3F_H
 
 #include "defines.h"
+#include "math/utils.h"
 
 namespace hkm {
 
@@ -17,7 +18,7 @@ struct vec3f {
 
     inline f32 length() const
     {
-        return std::sqrt(x*x + y*y + z*z);
+        return hkm::sqrt(x*x + y*y + z*z);
     }
 
     constexpr vec3f operator-() const

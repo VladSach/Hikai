@@ -5,7 +5,7 @@
 
 namespace hke::thumbnail {
 
-void init(GUI *gui);
+void init(Renderer *renderer);
 void deinit();
 
 void* get(u32 handle);

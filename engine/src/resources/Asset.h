@@ -5,7 +5,7 @@
 #include "utils/containers/hkvector.h"
 
 #include "vendor/vulkan/vulkan.h"
-#include "renderer/debug.h"
+#include "renderer/vkwrappers/vkdebug.h"
 #include "renderer/VulkanContext.h"
 #include "loaders/ShaderLoader.h"
 
@@ -104,7 +104,6 @@ struct MeshAsset : public Asset {
 struct ModelAsset : public Asset {
     u32 hndlRootMesh;
 };
-
 
 }
 

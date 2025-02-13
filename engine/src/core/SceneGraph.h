@@ -27,7 +27,7 @@ struct SceneNode {
     Transform loaded;
 
     // SceneNode can be either object (Mesh, Light, Camera, etc)
-    // or just collecton for other nodes
+    // or just collection of other nodes
     b8 object = false;
 
     // Viable only when node is an object
@@ -51,6 +51,7 @@ public:
 
     HKAPI void addNode(const SceneNode &node);
     HKAPI void addModel(u32 handle, const Transform &transform = Transform());
+    HKAPI void addLight(Light light, const Transform &transform = Transform());
 
     void updateDrawContext(DrawContext &context, Renderer &renderer);
 
@@ -65,6 +66,7 @@ private:
 
     // FIX: rename
     u32 objects_ = 0;
+    u32 lights_ = 0;
 
     // Queue with nodes that requires change in draw context
     std::queue<SceneNode*> dirty_;

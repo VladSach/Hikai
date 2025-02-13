@@ -25,11 +25,11 @@ u32 loadMaterial(const aiMaterial* material, const std::string &path)
     hk::Material &mat = asset->data;
 
     // Get constants
-    material->Get(AI_MATKEY_COLOR_DIFFUSE,  mat.cons.color);
-    material->Get(AI_MATKEY_COLOR_SPECULAR, mat.cons.emissive);
-    material->Get(AI_MATKEY_OPACITY,        mat.cons.alpha);
-    material->Get(AI_MATKEY_SHININESS,      mat.cons.shininess);
-    material->Get(AI_MATKEY_REFLECTIVITY,   mat.cons.reflectivity);
+    material->Get(AI_MATKEY_COLOR_DIFFUSE,  mat.constants.color);
+    material->Get(AI_MATKEY_COLOR_SPECULAR, mat.constants.emissive);
+    material->Get(AI_MATKEY_OPACITY,        mat.constants.alpha);
+    material->Get(AI_MATKEY_SHININESS,      mat.constants.shininess);
+    material->Get(AI_MATKEY_REFLECTIVITY,   mat.constants.reflectivity);
 
     // Load textures
     aiString asspath;

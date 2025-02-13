@@ -2,6 +2,7 @@
 #define HK_VEC2F_H
 
 #include "defines.h"
+#include "math/utils.h"
 
 namespace hkm {
 
@@ -17,7 +18,7 @@ struct vec2f {
 
     inline f32 length() const
     {
-        return std::sqrt(x*x + y*y);
+        return hkm::sqrt(x*x + y*y);
     }
 
     constexpr vec2f operator-() const

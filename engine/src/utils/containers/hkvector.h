@@ -2,6 +2,7 @@
 #define HK_VECTOR_H
 
 #include "defines.h"
+#include "debug.h"
 
 #include <initializer_list>
 

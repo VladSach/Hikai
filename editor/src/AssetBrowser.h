@@ -5,14 +5,17 @@
 
 class AssetBrowser {
 public:
-    void init(GUI &gui);
+    void init();
 
-    void display(GUI &gui);
+    void display();
 
 private:
     void addExplorer();
     void addControlPanel();
     void addAssetsPanel();
+
+public:
+    b8 is_open_;
 
 private:
     u32 hndlIconD;

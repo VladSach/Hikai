@@ -33,4 +33,9 @@ b8 copyToClipboard(const std::string &target)
     return false;
 }
 
+void addMessageBox(const std::string &name, const std::string &message)
+{
+    MessageBox(0, message.c_str(), name.c_str(), MB_ICONERROR);
+}
+
 }

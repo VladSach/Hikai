@@ -10,7 +10,7 @@ enum class AllFormats : u16;
 constexpr VkFormat getVkFormat(AllFormats value);
 
 hk::vector<VkVertexInputAttributeDescription>
-createVertexLayout(const hk::vector<Format> &formats)
+createVertexLayout(const hk::vector<hk::bitflag<Format>> &formats)
 {
     u32 offset = 0;
     u32 bits = 0;
@@ -18,21 +18,25 @@ createVertexLayout(const hk::vector<Format> &formats)
     hk::vector<VkVertexInputAttributeDescription> attributeDescs;
 
     for (u32 i = 0; i < formats.size(); i++) {
-        Format format = formats[i];
+        hk::bitflag<Format> format = formats[i];
 
         attributeDescs.push_back(
-            { i, 0, getVkFormat(static_cast<AllFormats>(format)), offset }
+            {
+                i, 0,
+                getVkFormat(static_cast<AllFormats>(format.value())),
+                offset
+            }
         );
 
-        if      ((format & Format::B8)  != 0) bits = 8;
-        else if ((format & Format::B16) != 0) bits = 16;
-        else if ((format & Format::B32) != 0) bits = 32;
-        else if ((format & Format::B64) != 0) bits = 64;
+        if      (format & Format::B8)  bits = 8;
+        else if (format & Format::B16) bits = 16;
+        else if (format & Format::B32) bits = 32;
+        else if (format & Format::B64) bits = 64;
 
-        if      ((format & Format::VEC1) != 0) vec = 1;
-        else if ((format & Format::VEC2) != 0) vec = 2;
-        else if ((format & Format::VEC3) != 0) vec = 3;
-        else if ((format & Format::VEC4) != 0) vec = 4;
+        if      (format & Format::VEC1) vec = 1;
+        else if (format & Format::VEC2) vec = 2;
+        else if (format & Format::VEC3) vec = 3;
+        else if (format & Format::VEC4) vec = 4;
 
         offset += (vec * bits) / 8;
     }

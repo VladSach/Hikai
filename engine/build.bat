@@ -8,7 +8,7 @@ set LIB_DIR=lib
 
 set INCLUDE_DIRS=/Isrc /Isrc/vendor/
 set DEFINES=/D HKDEBUG /D HKDLL_OUT
-set LIBS=user32.lib /LIBPATH:"%LIB_DIR%" ^
+set LIBS=user32.lib gdi32.lib /LIBPATH:"%LIB_DIR%" ^
     vulkan-1.lib ^
     dxcompiler.lib ^
     assimp-vc143-mt.lib
@@ -125,5 +125,6 @@ REM Link the .obj files to create the executable
 @link /DLL /DEBUG:FULL ^
            /OUT:%OUT_DIR%/%DLL_NAME%.dll /IMPLIB:bin/%DLL_NAME%.lib ^
            %OBJ_FILES% %LIBS% 2>&1 | findstr /i "error warning"
+
 
 endlocal

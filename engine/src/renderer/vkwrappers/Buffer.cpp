@@ -2,6 +2,8 @@
 
 #include "renderer/VulkanContext.h"
 
+namespace hk {
+
 void Buffer::init(const BufferDesc &desc)
 {
     if (buffer_ != VK_NULL_HANDLE) {
@@ -28,6 +30,8 @@ void Buffer::deinit()
         LOG_WARN("Buffer should be unmapped before deinitialization");
         return;
     }
+
+    if (device_) { vkDeviceWaitIdle(device_); }
 
     if (buffer_ != VK_NULL_HANDLE)
         vkDestroyBuffer(device_, buffer_, nullptr);
@@ -124,8 +128,7 @@ void Buffer::bind(VkCommandBuffer commandBuffer)
 Buffer::VulkanBufferDesc Buffer::getDeviceBufferDesc() const
 {
     ALWAYS_ASSERT(
-        static_cast<u32>(type_) &&
-        static_cast<u32>(property_),
+        static_cast<u32>(type_) && property_,
         "Buffer should be initialized"
     );
 
@@ -220,4 +223,6 @@ void Buffer::allocateBuffer(const VulkanBufferDesc &desc)
     ALWAYS_ASSERT(!err, "Failed to allocate Vulkan Buffer Memory");
 
     vkBindBufferMemory(device_, buffer_, memory_, 0);
+}
+
 }

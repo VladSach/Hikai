@@ -5,9 +5,9 @@ set SOURCE_DIR=src
 set BUILD_DIR=build
 set OUT_DIR=bin
 
-set INCLUDE_DIRS=/Isrc /I"../engine/src"
+set INCLUDE_DIRS=/Isrc /I"../engine/src" /I"../engine/src/vendor"
 set LIBS=/LIBPATH:"../engine/bin" hikai.lib
-set DEFINES=/D HKDEBUG /D DEBUG
+set DEFINES=/D HKDEBUG
 
 set EXE_NAME=editor.exe
 

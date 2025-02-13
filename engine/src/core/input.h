@@ -2,7 +2,7 @@
 #define HK_INPUT_H
 
 #include "defines.h"
-#include "EventSystem.h"
+#include "events.h"
 
 namespace hk::input {
 
@@ -36,13 +36,13 @@ void init();
 void deinit();
 void update();
 
-void registerKeyPress(const EventContext &keyinfo, void*);
+void registerKeyPress(const hk::event::EventContext &keyinfo, void*);
 
-void registerMouseMove(const EventContext &mouseinfo, void*);
-void registerMousePress(const EventContext &mouseinfo, void*);
-void registerMouseWheel(const EventContext &mouseinfo, void*);
+void registerMouseMove(const hk::event::EventContext &mouseinfo, void*);
+void registerMousePress(const hk::event::EventContext &mouseinfo, void*);
+void registerMouseWheel(const hk::event::EventContext &mouseinfo, void*);
 
-void registerRawMouseMove(const EventContext &mouseinfo, void*);
+void registerRawMouseMove(const hk::event::EventContext &mouseinfo, void*);
 
 #ifdef KEY_EXECUTE // If defined in Windows
     #undef KEY_EXECUTE

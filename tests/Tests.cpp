@@ -12,7 +12,7 @@ void Tests::init()
 
     RUN_ALL_TESTS();
 
-    EventSystem::instance()->fireEvent(hk::EVENT_APP_SHUTDOWN, {});
+    hk::event::fire(hk::event::EVENT_APP_SHUTDOWN, {});
 }
 
 // TODO: move this function out of here
@@ -139,6 +139,60 @@ void Tests::containersTests()
 
         hkring.clear();
         EXPECT_EQ(hkring.size(), (u32)0);
+    });
+
+    DEFINE_TEST("Containers", "Bitset",
+    {
+        hk::bitset<4>   a{0};
+        hk::bitset<10>  b{0};
+        hk::bitset<31>  c{0};
+        hk::bitset<33>  d{0};
+        hk::bitset<64>  e{0};
+        hk::bitset<120> f{0};
+        hk::bitset<240> g{0};
+
+        STATIC_ASSERT(sizeof(a) == 1);
+        STATIC_ASSERT(sizeof(b) == 2);
+        STATIC_ASSERT(sizeof(c) == 4);
+        STATIC_ASSERT(sizeof(d) == 8);
+        STATIC_ASSERT(sizeof(e) == 8);
+        STATIC_ASSERT(sizeof(f) == 16); // because u64 buffer_[2]
+        STATIC_ASSERT(sizeof(g) == 32); // because u64 buffer_[4] | 4 * 64 / 8 = 32
+
+        // constructors:
+        // constexpr hk::bitset<4> b1;
+        // constexpr hk::bitset<4> b2 {0xA}; // == 0B1010
+        // hk::bitset<4> b3 {"0011"};
+        // hk::bitset<8> b4 {"ABBA", 'B'}; // == 0B0000'0110
+        //
+        // bitset supports bitwise operations:
+        // b3 |= 0b0100; assert(b3 == 0b0111);
+        // b3 &= 0b0011; assert(b3 == 0b0011);
+        // b3 ^= hk::bitset<4>{0b1100}; assert(b3 == 0b1111);
+        //
+        // // operations on the whole set:
+        // b3.reset(); assert(b3 == 0);
+        // b3.set();
+        // assert(b3 == 0b1111);
+        // assert(b3.all() && b3.any() && !b3.none());
+        // b3.flip(); assert(b3 == 0);
+        //
+        // // operations on individual bits:
+        // b3.set(1, true); assert(b3 == 0b0010);
+        // b3.set(1, false); assert(b3 == 0);
+        // b3.flip(2); assert(b3 == 0b0100);
+        // b3.reset(2); assert(b3 == 0);
+        //
+        // // subscript operator[] is supported:
+        // // b3[2] = true; assert(true == b3[2]);
+        // b3.set(2); assert(true == b3[2]);
+        //
+        // // other operations:
+        // assert(b3.count() == 1);
+        // assert(b3.size() == 4);
+        // // assert(b3.to_ullong() == 0b0100ULL);
+        // auto aaa = b3.to_string();
+        // assert(aaa == "0100");
     });
 }
 

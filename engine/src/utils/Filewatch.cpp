@@ -1,9 +1,11 @@
-#include "Filewatch.h"
+#include "filewatch.h"
 
+#include "debug.h"
 #include "defines.h"
 
 #include "platform/platform.h"
 #include "utils/strings/hklocale.h"
+#include "utils/containers/hkvector.h"
 
 #include <thread>
 
@@ -52,14 +54,16 @@ public:
             NULL
         );
 
-        ALWAYS_ASSERT(handle_ != INVALID_HANDLE_VALUE, "Failed to open directory");
+        ALWAYS_ASSERT(handle_ != INVALID_HANDLE_VALUE,
+                      "Failed to open directory");
 
         hk::vector<BYTE> buffer(buffer_size);
         DWORD bytes_returned = 0;
 
         OVERLAPPED overlapped = { 0 };
         overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-        ALWAYS_ASSERT(overlapped.hEvent, "Failed to create overlapped data event");
+        ALWAYS_ASSERT(overlapped.hEvent,
+                      "Failed to create overlapped data event");
 
         HANDLE events[] = { overlapped.hEvent, destroy_ };
 
@@ -77,7 +81,8 @@ public:
 
             switch (WaitForMultipleObjects(2, events, FALSE, INFINITE)) {
             case WAIT_OBJECT_0 + 0: {
-                GetOverlappedResult(handle_, &overlapped, &bytes_returned, TRUE);
+                GetOverlappedResult(handle_, &overlapped,
+                                    &bytes_returned, TRUE);
 
                 if (!bytes_returned) { break; }
 
@@ -97,7 +102,8 @@ public:
 
                     std::wstring in(notify_info->FileName,
                                     notify_info->FileNameLength);
-                    callback_(hk::wstring_convert(in), states[notify_info->Action]);
+                    callback_(hk::wstring_convert(in),
+                              states[notify_info->Action]);
 
                     if (!notify_info->NextEntryOffset) { break; }
 

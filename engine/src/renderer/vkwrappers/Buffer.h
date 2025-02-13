@@ -5,6 +5,10 @@
 
 #include "defines.h"
 
+#include "utils/numerics/hkbitflag.h"
+
+namespace hk {
+
 class Buffer {
 public:
     enum class Type {
@@ -39,7 +43,7 @@ public:
     struct BufferDesc {
         Buffer::Type type;
         Buffer::Usage usage;
-        Buffer::Property property;
+        hk::bitflag<Property> property;
 
         u32 size;
         u32 stride;
@@ -82,7 +86,7 @@ private:
 private:
     Type type_ = Type::NONE;
     Usage usage_ = Usage::NONE;
-    Property property_ = Property::NONE;
+    hk::bitflag<Property> property_ = Property::NONE;
 
     u32 size_ = 0;
     u32 stride_ = 0;
@@ -95,17 +99,8 @@ private:
     VkDevice device_ = VK_NULL_HANDLE;
 };
 
-constexpr Buffer::Property operator |(const Buffer::Property a,
-                                      const Buffer::Property b)
-{
-    return static_cast<Buffer::Property>(
-        static_cast<u32>(a) | static_cast<u32>(b)
-    );
-}
+REGISTER_ENUM(Buffer::Property);
 
-constexpr b8 operator &(const Buffer::Property a, const Buffer::Property b)
-{
-    return static_cast<u32>(a) & static_cast<u32>(b);
 }
 
 #endif // HK_BUFFER_H

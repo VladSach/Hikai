@@ -5,20 +5,20 @@
  * TYPES
  ***************************/
 
-typedef bool b8;
+using b8 = bool;
 
-typedef unsigned char      u8;
-typedef unsigned short     u16;
-typedef unsigned int       u32;
-typedef unsigned long long u64;
+using u8  = unsigned char;
+using u16 = unsigned short;
+using u32 = unsigned int;
+using u64 = unsigned long long;
 
-typedef signed char      i8;
-typedef signed short     i16;
-typedef signed int       i32;
-typedef signed long long i64;
+using i8  = signed char;
+using i16 = signed short;
+using i32 = signed int;
+using i64 = signed long long;
 
-typedef float  f32;
-typedef double f64;
+using f32 = float;
+using f64 = double;
 
 #define STATIC_ASSERT static_assert
 
@@ -51,42 +51,5 @@ STATIC_ASSERT(sizeof(f64) == 8, "Type error: i64 should be 8 bytes");
     #define HKAPI
     #endif
 #endif
-
-/***************************
- * DEBUG
- ***************************/
-#include "utils/Logger.h"
-
-#include <cstdlib>
-
-#define HKBREAK __debugbreak()
-
-#if _MSVC_TRADITIONAL
-    #define LOG_FATAL_HELPER(message, ...) \
-        LOG(hk::log::Level::LVL_FATAL, message, __VA_ARGS__)
-
-    #define ALWAYS_ASSERT(expression, ...) \
-        if (!(expression)) \
-        { \
-            LOG_FATAL_HELPER("Assertion failed:", __VA_ARGS__); \
-            HKBREAK; \
-            std::abort(); \
-        }
-#else
-    #define ALWAYS_ASSERT(expression, ...) \
-        if (!(expression)) \
-        { \
-            LOG_FATAL("Assertion failed:", ##__VA_ARGS__); \
-            HKBREAK; \
-            std::abort(); \
-        }
-#endif
-
-#ifndef HKDEBUG
-#define DEV_ASSERT(...)
-#else
-#define DEV_ASSERT(expression, ...) ALWAYS_ASSERT(expression, __VA_ARGS__);
-#endif
-
 
 #endif // HK_DEFINES_H

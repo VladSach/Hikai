@@ -8,6 +8,8 @@
 
 namespace hk {
 
+// FIX: this is Windows only solution
+
 inline std::string wstring_convert(const std::wstring &in)
 {
     if (in.empty()) { return std::string(); }

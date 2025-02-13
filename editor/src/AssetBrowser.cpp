@@ -1,9 +1,13 @@
 #include "AssetBrowser.h"
 
+#include "renderer/ui/imguiwrapper.h"
+
 #include "utils/thumbnails.h"
 
-void AssetBrowser::init(GUI &gui)
+void AssetBrowser::init()
 {
+    is_open_ = true;
+
     hndlIconD = hk::assets()->load("hk_icon_directory.png");
     hndlIconF = hk::assets()->load("hk_icon_file.png");
     hndlIconB = hk::assets()->load("hk_icon_arrow_back.png");
@@ -22,25 +26,30 @@ void AssetBrowser::init(GUI &gui)
         cachedPaths.push_back(asset->path);
     }
 
-    hk::evesys()->subscribe(hk::EventCode::EVENT_ASSET_LOADED,
-        [&](const hk::EventContext &context, void *listener) {
+    hk::event::subscribe(hk::event::EVENT_ASSET_LOADED,
+        [&](const hk::event::EventContext &context, void *listener) {
+            (void)listener;
+
             const u32 handle = context.u32[0];
             std::string path = hk::assets()->getAssetPath(handle);
 
             cachedPaths.push_back(path);
 
             hk::assets()->attachCallback(handle, [&](){
-                cachedPaths.at(hk::getIndex(handle)) =
-                    hk::assets()->getAssetPath(handle);
+                // FIX: restore
+                // cachedPaths.at(hk::getIndex(handle)) =
+                //     hk::assets()->getAssetPath(handle);
             });
         },
     this);
 }
 
-void AssetBrowser::display(GUI &gui)
+void AssetBrowser::display()
 {
-    gui.pushCallback([&](){
-        if (ImGui::Begin("Assets")) {
+    if (!is_open_) { return; }
+
+    hk::imgui::push([&](){
+        if (ImGui::Begin("Assets", &is_open_)) {
 
             addExplorer();
 
@@ -61,12 +70,17 @@ void AssetBrowser::display(GUI &gui)
 
 void AssetBrowser::addExplorer()
 {
-    f32 width = ImGui::GetContentRegionAvail().x * 0.15f;
+    ImGui::SetNextWindowSizeConstraints(
+        ImVec2(ImGui::GetContentRegionAvail().x * 0.15f, 0.f),
+        ImVec2(ImGui::GetContentRegionAvail().x * 0.40f, FLT_MAX)
+    );
 
-    ImGui::BeginChild("Explorer Pane", ImVec2(width, 0),
-                      // ImGuiChildFlags_AlwaysUseWindowPadding |
+    ImGui::BeginChild("Explorer Pane", ImVec2(0, 0),
                       ImGuiChildFlags_Border |
-                      ImGuiChildFlags_ResizeX);
+                      // ImGuiChildFlags_AlwaysUseWindowPadding |
+                      ImGuiChildFlags_ResizeX |
+                      ImGuiChildFlags_None,
+                      ImGuiWindowFlags_None);
 
     std::function<void(const std::string&)> drawDirectory;
     drawDirectory = [&drawDirectory](const std::string &directory)
@@ -100,7 +114,7 @@ void AssetBrowser::addExplorer()
     for (auto &asset : hk::assets()->assets()) {
         if (asset->path.find(root_) != std::string::npos) { continue; }
 
-        u32 filename = asset->path.find_last_of('\\');
+        u64 filename = asset->path.find_last_of('\\');
         path = asset->path.substr(0, filename);
 
         if (bundles.count(path)) {
@@ -129,15 +143,14 @@ void AssetBrowser::addExplorer()
 
 void AssetBrowser::addControlPanel()
 {
-    f32 height = ImGui::GetContentRegionAvail().y * 0.15f;
-
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0, height * 0.25f});
-
-    ImGui::BeginChild("Control Panel", ImVec2(0, height),
+    ImGui::BeginChild("Control Panel", ImVec2(0, 0),
                       // ImGuiChildFlags_Border  |
-                      // ImGuiChildFlags_ResizeY |
+                      ImGuiChildFlags_AutoResizeY |
+                      ImGuiChildFlags_AlwaysUseWindowPadding |
+                      ImGuiChildFlags_None,
                       ImGuiWindowFlags_NoScrollbar |
-                      ImGuiChildFlags_None);
+                      ImGuiWindowFlags_NoResize |
+                      ImGuiWindowFlags_None);
 
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
     if (ImGui::ImageButton("Back", hke::thumbnail::get(hndlIconB), {16, 16})) {
@@ -190,8 +203,6 @@ void AssetBrowser::addControlPanel()
     // TODO: at to right side buttons "Render directory", "Render only loaded assets"
 
     ImGui::EndChild();
-
-    ImGui::PopStyleVar();
 }
 
 void AssetBrowser::addAssetsPanel()
@@ -202,7 +213,7 @@ void AssetBrowser::addAssetsPanel()
 
     f32 alpha = 1.f;
 
-    u32 columnCount = width / iconSize;
+    u32 columnCount = static_cast<u32>(width / iconSize);
     if (columnCount < 1) { columnCount = 1; }
 
     ImGui::Columns(columnCount, 0, false);

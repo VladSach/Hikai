@@ -1,5 +1,7 @@
 #include "ImageLoader.h"
 
+#include "debug.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "vendor/stb/stb_image.h"
 

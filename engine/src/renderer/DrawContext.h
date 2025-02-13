@@ -1,6 +1,7 @@
 #ifndef HK_DRAW_CONTEXT_H
 #define HK_DRAW_CONTEXT_H
 
+#include "object/Light.h"
 #include "renderer/Material.h"
 #include "renderer/vkwrappers/Buffer.h"
 
@@ -60,8 +61,14 @@ struct RenderObject {
     }
 };
 
+struct RenderLight {
+    Light light;
+    hkm::mat4f pos;
+};
+
 struct DrawContext {
     hk::vector<RenderObject> objects;
+    hk::vector<RenderLight> lights;
 };
 
 }

@@ -29,6 +29,16 @@ void SceneGraph::update()
             if (node->object) { dirty_.push(node); }
         }
 
+
+        // FIX: probably temp
+        else if (node->object) {
+            if (node->entity) {
+                if (node->entity->dirty) {
+                    dirty_.push(node);
+                }
+            }
+        }
+
         for (auto child : node->children) {
             traverseSceneGraph(child, propagate);
         }
@@ -49,6 +59,7 @@ void SceneGraph::addNode(const SceneNode &node)
     snode->parent = parent;
     snode->loaded = node.loaded;
     snode->local = node.loaded;
+    // snode->entity = node.entity;
 
     if (snode->object) {
         ++objects_;
@@ -107,13 +118,35 @@ void SceneGraph::addModel(u32 handle, const Transform &transform)
     root_->children.push_back(parent);
 }
 
+void SceneGraph::addLight(Light light, const Transform &transform)
+{
+    SceneNode *node = new SceneNode();
+    node->idx = size_++;
+    node->name = "Light TEST";
+    node->object = true;
+    node->dirty = true;
+    node->parent = root_;
+    node->loaded = transform;
+    node->local = node->loaded;
+
+    Entity *entity = new Entity();
+    entity->attachLight(light);
+    node->entity = entity;
+
+    node->idxObject = lights_;
+    ++lights_;
+
+    root_->children.push_back(node);
+}
+
 void SceneGraph::updateDrawContext(DrawContext &context, Renderer &renderer)
 {
     if (dirty_.empty()) { return; }
 
-    vkDeviceWaitIdle(renderer.context->device());
+    vkDeviceWaitIdle(renderer.device_);
 
     context.objects.resize(objects_);
+    context.lights.resize(lights_);
 
     for (; !dirty_.empty(); dirty_.pop()) {
         SceneNode *node = dirty_.front();
@@ -127,21 +160,26 @@ void SceneGraph::updateDrawContext(DrawContext &context, Renderer &renderer)
             node->entity->dirty ^= 0b10000000;
         }
 
+        // TODO: i don't think that works right, if i clear position,
+        // that means it can't be more that one instance?
         object.instances.clear();
         object.instances.push_back(node->world.toMat4f());
 
         if ((node->entity->dirty >> 6) & 1) {
             // object.materials.clear();
             object.materials.resize(1);
+
+            object.materials.at(0).clear();
+
             object.materials.at(0).material =
                 &hk::assets()->getMaterial(node->entity->hndlMaterial).data;
 
             object.materials.at(0).build(
-                renderer.offscreenRenderPass,
+                renderer.offscreen_.render_pass_,
                 sizeof(ModelToWorld),
                 renderer.sceneDescriptorLayout,
-                renderer.swapchain.format(),
-                renderer.depthImage.format());
+                renderer.swapchain_.format(),
+                renderer.offscreen_.depth_.format());
 
             // object.materials2.resize(1);
             // object.materials2.at(0) = object.materials.at(0).write(renderer.frameDescriptors, renderer.samplerLinear);

@@ -44,8 +44,9 @@ void PipelineBuilder::setShader(ShaderType type, VkShaderModule shader)
     shaderStages.push_back(shaderStageInfo);
 }
 
-void PipelineBuilder::setVertexLayout(u32 stride,
-                                      const hk::vector<hk::Format> &layout)
+void PipelineBuilder::setVertexLayout(
+    u32 stride,
+    const hk::vector<hk::bitflag<hk::Format>> &layout)
 {
     bindingDescription.binding = 0;
     bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
@@ -81,7 +82,9 @@ void PipelineBuilder::setInputTopology(VkPrimitiveTopology topology)
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 }
 
-void PipelineBuilder::setRasterizer(VkPolygonMode polygonMode, VkCullModeFlags cullMode)
+void PipelineBuilder::setRasterizer(VkPolygonMode polygonMode,
+                                    VkCullModeFlags cullMode,
+                                    VkFrontFace front)
 {
     rasterizer.sType =
         VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -90,7 +93,7 @@ void PipelineBuilder::setRasterizer(VkPolygonMode polygonMode, VkCullModeFlags c
     rasterizer.polygonMode = polygonMode;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = cullMode;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.frontFace = front;
     rasterizer.depthBiasEnable = VK_FALSE;
 }
 
@@ -112,22 +115,22 @@ void PipelineBuilder::setColorBlend()
         VK_COLOR_COMPONENT_B_BIT |
         VK_COLOR_COMPONENT_A_BIT;
     colorBlendAttachment.blendEnable = VK_TRUE;
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
     colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
     colorBlendAttachment.dstColorBlendFactor =
         VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
     colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 }
 
-void PipelineBuilder::setDepthStencil()
+void PipelineBuilder::setDepthStencil(VkBool32 enable, VkCompareOp op)
 {
     depthStencil.sType =
         VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable = VK_TRUE;
-    depthStencil.depthWriteEnable = VK_TRUE;
-    depthStencil.depthCompareOp = VK_COMPARE_OP_GREATER_OR_EQUAL;
+    depthStencil.depthTestEnable = enable;
+    depthStencil.depthWriteEnable = enable;
+    depthStencil.depthCompareOp = op;
     depthStencil.depthBoundsTestEnable = VK_FALSE;
     depthStencil.minDepthBounds = 0.0f; // Optional
     depthStencil.maxDepthBounds = 1.0f; // Optional

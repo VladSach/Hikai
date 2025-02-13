@@ -1,6 +1,8 @@
 #include "Material.h"
 
 #include "renderer/vkwrappers/Pipeline.h"
+#include "renderer/vkwrappers/vkdebug.h"
+
 #include "resources/AssetManager.h"
 
 namespace hk {
@@ -35,7 +37,7 @@ void hk::RenderMaterial::build(VkRenderPass renderpass, u32 pushConstSize,
     builder.setShader(ShaderType::Vertex, assets()->getShader(material->hndlVS).module);
     builder.setShader(ShaderType::Pixel,  assets()->getShader(material->hndlPS).module);
 
-    hk::vector<hk::Format> layout = {
+    hk::vector<hk::bitflag<Format>> layout = {
         // position
         hk::Format::SIGNED | hk::Format::FLOAT |
         hk::Format::VEC3 | hk::Format::B32,
@@ -51,10 +53,12 @@ void hk::RenderMaterial::build(VkRenderPass renderpass, u32 pushConstSize,
     builder.setVertexLayout(sizeof(Vertex), layout);
 
     builder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    builder.setRasterizer(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT);
+    builder.setRasterizer(VK_POLYGON_MODE_FILL,
+                          VK_CULL_MODE_BACK_BIT,
+                          VK_FRONT_FACE_CLOCKWISE);
     builder.setMultisampling();
     builder.setColorBlend();
-    builder.setDepthStencil();
+    builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL);
     builder.setRenderInfo(swapchainFormat, depthFormat);
 
     builder.setPushConstants(pushConstSize);
@@ -91,7 +95,7 @@ MaterialInstance RenderMaterial::write(DescriptorAllocator &allocator, VkSampler
 
     writer.clear();
 
-    buf.update(&material->cons);
+    buf.update(&material->constants);
     writer.writeBuffer(0, buf.buffer(),
                        sizeof(Material::constants), 0,
                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -103,6 +107,12 @@ MaterialInstance RenderMaterial::write(DescriptorAllocator &allocator, VkSampler
     writer.updateSet(matData.materialSet);
 
     return matData;
+}
+
+void RenderMaterial::clear()
+{
+    buf.deinit();
+    material = nullptr;
 }
 
 }

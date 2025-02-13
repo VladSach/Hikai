@@ -10,15 +10,13 @@
 
 // Platform dependent includes
 #if defined(HKWINDOWS)
-    #include "Windows/WinLog.h"
-    #include "Windows/WinWindow.h"
+    #include "platform/Windows/win.h"
+    #include "platform/Windows/Window.h"
+    #include "platform/Windows/WinLog.h"
 
-    // This, alongside PlatformArgs, is a complitly garbage way to do this
+    // This, alongside platform::args, is a complitly garbage way to do this
     // but at least it works so I let it be as it is till better days
-    #define PLATFORM_MAIN "platform/Windows/WinMain.h"
+    #define PLATFORM_MAIN "platform/Windows/main.h"
 #endif // Platform dependent includes
-
-#include "filesystem.h"
-#include "utils.h"
 
 #endif // HK_PLATFORM_H

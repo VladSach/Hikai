@@ -1,42 +1,35 @@
 #include "Application.h"
 
 #include "input.h"
-#include "utils/Filewatch.h"
+#include "utils/filewatch.h"
 #include "resources/AssetManager.h"
+#include "platform/filesystem.h"
 
 #include <thread>
 
 b8 Application::running = false;
 
 Application::Application(const AppDesc &desc)
-    : desc(desc)
+    : desc_(desc)
 {
-    evsys = hk::evesys();
+    clock_.record();
 
-    evsys->init();
-    evsys->subscribe(hk::EVENT_APP_SHUTDOWN, shutdown, this);
+    hk::event::init();
+    hk::event::subscribe(hk::event::EVENT_APP_SHUTDOWN, shutdown, this);
 
-    window = desc.window;
-    if (!window) {
-        allocWinConsole();
-        window = new EmptyWindow();
-        return;
-    }
-
-    window->init(desc.title, desc.width, desc.height);
-    window->enableRawMouseInput();
+    window_ = new Window();
+    window_->init(desc.title, desc.width, desc.height);
+    window_->enableRawMouseInput();
 
     hk::input::init();
-
-    clock.record();
 
     // FIX: temp development fix
     hk::assets()->init(hk::filesystem::canonical("..\\editor\\assets"));
 
-    scene.init();
+    scene_.init();
 
-    renderer = new Renderer();
-    renderer->init(window);
+    renderer_ = new Renderer();
+    renderer_->init(window_);
 
     running = true;
 }
@@ -44,72 +37,83 @@ Application::Application(const AppDesc &desc)
 void Application::run()
 {
     f32 dt = .0f;
-    const f32 desiredFrameRate = 60.f; // TODO: configurable
-    const f32 msPerFrame = 1.0f / desiredFrameRate;
+    f32 fixed_dt = .0f;
 
-    f32 fixedTimestamp = .0f;
+    const f32 ms_per_frame = 1.f / desired_frame_rate_;
 
     hk::DrawContext ctx;
 
     while (running) {
-        if (!window->ProcessMessages()) {
+        if (!window_->ProcessMessages()) {
             running = false;
             break;
         }
 
-        dt = static_cast<f32>(clock.update());
+        dt = static_cast<f32>(clock_.update());
 
-        if (!window->getIsVisible()) {
+        if (!window_->isVisible()) {
             continue;
         }
 
         // PERF: is spin loop faster then waiting for (frameRate - dt)?
-        while (dt < msPerFrame) {
+        while (dt < ms_per_frame) {
             std::this_thread::sleep_for(std::chrono::nanoseconds(1));
-            dt += static_cast<f32>(clock.update());
+            dt += static_cast<f32>(clock_.update());
         }
+
+        hkm::mat4f mat = camera_.viewProjection();
+        renderer_->updateFrameData(
+        {
+            {
+                static_cast<f32>(window_->width()),
+                static_cast<f32>(window_->height())
+            },
+            0,
+            camera_.position(),
+            time_since_start_,
+            mat,
+        });
+
+        time_since_start_ += dt;
 
         update(dt);
         hk::input::update();
 
-        evsys->dispatch();
+        hk::event::dispatch(); // FIX: why dispatch is here?
 
-        fixedTimestamp += dt;
-        while (fixedTimestamp >= msPerFrame) {
+        fixed_dt += dt;
+        while (fixed_dt >= ms_per_frame) {
             fixedUpdate();
-            fixedTimestamp -= msPerFrame;
+            fixed_dt -= ms_per_frame;
         }
 
-        scene.update();
-        scene.updateDrawContext(ctx, *renderer);
+        scene_.update();
+        scene_.updateDrawContext(ctx, *renderer_);
 
         render();
-        renderer->draw(ctx);
+        renderer_->draw(ctx);
 
         hk::log::dispatch();
     }
 }
 
-void Application::deinit()
+void Application::cleanup()
 {
     hk::assets()->deinit();
     hk::filewatch::deinit();
-    renderer->deinit();
+    renderer_->deinit();
     hk::input::deinit();
-    window->deinit();
-    evsys->deinit();
+    window_->deinit();
+    hk::event::deinit();
 }
 
-void Application::shutdown(hk::EventContext errorCode, void* listener)
+void Application::shutdown(hk::event::EventContext ctx, void* listener)
 {
     (void)listener;
 
-    if (errorCode.u64) {
-        hk::ErrorCode err = static_cast<hk::ErrorCode>(errorCode.u64);
-        LOG_FATAL("Error:", err, "-", hk::getErrocodeStr(err));
-
-        // TODO: probably should also create a Message Box,
-        // so user can understand why application closed
+    if (ctx.u64) {
+        hk::event::ErrorCode err = static_cast<hk::event::ErrorCode>(ctx.u64);
+        ALWAYS_ASSERT(0, "Error:", err, "-", hk::event::getErrorCodeStr(err));
     }
 
     // TODO: not the best way to quit application immediately

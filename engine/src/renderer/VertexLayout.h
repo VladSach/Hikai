@@ -3,6 +3,7 @@
 
 #include "vendor/vulkan/vulkan.h"
 
+#include "utils/numerics/hkbitflag.h"
 #include "utils/containers/hkvector.h"
 
 namespace hk {
@@ -30,17 +31,9 @@ enum class Format : u16 {
 };
 
 hk::vector<VkVertexInputAttributeDescription>
-createVertexLayout(const hk::vector<Format> &formats);
+createVertexLayout(const hk::vector<hk::bitflag<Format>> &formats);
 
-constexpr Format operator |(const Format a, const Format b)
-{
-    return static_cast<Format>(static_cast<u32>(a) | static_cast<u32>(b));
-}
-
-constexpr bool operator &(const Format a, const Format b)
-{
-    return static_cast<u32>(a) & static_cast<u32>(b);
-}
+REGISTER_ENUM(Format);
 
 }
 

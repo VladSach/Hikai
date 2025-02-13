@@ -20,7 +20,7 @@ struct quaternion {
     constexpr f32& operator [](u32 i) { return ((&x)[i]); }
     constexpr const f32& operator [](u32 i) const { return ((&x)[i]); }
 
-    inline f32 length() const { return std::sqrt(x*x + y*y + z*z + w*w); }
+    inline f32 length() const { return hkm::sqrt(x*x + y*y + z*z + w*w); }
 
     constexpr static quaternion identity()
     {
@@ -117,28 +117,28 @@ struct quaternion {
         float sum = m00 + m11 + m22;
 
         if (sum > .0f) {
-            w = std::sqrt(sum + 1.f) * .5f;
+            w = hkm::sqrt(sum + 1.f) * .5f;
             float f = .25f / w;
 
             x = (m(2, 1) - m(1, 2)) * f;
             y = (m(0, 2) - m(2, 0)) * f;
             z = (m(1, 0) - m(0, 1)) * f;
         } else if ((m00 > m11) && (m00 > m22)) {
-            x = std::sqrt(m00 - m11 - m22 + 1.f) * .5f;
+            x = hkm::sqrt(m00 - m11 - m22 + 1.f) * .5f;
             float f = .25f / x;
 
             y = (m(1, 0) + m(0, 1)) * f;
             z = (m(0, 2) + m(2, 0)) * f;
             w = (m(2, 1) - m(1, 2)) * f;
         } else if (m11 > m22) {
-            y = std::sqrt(m11 - m00 - m22 + 1.f) * .5f;
+            y = hkm::sqrt(m11 - m00 - m22 + 1.f) * .5f;
             float f = .25f / y;
 
             x = (m(1, 0) + m(0, 1)) * f;
             z = (m(2, 1) + m(1, 2)) * f;
             w = (m(0, 2) - m(2, 0)) * f;
         } else {
-            z = std::sqrt(m22 - m00 - m11 + 1.f) * .5f;
+            z = hkm::sqrt(m22 - m00 - m11 + 1.f) * .5f;
             float f = .25f / z;
 
             x = (m(0, 2) + m(2, 0)) * f;
@@ -193,8 +193,8 @@ inline quaternion fromAxisAngle(const vec3f &v, f32 angle)
     vec3f N = normalize(v);
 
     f32 halfAngle = angle * .5f;
-    f32 sinAngle = sin(halfAngle);
-    f32 cosAngle = cos(halfAngle);
+    f32 sinAngle = std::sin(halfAngle);
+    f32 cosAngle = std::cos(halfAngle);
 
     f32 x = N.x * sinAngle;
     f32 y = N.y * sinAngle;

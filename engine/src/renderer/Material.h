@@ -1,24 +1,24 @@
 #ifndef HK_MATERIAL_H
 #define HK_MATERIAL_H
 
-#include "renderer/vkwrappers/Image.h"
-#include "renderer/Descriptors.h"
+#include "math/vec4f.h"
 
 #include "utils/containers/hkvector.h"
 
-#include "math/vec4f.h"
 #include "renderer/vkwrappers/Buffer.h"
+#include "renderer/vkwrappers/Image.h"
+#include "renderer/vkwrappers/Descriptors.h"
 
 namespace hk {
 
 struct Material {
-    struct constants {
+    struct {
         hkm::vec4f color = 1.f;
         hkm::vec4f emissive;
-        f32 alpha = 1.f
+        f32 alpha = 1.f;
         f32 shininess = 0.f;
         f32 reflectivity = 0.f;
-    } cons;
+    } constants;
 
     u32 hndlDiffuse = 0;
     u32 hndlNormal = 0;

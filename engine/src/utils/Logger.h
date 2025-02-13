@@ -5,6 +5,8 @@
 #include <sstream>
 #include <functional>
 
+#include "defines.h"
+
 #define STRINGIZE_DETAIL(x) #x
 #define STRINGIZE(x) STRINGIZE_DETAIL(x)
 
@@ -39,22 +41,6 @@
     #define LOG_TRACE(...) LOG(hk::log::Level::LVL_TRACE, __VA_ARGS__)
 #endif
 
-// FIX: Since logger is its own thing can't include here anything
-// maybe should come up with workaround for that
-#ifdef HKDLL_OUT
-    #ifdef _MSC_VER
-    #define HKAPI __declspec(dllexport)
-    #else
-    #define HKAPI
-    #endif
-#else
-    #ifdef _MSC_VER
-    #define HKAPI __declspec(dllimport)
-    #else
-    #define HKAPI
-    #endif
-#endif
-
 namespace hk::log {
 
 enum class Level {
@@ -68,6 +54,7 @@ enum class Level {
     MAX_LVL
 };
 
+// Info left by log function
 struct Log {
     Level level;
     std::string caller;
@@ -77,6 +64,7 @@ struct Log {
     std::string args;
 };
 
+// Modified message sent to handlers
 struct MsgInfo {
     Level level;
     const std::string &callerName;
@@ -91,12 +79,12 @@ HKAPI void deinit();
 HKAPI void log(const MsgInfo &info);
 
 using LoggerCallback = std::function<void(const hk::log::Log &log)>;
-HKAPI unsigned addMessageHandler(LoggerCallback callback);
-HKAPI void removeMessageHandler(unsigned handle);
+HKAPI u32 addMessageHandler(LoggerCallback callback);
+HKAPI void removeMessageHandler(u32 handle);
 
 HKAPI inline std::string levelToString(const Level &level);
 
-// Hikai internal use
+// ===== HIKAI INTERNAL USE =====
 void dispatch();
 
 template <typename... Args>
@@ -112,9 +100,13 @@ inline std::string argsToString(const Args& ...args)
     return res;
 }
 
-// struct LogDebugInfo {
-//     u32 logsIssued;
-// };
+// #ifdef HKDEBUG
+struct DebugInfo {
+    u32 logsIssued = 0;
+};
+
+HKAPI const DebugInfo& getDebugInfo();
+// #endif
 
 }
 

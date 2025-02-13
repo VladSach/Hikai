@@ -2,6 +2,8 @@
 #define HK_VEC4F_H
 
 #include "defines.h"
+#include "math/utils.h"
+
 #include "vec3f.h"
 
 namespace hkm {
@@ -20,7 +22,7 @@ struct vec4f {
 
     inline f32 length() const
     {
-        return std::sqrt(x*x + y*y + z*z + w*w);
+        return hkm::sqrt(x*x + y*y + z*z + w*w);
     }
 
     constexpr vec4f operator-() const

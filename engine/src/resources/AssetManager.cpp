@@ -3,9 +3,10 @@
 #include "loaders/ShaderLoader.h"
 #include "loaders/ModelLoader.h"
 
+#include "core/events.h"
 #include "utils/Filewatch.h"
 #include "platform/platform.h"
-#include "core/EventSystem.h"
+#include "platform/filesystem.h"
 
 #include <algorithm>
 
@@ -70,10 +71,10 @@ u32 AssetManager::create(Asset::Type type, void *data)
     }
     }
 
-    hk::EventContext context;
+    hk::event::EventContext context;
     context.u32[0] = handle;
     context.u32[1] = static_cast<u32>(type);
-    hk::evesys()->fireEvent(hk::EventCode::EVENT_ASSET_LOADED, context);
+    hk::event::fire(hk::event::EVENT_ASSET_LOADED, context);
 
     return handle;
 }
@@ -104,6 +105,33 @@ u32 AssetManager::load(const std::string &path, void *data)
         } else {
             out = path;
         }
+
+        std::string file_path = out.substr(0, out.find_last_of("/\\") + 1);
+        b8 found = false;
+        for (auto &watch : watched_) {
+            if (watch == file_path) {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            watched_.push_back(file_path);
+            hk::filewatch::watch(file_path,
+                [this, file_path](const std::string &path, const hk::filewatch::State state)
+                {
+                    if (state != hk::filewatch::State::MODIFIED) { return; }
+
+                    LOG_INFO("Asset changed:", file_path + path, stringFileState(state));
+
+                    reload(paths_[file_path + path]);
+
+                    for (auto &callback : callbacks_.at(paths_[file_path + path])) {
+                        if (callback) { callback(); }
+                    }
+                }
+            );
+        }
     }
 
     if (paths_.find(out) != paths_.end()) {
@@ -112,7 +140,7 @@ u32 AssetManager::load(const std::string &path, void *data)
 
     Asset::Type type = Asset::Type::NONE;
 
-    u32 dotPos = path.find_last_of('.');
+    u64 dotPos = path.find_last_of('.');
     std::string ext = path.substr(dotPos);
     std::transform(ext.begin(), ext.end(), ext.begin(),
         [](unsigned char c){ return std::tolower(c); });
@@ -136,6 +164,7 @@ u32 AssetManager::load(const std::string &path, void *data)
         type = Asset::Type::MODEL;
     } else {
         LOG_ERROR("Unknown file extension:", ext);
+        return 0xdeadcell;
     }
 
     return load(out, type, data);
@@ -159,19 +188,13 @@ u32 AssetManager::load(const std::string &path, Asset::Type type, void *data)
         LOG_ERROR("Unknown asset type:", path);
     }
 
-    // FIX: that's not intended behavior
-    // initial file path could be from OUTSIDE of asset folder
-    // then, asset copied INSIDE asset folder and added to paths_
-    // OR asset written to asset folder on save(?)
-    // all assets already inside asset folder on creation
-    // should be loaded initialy
     paths_[path] = handle;
     // LOG_INFO("path:", path);
 
-    hk::EventContext context;
+    hk::event::EventContext context;
     context.u32[0] = handle;
     context.u32[1] = static_cast<u32>(type);
-    hk::evesys()->fireEvent(hk::EventCode::EVENT_ASSET_LOADED, context);
+    hk::event::fire(hk::event::EVENT_ASSET_LOADED, context);
 
     return handle;
 }
@@ -285,7 +308,7 @@ u32 AssetManager::createMaterial(void *data)
 
     const std::string path = "..\\engine\\assets\\shaders\\";
     asset->data.hndlVS = hk::assets()->load(path + "DefaultVS.hlsl");
-    asset->data.hndlPS = hk::assets()->load(path + "TexturePS.hlsl");
+    asset->data.hndlPS = hk::assets()->load(path + "Phong.hlsl");
 
     return asset->handle;
 }

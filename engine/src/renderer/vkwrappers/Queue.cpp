@@ -166,8 +166,8 @@ VkResult Queue::present(VkSwapchainKHR sc, u32 index, VkSemaphore semaphore)
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = &sc;
     presentInfo.pImageIndices = &index;
-    presentInfo.pWaitSemaphores = &semaphore;
     presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = &semaphore;
 
     return vkQueuePresentKHR(handle_, &presentInfo);
 }

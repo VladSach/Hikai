@@ -33,7 +33,7 @@
 #include <fstream>
 #include <iomanip>
 
-#include "core/Timer.h"
+#include "core/Clock.h"
 #include "math/hkmath.h"
 
 inline std::ostream& operator<<(std::ostream& out, const hkm::mat4f& m)

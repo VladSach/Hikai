@@ -1,15 +1,17 @@
 #include "thumbnails.h"
 
+#include "renderer/ui/imguiwrapper.h"
+
 namespace hke::thumbnail {
 
-static GUI *g;
+static Renderer *r;
 
 // void* == VkDescriptorSet
 static std::unordered_map<u32, void*> cache;
 
-void init(GUI *gui)
+void init(Renderer *renderer)
 {
-    g = gui;
+    r = renderer;
     cache.clear();
 }
 
@@ -19,7 +21,8 @@ void* get(u32 handle)
 
     hk::Image *image = hk::assets()->getTexture(handle).texture;
 
-    cache[handle] = g->addTexture(image);
+    cache[handle] = hk::imgui::addTexture(image->view(), r->samplerLinear);
+
     return cache[handle];
 }
 

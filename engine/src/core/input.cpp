@@ -152,15 +152,14 @@ void init()
 {
     initialized = true;
 
-    EventSystem &evsys = *hk::evesys();
-    evsys.subscribe(EVENT_KEY_PRESSED, registerKeyPress);
-    evsys.subscribe(EVENT_KEY_RELEASED, registerKeyPress);
+    hk::event::subscribe(hk::event::EVENT_KEY_PRESSED, registerKeyPress);
+    hk::event::subscribe(hk::event::EVENT_KEY_RELEASED, registerKeyPress);
 
-    evsys.subscribe(EVENT_MOUSE_MOVED,     registerMouseMove);
-    evsys.subscribe(EVENT_RAW_MOUSE_MOVED, registerRawMouseMove);
-    evsys.subscribe(EVENT_MOUSE_PRESSED,   registerMousePress);
-    evsys.subscribe(EVENT_MOUSE_RELEASED,  registerMousePress);
-    evsys.subscribe(EVENT_MOUSE_WHEEL,     registerMouseWheel);
+    hk::event::subscribe(hk::event::EVENT_MOUSE_MOVED,     registerMouseMove);
+    hk::event::subscribe(hk::event::EVENT_RAW_MOUSE_MOVED, registerRawMouseMove);
+    hk::event::subscribe(hk::event::EVENT_MOUSE_PRESSED,   registerMousePress);
+    hk::event::subscribe(hk::event::EVENT_MOUSE_RELEASED,  registerMousePress);
+    hk::event::subscribe(hk::event::EVENT_MOUSE_WHEEL,     registerMouseWheel);
 
     LOG_INFO("Input Subsystem initialized");
 }
@@ -169,20 +168,19 @@ void deinit()
 {
     if (!initialized) { return; }
 
-    EventSystem &evsys = *hk::evesys();
-    evsys.unsubscribe(EVENT_KEY_PRESSED,  registerKeyPress);
-    evsys.unsubscribe(EVENT_KEY_RELEASED, registerKeyPress);
+    hk::event::unsubscribe(hk::event::EVENT_KEY_PRESSED,  registerKeyPress);
+    hk::event::unsubscribe(hk::event::EVENT_KEY_RELEASED, registerKeyPress);
 
-    evsys.unsubscribe(EVENT_MOUSE_MOVED,     registerMouseMove);
-    evsys.unsubscribe(EVENT_RAW_MOUSE_MOVED, registerRawMouseMove);
-    evsys.unsubscribe(EVENT_MOUSE_PRESSED,   registerMousePress);
-    evsys.unsubscribe(EVENT_MOUSE_RELEASED,  registerMousePress);
-    evsys.unsubscribe(EVENT_MOUSE_WHEEL,     registerMouseWheel);
+    hk::event::unsubscribe(hk::event::EVENT_MOUSE_MOVED,     registerMouseMove);
+    hk::event::unsubscribe(hk::event::EVENT_RAW_MOUSE_MOVED, registerRawMouseMove);
+    hk::event::unsubscribe(hk::event::EVENT_MOUSE_PRESSED,   registerMousePress);
+    hk::event::unsubscribe(hk::event::EVENT_MOUSE_RELEASED,  registerMousePress);
+    hk::event::unsubscribe(hk::event::EVENT_MOUSE_WHEEL,     registerMouseWheel);
 
     LOG_INFO("Input Subsystem deinitialized");
 }
 
-void registerKeyPress(const hk::EventContext &keyinfo, void*)
+void registerKeyPress(const hk::event::EventContext &keyinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");
@@ -199,7 +197,7 @@ void registerKeyPress(const hk::EventContext &keyinfo, void*)
     keyboard.keys[button] = pressed;
 }
 
-void registerMouseMove(const EventContext &mouseinfo, void*)
+void registerMouseMove(const hk::event::EventContext &mouseinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");
@@ -218,7 +216,7 @@ void registerMouseMove(const EventContext &mouseinfo, void*)
     mouse.y = y;
 }
 
-void registerRawMouseMove(const EventContext &mouseinfo, void*)
+void registerRawMouseMove(const hk::event::EventContext &mouseinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");
@@ -234,7 +232,7 @@ void registerRawMouseMove(const EventContext &mouseinfo, void*)
     // mouse.y += y_delta;
 }
 
-void registerMousePress(const EventContext &mouseinfo, void*)
+void registerMousePress(const hk::event::EventContext &mouseinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");
@@ -251,7 +249,7 @@ void registerMousePress(const EventContext &mouseinfo, void*)
     mouse.buttons[button] = pressed;
 }
 
-void registerMouseWheel(const EventContext &mouseinfo, void*)
+void registerMouseWheel(const hk::event::EventContext &mouseinfo, void*)
 {
     if (!initialized) {
         LOG_WARN("Input Subsystem was not initialized");

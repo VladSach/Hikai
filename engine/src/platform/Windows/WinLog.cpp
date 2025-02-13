@@ -5,13 +5,13 @@
 
 // console log
 static HANDLE hConsole = nullptr;
-static u32 hndlConsole = 0;
+static u32 hndl_console = 0;
 
 static constexpr u32 MaxFuncNameLength = 45;
 
 // file log
-static std::string logFile = "";
-static u32 hndlFile = 0;
+static std::string log_file = "";
+static u32 hndl_file = 0;
 
 b8 setConsoleSize(i16 cols, i16 rows);
 void logWinConsole(const hk::log::Log &log);
@@ -23,9 +23,9 @@ BOOL WINAPI HandlerRoutine(DWORD dwCtrlType)
     case CTRL_C_EVENT:
     case CTRL_CLOSE_EVENT:
     {
-        /* Turns out it's too late to call FreeConsole in the handler
+        /* INFO: Turns out it's too late to call FreeConsole in the handler
          * so this won't work for CTRL_CLOSE_EVENT
-         * if console should be closed w/o closing the app user can press Ctrl+C
+         * if console should be closed w/o closing the app user can Ctrl+C
          * or alternative implementations should be used.
          * Like creating child process and IO pipes
          * https://stackoverflow.com/questions/696117/
@@ -55,7 +55,6 @@ void allocWinConsole()
     SetConsoleCtrlHandler(HandlerRoutine, TRUE);
 
     // Enable Virtual Terminal Sequences(colors, etc)
-    // https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
     DWORD dwMode = 0;
     GetConsoleMode(hConsole, &dwMode);
     dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
@@ -78,7 +77,7 @@ void allocWinConsole()
     GetConsoleScreenBufferInfo(hConsole, &csbi);
     setConsoleSize(maxBufferLineSize, csbi.srWindow.Bottom);
 
-    hndlConsole = hk::log::addMessageHandler(logWinConsole);
+    hndl_console = hk::log::addMessageHandler(logWinConsole);
 }
 
 void deallocWinConsole()
@@ -90,20 +89,20 @@ void deallocWinConsole()
 
     FreeConsole();
 
-    hk::log::removeMessageHandler(hndlConsole);
+    hk::log::removeMessageHandler(hndl_console);
 }
 
 void setLogFile(const std::string &file)
 {
-    logFile = file;
-    if (logFile.empty()) { return; }
+    log_file = file;
+    if (log_file.empty()) { return; }
 
-    hndlFile = hk::log::addMessageHandler(logWinFile);
+    hndl_file = hk::log::addMessageHandler(logWinFile);
 }
 
 void removeLogFile()
 {
-    hk::log::removeMessageHandler(hndlFile);
+    hk::log::removeMessageHandler(hndl_file);
 }
 
 void logWinConsole(const hk::log::Log &log)
@@ -211,10 +210,10 @@ void logWinFile(const hk::log::Log &log)
     b8 is_error = log.level  < hk::log::Level::LVL_WARN;
     b8 is_trace = log.level == hk::log::Level::LVL_TRACE;
     wss << std::setw(12) << (is_error ? log.file.c_str() : "");
-    wss << std::setw(3)  << (is_error ? log.line.c_str() : "") << ' ';
+    wss << std::setw(3)  << (is_trace ? log.line.c_str() : "") << ' ';
     wss << '\n';
 
-    std::wofstream file(logFile, std::ios::app);
+    std::wofstream file(log_file, std::ios::app);
     if (file.is_open()) {
         file << wss.rdbuf();
         file.close();
@@ -229,40 +228,44 @@ b8 setConsoleSize(i16 cols, i16 rows)
     RECT rect = {0, 0, 0, 0};
     COORD coord = {0, 0};
 
-    HWND hWnd = GetConsoleWindow();
-    if (hWnd) {
-        if (GetCurrentConsoleFont(hConsole, FALSE, &fi)) {
-            if (GetClientRect(hWnd, &rect)) {
-                w = rect.right-rect.left;
-                h = rect.bottom-rect.top;
-                if (GetWindowRect(hWnd, &rect)) {
-                    bw = rect.right-rect.left-w;
-                    bh = rect.bottom-rect.top-h;
-                    if (GetConsoleScreenBufferInfo(hConsole, &bi)) {
-                        coord.X = bi.dwSize.X;
-                        coord.Y = bi.dwSize.Y;
-                        if (coord.X < cols || coord.Y < rows) {
-                            if (coord.X < cols) {
-                                coord.X = cols;
-                            }
-                            if (coord.Y < rows) {
-                                coord.Y = rows;
-                            }
-                            if (!SetConsoleScreenBufferSize(hConsole, coord)) {
-                                return false;
-                            }
-                        }
-                        return SetWindowPos(hWnd, NULL, rect.left, rect.top,
-                                            cols*fi.dwFontSize.X+bw,
-                                            rows*fi.dwFontSize.Y+bh,
-                                            SWP_NOACTIVATE |
-                                            SWP_NOMOVE |
-                                            SWP_NOOWNERZORDER |
-                                            SWP_NOZORDER);
-                    }
-                }
-            }
+    HWND hwnd = GetConsoleWindow();
+
+    if (!hwnd || !GetCurrentConsoleFont(hConsole, FALSE, &fi)) {
+        return false;
+    }
+
+    if (!GetClientRect(hwnd, &rect)) { return false; }
+
+    w = rect.right-rect.left;
+    h = rect.bottom-rect.top;
+
+    if (!GetWindowRect(hwnd, &rect)) { return false; }
+
+    bw = rect.right-rect.left-w;
+    bh = rect.bottom-rect.top-h;
+
+    if (!GetConsoleScreenBufferInfo(hConsole, &bi)) {
+        return false;
+    }
+
+    coord.X = bi.dwSize.X;
+    coord.Y = bi.dwSize.Y;
+
+    if (coord.X < cols || coord.Y < rows) {
+
+        if (coord.X < cols) { coord.X = cols; }
+        if (coord.Y < rows) { coord.Y = rows; }
+
+        if (!SetConsoleScreenBufferSize(hConsole, coord)) {
+            return false;
         }
     }
-    return false;
+
+    return SetWindowPos(hwnd, NULL, rect.left, rect.top,
+                        cols * fi.dwFontSize.X + bw,
+                        rows * fi.dwFontSize.Y + bh,
+                        SWP_NOACTIVATE |
+                        SWP_NOMOVE |
+                        SWP_NOOWNERZORDER |
+                        SWP_NOZORDER);
 }

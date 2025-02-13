@@ -4,6 +4,11 @@
 #include "vendor/vulkan/vulkan.h"
 
 #include "defines.h"
+#include "utils/numerics/hkbitflag.h"
+
+// FIX: temp
+#include <string>
+#include "renderer/vkwrappers/vkdebug.h"
 
 namespace hk {
 
@@ -12,23 +17,21 @@ public:
     enum class Usage {
         NONE = 0,
 
-        TRANSFER_SRC,
-        TRANSFER_DST,
+        TRANSFER_SRC = 1 << 1,
+        TRANSFER_DST = 1 << 2,
 
-        SAMPLED,
+        SAMPLED = 1 << 3,
 
-        // COLOR_ATTACHMENT,
-        DEPTH_STENCIL_ATTACHMENT,
-
-        MAX_IMAGE_USAGE
+        COLOR_ATTACHMENT = 1 << 4,
+        DEPTH_STENCIL_ATTACHMENT = 1 << 5,
     };
 
     struct ImageDesc {
-        Usage usage;
+        hk::bitflag<Usage> usage;
 
         VkFormat format;
         VkImageLayout layout;
-        VkImageAspectFlags aspectMask;
+        VkImageAspectFlags aspect_mask;
 
         u32 width;
         u32 height;
@@ -53,27 +56,43 @@ public:
 
     void write(const void *pixels);
 
-    void copy();
+    void copy(Image &src);
+
+    void transitionLayout(VkImageLayout target);
+
+    void generateMipmaps();
+
+    inline void setName(const std::string &name) {
+        hk::debug::setName(image_,  "Image: " + name);
+        hk::debug::setName(view_,   "Image View: " + name);
+        hk::debug::setName(memory_, "Image Memory: " + name);
+    }
 
 public:
     constexpr u32 width() const { return width_; }
     constexpr u32 height() const { return height_; }
     constexpr VkFormat format() const { return format_; }
+    constexpr VkImage image() const { return image_; } // TODO: remove
     constexpr VkImageView view() const { return view_; }
     constexpr VkImageLayout layout() const { return layout_; }
 
 private:
     void allocateImage(const VulkanImageDesc &desc);
-    void transitionImageLayout(
-        VkImageLayout oldLayout,
-        VkImageLayout newLayout);
+
+    // Helper methods for layout transition
+    VkPipelineStageFlags getPipelineStageFlags(VkImageLayout layout, b8 src);
+    VkAccessFlags getAccessFlags(VkImageLayout layout, b8 src);
 
 private:
     u32 width_    = 0;
     u32 height_   = 0;
     u32 channels_ = 0;
 
-    Usage usage_ = Usage::NONE;
+    u32 mip_levels_ = 1;
+    u32 array_layers_ = 1;
+
+    // Usage usage_ = Usage::NONE;
+    hk::bitflag<Usage> usage_ = Usage::NONE;
 
     VkImage image_         = VK_NULL_HANDLE;
     VkImageView view_      = VK_NULL_HANDLE;
@@ -81,20 +100,10 @@ private:
 
     VkFormat format_ = VK_FORMAT_UNDEFINED;
     VkImageLayout layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
-    VkImageAspectFlags aspectMask_ = VK_IMAGE_ASPECT_NONE;
+    VkImageAspectFlags aspect_mask_ = VK_IMAGE_ASPECT_NONE;
 };
 
-constexpr Image::Usage operator |(const Image::Usage a, const Image::Usage b)
-{
-    return static_cast<Image::Usage>(
-        static_cast<u32>(a) | static_cast<u32>(b)
-    );
-}
-
-constexpr b8 operator &(const Image::Usage a, const Image::Usage b)
-{
-    return static_cast<u32>(a) & static_cast<u32>(b);
-}
+REGISTER_ENUM(Image::Usage);
 
 }
 

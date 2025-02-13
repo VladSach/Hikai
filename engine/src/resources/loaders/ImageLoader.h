@@ -4,6 +4,8 @@
 #include "defines.h"
 #include "renderer/vkwrappers/Image.h"
 
+#include <string>
+
 namespace hk::loader {
 
 Image* loadImage(const std::string &path);

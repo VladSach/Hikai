@@ -1,7 +1,5 @@
 #include "utils/Logger.h"
 
-#include "defines.h"
-
 #include "utils/containers/hkvector.h"
 #include "utils/containers/hkring_buffer.h"
 
@@ -12,19 +10,22 @@
 namespace hk::log {
 
 // For now handles will just be indexes
-// Don't even think there is a need for more complicated logic
-u32 cntHandlers = 0;
+// Don't even think there is a need for more complex logic
+static u32 cntHandlers = 0;
+
 /* PERF: Could be 2 vectors as well, inspect which option is faster
  * https://stackoverflow.com/questions/77546017/
    best-c-data-structure-for-fast-iteration-and-fast-insertion-removal-time
-*/
+ */
 static std::forward_list<LoggerCallback> handlers;
 
-// Messages set to initial size and then all unprinted messages got deleted?
+// Instead of using dynamic array here,
+// handlers should store all the logs they need in themselves.
 static hk::ring_buffer<Log, 100, true> logs;
-// Or should better use dynamic array for having an ability to dump logs
-// all at one to some file instead of constantly adding to it
-// Guess in that case handler should save all received the logs in himself <--- THIS IDEA
+
+// #ifdef HKDEBUG
+static DebugInfo debug_info;
+// #endif
 
 void init()
 {
@@ -35,6 +36,9 @@ void init()
 
 void deinit()
 {
+    LOG_INFO("Logger deinitialized");
+    handlers.clear();
+    cntHandlers = 0;
 }
 
 u32 addMessageHandler(LoggerCallback callback)
@@ -85,11 +89,17 @@ void log(const MsgInfo &info)
 #endif
 
     // Obtaining only file name instead of full path
-    std::string file = info.filePath.substr(info.filePath.find_last_of("/\\") + 1);
+    std::string file =
+        info.filePath.substr(info.filePath.find_last_of("/\\") + 1);
 
-    Log log = { info.level, caller, file, info.lineNumber, time_str, info.args };
+    Log log =
+        { info.level, caller, file, info.lineNumber, time_str, info.args };
 
     logs.push(log);
+
+// #ifdef HKDEBUG
+    debug_info.logsIssued++;
+// #endif
 }
 
 void dispatch()
@@ -100,6 +110,11 @@ void dispatch()
             handle(log);
         }
     }
+}
+
+const DebugInfo& getDebugInfo()
+{
+    return debug_info;
 }
 
 inline std::string levelToString(const Level &level)

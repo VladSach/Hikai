@@ -81,12 +81,14 @@ private:
 private:
     std::string folder_ = "assets\\";
 
+    hk::vector<std::string> watched_;
+
     u32 index_ = 0;
     // TODO: replace with a memory pool
     hk::vector<Asset*> assets_;
 
     // TODO: change vector of callbacks to linked list
-    hk::vector<hk::vector<std::function<void()>>> callbacks_;
+    hk::vector<std::vector<std::function<void()>>> callbacks_;
 
     // PERF: rethink usage of unordered_map. why even use handles,
     // if forced to use map nonetheless

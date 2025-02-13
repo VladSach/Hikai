@@ -1,11 +1,11 @@
 #include "Camera.h"
 
-#include <math.h>
+#include <cmath>
 
 void Camera::setPerspective(f32 fov, f32 aspectRatio, f32 nearPlane, f32 farPlane)
 {
     constexpr f32 to_radians = 3.14f / 180;
-    f32 scale = 1/tanf(fov * .5f * to_radians);
+    f32 scale = 1/std::tanf(fov * .5f * to_radians);
 
     f32 remap_z1 = nearPlane / (nearPlane - farPlane);
     f32 remap_z2 = farPlane * nearPlane / (nearPlane - farPlane);
@@ -25,7 +25,7 @@ void Camera::lookAt(const hkm::vec3f &dir)
 {
     f32 dot = hkm::dot(forward(), dir);
 
-    f32 angle = acos(dot);
+    f32 angle = std::acos(dot);
     hkm::vec3f axis = normalize(cross(forward(), dir));
 
     rotation_ = hkm::fromAxisAngle(axis, angle);

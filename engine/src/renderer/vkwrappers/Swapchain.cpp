@@ -1,206 +1,257 @@
 #include "Swapchain.h"
 
+#ifdef HKWINDOWS
+#include "vendor/vulkan/vulkan_win32.h"
+#endif
+
+#include "renderer/VulkanContext.h"
+#include "renderer/vkwrappers/vkdebug.h"
+
+#include "math/utils.h"
+
 namespace hk {
 
-void Swapchain::getPhysicalInfo(VkPhysicalDevice physical, VkSurfaceKHR surface)
+void Swapchain::init(const Window *window)
 {
-    u32 formatCount = 0;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(physical, surface,
-                                         &formatCount, nullptr);
+    instance_ = hk::context()->instance();
+    device_   = hk::context()->device();
+    physical_ = hk::context()->physical();
 
-    surfaceFormats.resize(formatCount);
-    vkGetPhysicalDeviceSurfaceFormatsKHR(physical, surface,
-                                         &formatCount, surfaceFormats.data());
+    surface_format_ = {};
+    present_mode_ = VK_PRESENT_MODE_MAX_ENUM_KHR;
+    surf_info_ = {};
 
-    u32 presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(physical, surface,
-                                              &presentModeCount, nullptr);
-
-    presentModes.resize(presentModeCount);
-    vkGetPhysicalDeviceSurfacePresentModesKHR(physical, surface,
-                                              &presentModeCount,
-                                              presentModes.data());
+    createSurface(window);
 }
 
-void Swapchain::setSurfaceFormat(const VkSurfaceFormatKHR &preferredFormat)
+void Swapchain::deinit()
 {
-    for (const auto &format : surfaceFormats) {
-        if (format.format     == preferredFormat.format &&
-            format.colorSpace == preferredFormat.colorSpace)
-        {
-            surfaceFormat = format;
-            return;
+    if (handle_) {
+        for (auto view : views_) {
+            vkDestroyImageView(device_, view, nullptr);
+            view = VK_NULL_HANDLE;
         }
+
+        vkDestroySwapchainKHR(device_, handle_, nullptr);
     }
 
-    LOG_DEBUG("Preferred Surface Format is not supported");
-    surfaceFormat = surfaceFormats[0];
-}
-
-void Swapchain::setPresentMode(const VkPresentModeKHR &preferredMode)
-{
-    for (const auto &mode : presentModes) {
-        if (mode == preferredMode) {
-            presentMode = mode;
-            return;
-        }
+    if (surface_) {
+        vkDestroySurfaceKHR(context()->instance(), surface_, nullptr);
     }
 
-    LOG_DEBUG("Preferred Present Mode is not supported");
-    // FIFO mode is the one that is always supported
-    presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    handle_ = VK_NULL_HANDLE;
+    surface_ = VK_NULL_HANDLE;
+
+    instance_ = VK_NULL_HANDLE;
+    device_ = VK_NULL_HANDLE;
+    physical_ = VK_NULL_HANDLE;
 }
 
-void Swapchain::init(VkSurfaceKHR surface, VkExtent2D size)
+void Swapchain::recreate(const VkExtent2D &size,
+                         const VkSurfaceFormatKHR &preferred_format,
+                         const VkPresentModeKHR &preferred_mode)
 {
     VkResult err;
 
-    VkDevice device = hk::context()->device();
-    VkPhysicalDevice physical = hk::context()->physical();
-
-    if (!surfaceFormats.size()) {
-        getPhysicalInfo(physical, surface);
+    if (!surface_format_.format) {
+        setSurfaceFormat(preferred_format);
     }
 
-    if (!surfaceFormat.format) {
-        VkSurfaceFormatKHR preferredFormat = {
-            VK_FORMAT_B8G8R8A8_UNORM,
-            VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
-        };
-
-        setSurfaceFormat(preferredFormat);
+    if (present_mode_ == VK_PRESENT_MODE_MAX_ENUM_KHR) {
+        setPresentMode(preferred_mode);
     }
 
-    if (presentMode == VK_PRESENT_MODE_MAX_ENUM_KHR) {
-        setPresentMode(VK_PRESENT_MODE_MAILBOX_KHR);
+    // Set swapchain size
+    extent_.width = hkm::clamp(
+        size.width,
+        surf_info_.caps.minImageExtent.width,
+        surf_info_.caps.maxImageExtent.width
+    );
+    extent_.height = hkm::clamp(
+        size.height,
+        surf_info_.caps.minImageExtent.height,
+        surf_info_.caps.maxImageExtent.height
+    );
+
+    // Set swapchain images amount
+    u32 image_count = surf_info_.caps.minImageCount + 1;
+    if (image_count > surf_info_.caps.maxImageCount) {
+        image_count = surf_info_.caps.maxImageCount;
     }
 
-    surfaceCaps = {};
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &surfaceCaps);
+    VkSwapchainCreateInfoKHR swapchain_info = {};
+    swapchain_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchain_info.surface = surface_;
+    swapchain_info.presentMode = present_mode_;
+    swapchain_info.imageFormat = surface_format_.format;
+    swapchain_info.imageColorSpace = surface_format_.colorSpace;
+    swapchain_info.imageExtent = extent_;
+    swapchain_info.imageArrayLayers = 1;
+    swapchain_info.minImageCount = image_count;
+    swapchain_info.preTransform = surf_info_.caps.currentTransform;
+    swapchain_info.clipped = VK_TRUE;
+    swapchain_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    swapchain_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    extent_ = size;
-    extent_.width = hkm::clamp(extent_.width,
-                              surfaceCaps.minImageExtent.width,
-                              surfaceCaps.maxImageExtent.width);
-    extent_.height = hkm::clamp(extent_.height,
-                               surfaceCaps.minImageExtent.height,
-                               surfaceCaps.maxImageExtent.height);
+    // Set possible swapchain image usage
+    swapchain_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    u32 imageCount = surfaceCaps.minImageCount + 1 < surfaceCaps.maxImageCount
-                                             ? surfaceCaps.minImageCount + 1
-                                             : surfaceCaps.maxImageCount;
-
-    VkSwapchainCreateInfoKHR swapchainInfo = {};
-    swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    swapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    swapchainInfo.surface = surface;
-    swapchainInfo.imageFormat = surfaceFormat.format;
-    swapchainInfo.imageColorSpace = surfaceFormat.colorSpace;
-    swapchainInfo.preTransform = surfaceCaps.currentTransform;
-    swapchainInfo.imageExtent = extent_;
-    swapchainInfo.minImageCount = imageCount;
-    swapchainInfo.imageArrayLayers = 1;
-    swapchainInfo.presentMode = presentMode;
-    swapchainInfo.clipped = VK_TRUE;
-    swapchainInfo.imageUsage =
-        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-
-
-    // TODO: I assume, as there is no present only family, that
-    // it will be one of already created families.
-    // There is sure a better way
-    if (!present_.handle()) {
-        hk::QueueFamily family;
-        family.findQueue(physical, VK_QUEUE_GRAPHICS_BIT, surface);
-        present_.init(device, family);
+    // Enable transfer source on swapchain images if supported
+    if (surf_info_.caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) {
+        swapchain_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     }
 
-    // FIX: temp
-    // u32 queueFamilyIndices[] = { graphicsFamily, computeFamily,
-    //                              transferFamily, presentFamily };
-    //
-    // if (graphicsFamily != presentFamily) {
-    //     swapchainInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-    //     swapchainInfo.queueFamilyIndexCount = 2;
-    //     swapchainInfo.pQueueFamilyIndices = queueFamilyIndices;
-    // } else {
-    //     swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    // }
-    swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    swapchainInfo.oldSwapchain = handle_;
-
-    if (handle_) {
-        vkDeviceWaitIdle(device);
-        for (auto imageView : views_) {
-            vkDestroyImageView(device, imageView, nullptr);
-            imageView = nullptr;
-        }
+    // Enable transfer destination on swapchain images if supported
+    if (surf_info_.caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) {
+        swapchain_info.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     }
 
-    err = vkCreateSwapchainKHR(device, &swapchainInfo, 0, &handle_);
+    // Helps with swapchain recreation
+    VkSwapchainKHR old_swapchain = handle_;
+    swapchain_info.oldSwapchain = old_swapchain;
+
+    err = vkCreateSwapchainKHR(device_, &swapchain_info, 0, &handle_);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Swapchain");
 
+    if (old_swapchain) {
+        for (auto view : views_) {
+            vkDestroyImageView(device_, view, nullptr);
+        }
+        vkDestroySwapchainKHR(device_, old_swapchain, nullptr);
+    }
+
+    // Get swapchain images
     u32 scImageCount = 0;
-    vkGetSwapchainImagesKHR(device, handle_, &scImageCount, nullptr);
+    vkGetSwapchainImagesKHR(device_, handle_, &scImageCount, nullptr);
 
     images_.resize(scImageCount);
-    vkGetSwapchainImagesKHR(device, handle_,
-                            &scImageCount, images_.data());
-
-    format_ = surfaceFormat.format;
+    vkGetSwapchainImagesKHR(device_, handle_, &scImageCount, images_.data());
 
     // Create Image Views
-    views_.resize(images_.size());
+    views_.resize(scImageCount);
     for (u32 i = 0; i < images_.size(); i++) {
         VkImageViewCreateInfo viewInfo = {};
         viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         viewInfo.image = images_[i];
-        viewInfo.format = format_;
+        viewInfo.format = surface_format_.format;
         viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        viewInfo.flags = 0;
+
         viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         viewInfo.subresourceRange.baseMipLevel = 0;
         viewInfo.subresourceRange.levelCount = 1;
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount = 1;
-        viewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-        viewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 
-        err = vkCreateImageView(device, &viewInfo, nullptr, &views_[i]);
+        viewInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+        viewInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+        viewInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+        viewInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+
+        err = vkCreateImageView(device_, &viewInfo, nullptr, &views_[i]);
         ALWAYS_ASSERT(!err, "Failed to create Vulkan Image View");
-    }
-}
 
-void Swapchain::deinit()
-{
-    VkDevice device = hk::context()->device();
-
-    vkDeviceWaitIdle(device);
-
-    for (auto imageView : views_) {
-        vkDestroyImageView(device, imageView, nullptr);
-        imageView = nullptr;
-    }
-
-    if (handle_) {
-        vkDestroySwapchainKHR(device, handle_, nullptr);
-        handle_ = nullptr;
+        hk::debug::setName(images_[i], "Swapchain Image #" + std::to_string(i));
+        hk::debug::setName(views_[i],
+                           "Swapchain Image View #" + std::to_string(i));
     }
 }
 
 VkResult Swapchain::acquireNextImage(VkSemaphore semaphore, u32 &index)
 {
-    VkDevice device = hk::context()->device();
-
-    return vkAcquireNextImageKHR(device, handle_, 0, semaphore, 0, &index);
+    return vkAcquireNextImageKHR(device_, handle_, UINT32_MAX, semaphore, 0, &index);
 }
 
 VkResult Swapchain::present(u32 index, VkSemaphore semaphore)
 {
     return present_.present(handle_, index, semaphore);
+}
+
+void Swapchain::setSurfaceFormat(const VkSurfaceFormatKHR &preferred_format)
+{
+    for (const auto &format : surf_info_.formats) {
+        if (format.format     == preferred_format.format &&
+            format.colorSpace == preferred_format.colorSpace)
+        {
+            surface_format_ = format;
+            return;
+        }
+    }
+
+    LOG_DEBUG("Preferred Surface Format is not supported");
+
+    surface_format_ = surf_info_.formats[0];
+}
+
+void Swapchain::setPresentMode(const VkPresentModeKHR &preferred_mode)
+{
+    for (const auto &mode : surf_info_.present_modes) {
+        if (mode == preferred_mode) {
+            present_mode_ = mode;
+            return;
+        }
+    }
+
+    LOG_DEBUG("Preferred Present Mode is not supported");
+
+    // FIFO mode is always supported
+    present_mode_ = VK_PRESENT_MODE_FIFO_KHR;
+}
+
+void Swapchain::createSurface(const Window *window)
+{
+    VkResult err;
+
+#ifdef HKWINDOWS
+    const Window *win = static_cast<const Window *>(window);
+    VkWin32SurfaceCreateInfoKHR info = {};
+    info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    info.hwnd = win->hwnd();
+    info.hinstance = win->instance();
+    err = vkCreateWin32SurfaceKHR(instance_, &info, 0, &surface_);
+#endif // HKWINDOWS
+
+    ALWAYS_ASSERT(!err, "Failed to create Vulkan Surface");
+
+    // Get supported surface formats
+    u32 count = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_, surface_, &count, nullptr);
+
+    surf_info_.formats.resize(count);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physical_, surface_, &count,
+                                         surf_info_.formats.data());
+
+    ALWAYS_ASSERT(count, "Failed to find Vulkan Surface formats");
+
+    // Get supported surface present modes
+    count = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physical_, surface_, &count,
+                                              nullptr);
+
+    surf_info_.present_modes.resize(count);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physical_, surface_, &count,
+                                              surf_info_.present_modes.data());
+
+    ALWAYS_ASSERT(count, "Failed to find Vulkan Surface present modes");
+
+    // Get surface properties
+    surf_info_.caps = {};
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_, surface_,
+                                              &surf_info_.caps);
+
+    // Get present queue
+    // if (!present_.handle()) {
+    //     hk::QueueFamily family;
+    //     family.findQueue(physical_, VK_QUEUE_GRAPHICS_BIT, surface_);
+    //     present_.init(device_, family);
+    // }
+
+    // PERF: Currently, swapchain created with assumption that
+    // graphics queue also supports present and there is no present only queue.
+    // This also means that the swapchain sharing mode is exclusive.
+    // Whether this impacts performance require further profiling
+    present_ = hk::context()->graphics();
+
 }
 
 }

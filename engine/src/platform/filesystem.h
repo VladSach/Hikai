@@ -23,6 +23,8 @@ HKAPI std::string relative(const std::string &path, const std::string &base);
 
 HKAPI hk::vector<std::string> split(const std::string &path);
 
+
+
 class DirectoryIterator {
 public:
     HKAPI DirectoryIterator(const std::string& path);

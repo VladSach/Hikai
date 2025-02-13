@@ -1,8 +1,20 @@
 #include "ShaderLoader.h"
 
-#ifdef _WIN32
-#include "Windows.h"
+#include "platform/platform.h"
+
+#if defined(HKWINDOWS)
+#ifdef UNDEFINED_FAR
+    #pragma pop_macro("far")
+#endif // UNDEFINED_FAR
+
 #include <wrl/client.h>
+
+#ifdef far
+    #define UNDEFINED_FAR
+    #pragma push_macro("far")
+    #undef far
+#endif // far
+
 #define CComPtr Microsoft::WRL::ComPtr
 #else
 #include "vendor/dxc/WinAdapter.h"
@@ -10,7 +22,7 @@
 
 #include "vendor/dxc/dxcapi.h"
 
-#include "platform/platform.h"
+#include "platform/filesystem.h"
 
 #include "utils/strings/hklocale.h"
 
@@ -75,7 +87,6 @@ void deinit()
 hk::vector<u32> loadShader(const ShaderDesc &desc)
 {
     if(!initialized) { init(); }
-
 
     hk::vector<u8> shader;
     if (!hk::filesystem::readFile(desc.path, shader)) {

@@ -8,9 +8,9 @@ SamplerState mySampler : register(s1, space1);
 cbuffer MaterialConstants : register(b0, space1) {
     float4 color;
     float4 emissive;
+    float alpha;
     float shininess;
     float reflectivity;
-    float opacity;
 };
 
 struct PixelInput {

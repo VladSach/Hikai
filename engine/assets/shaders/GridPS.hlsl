@@ -30,7 +30,7 @@ float4 main(PixelInput input) : SV_Target0
     float2 cell_coords    = mod(input.tc + half_cell_size,    cell_size);
     float2 subcell_coords = mod(input.tc + half_subcell_size, subcell_size);
 
-    float d = fwidth(input.tc);
+    float d = fwidth(input.tc).x;
     float adjusted_cell_line_thickness    = 0.5 * (cell_line_thickness    + d);
     float adjusted_subcell_line_thickness = 0.5 * (subcell_line_thickness + d);;
 

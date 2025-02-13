@@ -3,10 +3,11 @@
 
 #include "vendor/vulkan/vulkan.h"
 
-#include "resources/loaders/ShaderLoader.h"
 #include "renderer/VertexLayout.h"
 
 #include "utils/containers/hkvector.h"
+
+#include "resources/loaders/ShaderLoader.h"
 
 namespace hk {
 
@@ -31,12 +32,15 @@ public:
     void clear();
 
     void setShader(ShaderType type, VkShaderModule shader);
-    void setVertexLayout(u32 stride, const hk::vector<hk::Format> &layout);
+    void setVertexLayout(u32 stride,
+                         const hk::vector<hk::bitflag<hk::Format>> &layout);
     void setInputTopology(VkPrimitiveTopology topology);
-    void setRasterizer(VkPolygonMode polygonMode, VkCullModeFlags cullMode);
+    void setRasterizer(VkPolygonMode polygonMode,
+                       VkCullModeFlags cullMode,
+                       VkFrontFace front) ;
     void setMultisampling();
     void setColorBlend();
-    void setDepthStencil();
+    void setDepthStencil(VkBool32 enable, VkCompareOp op);
     void setLayout(const hk::vector<VkDescriptorSetLayout> &layouts);
     void setPushConstants(u32 structSize);
     void setRenderInfo(VkFormat colorFormat, VkFormat depthFormat);

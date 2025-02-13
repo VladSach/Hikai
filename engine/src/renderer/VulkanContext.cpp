@@ -6,7 +6,7 @@
 #include "vendor/vulkan/vulkan_win32.h"
 #endif
 
-#include "renderer/debug.h"
+#include "renderer/vkwrappers/vkdebug.h"
 
 #include "utils/containers/hkvector.h"
 
@@ -70,6 +70,7 @@ void VulkanContext::submitImmCmd(
     VkResult err;
 
     VkCommandBuffer immCommandBuffer_ = graphics_.createCommandBuffer();
+    hk::debug::setName(immCommandBuffer_, "Imm Command Buffer");
 
     // err = vkResetCommandBuffer(immCommandBuffer_, 0);
     // ALWAYS_ASSERT(!err, "Failed to reset Vulkan immediate Command Buffer");

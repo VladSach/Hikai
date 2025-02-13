@@ -1,25 +1,48 @@
 #ifndef HK_RENDER_DEVICE_H
 #define HK_RENDER_DEVICE_H
 
-#include "platform/Window.h"
+#include "platform/platform.h"
 #include "vendor/vulkan/vulkan.h"
 
 #include "renderer/VulkanContext.h"
-#include "renderer/Descriptors.h"
 #include "renderer/DrawContext.h"
 
+#include "renderer/vkwrappers/Image.h"
 #include "renderer/vkwrappers/Pipeline.h"
 #include "renderer/vkwrappers/Swapchain.h"
-#include "renderer/vkwrappers/Image.h"
+#include "renderer/vkwrappers/Descriptors.h"
 
-#include "renderer/gui/gui.h"
+#include "renderer/renderpass/UIPass.h"
+#include "renderer/renderpass/PresentPass.h"
+#include "renderer/renderpass/OffscreenPass.h"
 
-#include "core/EventSystem.h"
+#include "math/hkmath.h"
+
+#include "core/events.h"
 #include "utils/containers/hkvector.h"
 
 // FIX: temp
 struct ModelToWorld {
     hkm::mat4f transform;
+};
+
+// FIX: temp
+// https://maraneshi.github.io/HLSL-ConstantBufferLayoutVisualizer
+struct SceneData {
+    hkm::vec2f resolution;
+    u64 pad;
+    hkm::vec3f cameraPosition;
+    f32 time;
+    hkm::mat4f viewProjection;
+};
+
+struct LightSources {
+    // SpotLight spotlights[maxLightsSize];
+    hk::PointLight pointlights[3];
+    // DirectionalLight directional;
+
+    u32 spotlightsSize = 0;
+    u32 pointlightsSize = 0;
 };
 
 class Renderer {
@@ -32,51 +55,60 @@ public:
 
     void draw(hk::DrawContext &context);
 
-    static void resize(const hk::EventContext &size, void *listener);
-    void recreateSwapchain();
+    static void resize(const hk::event::EventContext &size, void *listener);
 
     // FIX: temp
-    constexpr GUI& ui() { return gui; }
-    HKAPI void toggleUIMode();
-    void addUIInfo();
+    inline void updateFrameData(const SceneData &ubo)
+    {
+        frame_data = ubo;
+        frame_data_buffer.update(&frame_data);
+    }
+    inline void updateLights(const LightSources &ubo)
+    {
+        lights = ubo;
+        lights_buffer.update(&lights);
+    }
 
 // FIX: temp public
 public:
+    // FIX: temp
+    b8 image_changed_ = false;
+
+    // FIX: temp, maybe move to offscreen_
+    SceneData frame_data;
+    hk::Buffer frame_data_buffer;
+    LightSources lights;
+    hk::Buffer lights_buffer;
+
+    // TODO: probably don't need it
     const Window *window_;
 
-    hk::VulkanContext *context = hk::context();
-
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
-    hk::Swapchain swapchain;
+    hk::Swapchain swapchain_;
 
     b8 resized = false;
 
-    hk::DescriptorAllocator frameDescriptors;
+    b8 use_ui_ = true;
+
+    // TODO: move to offscreen
     VkDescriptorSetLayout sceneDescriptorLayout;
 
-    VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+    struct FrameData {
+        VkCommandBuffer cmd = VK_NULL_HANDLE;
 
-    hk::Image depthImage;
+        VkSemaphore acquire_semaphore = VK_NULL_HANDLE;
+        VkSemaphore submit_semaphore  = VK_NULL_HANDLE;
+        VkFence in_flight_fence       = VK_NULL_HANDLE;
 
-    VkRenderPass presentRenderPass;
-    hk::vector<VkFramebuffer> framebuffers;
+        hk::DescriptorAllocator descriptor_alloc;
+    };
 
-    GUI gui;
-    VkRenderPass uiRenderPass = VK_NULL_HANDLE;
-    hk::vector<VkFramebuffer> uiFrameBuffers;
-    b8 viewport = false;
+    hk::vector<FrameData> frames_;
+    u32 current_frame_ = 0;
+    u32 max_frames_ = 2;
 
-    VkSemaphore acquireSemaphore = VK_NULL_HANDLE;
-    VkSemaphore submitSemaphore  = VK_NULL_HANDLE;
-    VkFence inFlightFence        = VK_NULL_HANDLE;
-
-    // FIX: temp
-    hk::Pipeline offscreenPipeline;
-    VkRenderPass offscreenRenderPass = VK_NULL_HANDLE;
-    VkFramebuffer offscreenFrameBuffer = VK_NULL_HANDLE;
-    VkImage offscreenImage;
-    VkImageView offscreenImageView;
-    VkDeviceMemory offscreenMemory = VK_NULL_HANDLE;
+    hk::UIPass ui_;
+    hk::PresentPass present_;
+    hk::OffscreenPass offscreen_;
 
     VkSampler samplerLinear;
     VkSampler samplerNearest;
@@ -85,6 +117,7 @@ public:
     u32 hndlDefaultPS;
     u32 hndlNormalsPS;
     u32 hndlTexturePS;
+    u32 hndlPhong;
 
     hk::Pipeline gridPipeline;
     u32 hndlGridVS;
@@ -93,16 +126,14 @@ public:
     u32 curShaderVS;
     u32 curShaderPS;
 
+    // Convenience
+    VkDevice device_;
+    VkPhysicalDevice physical_;
+
 private:
-    void createSurface();
-    void createFramebuffers();
-    void createDepthResources();
-    void createSyncObjects();
+    void createFrameResources();
 
-    void createPresentRenderPass();
-    void createOffscreenRenderPass();
-    void createOffscreenPipeline();
-
+    // FIX: remove
     void createGridPipeline();
 
     void loadShaders();

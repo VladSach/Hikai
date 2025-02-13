@@ -3,6 +3,8 @@
 
 #include "defines.h"
 
+#include <string>
+
 namespace hk::loader {
 
 u32 loadModel(const std::string &path);

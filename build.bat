@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 
 echo ============================
-echo    Hikai + Sandbox Build
+echo         Hikai Build
 echo ============================
 
 echo Building engine...
@@ -21,19 +21,10 @@ call build.bat
 popd
 echo ----------------------------
 
-echo Building sandbox...
-echo ----------------------------
-
-pushd sandbox
-call build.bat
-popd
-echo ----------------------------
-
-
 if not exist bin mkdir bin
 
 echo Copying hikai.dll...
-robocopy ".\engine\bin" ".\bin" hikai.dll /mt 2>&1 | findstr /i "ERROR"
+robocopy ".\engine\bin" ".\bin" hikai.dll /R:0 /W:0 /mt 2>&1 | findstr /i "ERROR"
 robocopy ".\engine\bin" ".\bin" hikai.pdb /mt 2>&1 | findstr /i "ERROR"
 
 echo Copying dxcompiler.dll...
@@ -45,10 +36,6 @@ robocopy ".\engine\lib" ".\bin" assimp-vc143-mt.dll /mt 2>&1 | findstr /i "ERROR
 echo Copying editor.exe...
 robocopy ".\editor\bin" ".\bin" editor.exe /mt 2>&1 | findstr /i "ERROR"
 robocopy ".\editor\bin" ".\bin" editor.pdb /mt 2>&1 | findstr /i "ERROR"
-
-echo Copying sandbox.exe...
-robocopy ".\sandbox\bin" ".\bin" sandbox.exe /mt 2>&1 | findstr /i "ERROR"
-robocopy ".\sandbox\bin" ".\bin" sandbox.pdb /mt 2>&1 | findstr /i "ERROR"
 
 echo ============================
 echo Build successful

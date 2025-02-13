@@ -5,7 +5,7 @@
 Application* create_app()
 {
     AppDesc desc;
-    desc.title = L"Tests";
+    desc.title = "Tests";
     desc.width = 0;
     desc.height = 0;
 
