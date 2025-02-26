@@ -19,6 +19,8 @@ private:
 public:
     b8 is_open_;
 
+    b8 enable_post_process_;
+
 private:
     Renderer *renderer_;
 };

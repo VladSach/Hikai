@@ -29,18 +29,30 @@ void Renderer::init(const Window *window)
         { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
         VK_PRESENT_MODE_MAILBOX_KHR);
 
-    hk::DescriptorLayout *sceneDataDescriptorLayout =
+    hk::vector<hk::DescriptorAllocator::TypeSize> sizes =
+    {
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,  3 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
+    };
+
+    global_desc_alloc.init(100, sizes);
+
+    hk::DescriptorLayout *descriptor_layout =
         new hk::DescriptorLayout(hk::DescriptorLayout::Builder()
         .addBinding(0,
                     VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     VK_SHADER_STAGE_ALL_GRAPHICS)
         .addBinding(1,
+                    // PERF: right now no need to change to ssbo but maybe later
                     VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     VK_SHADER_STAGE_ALL_GRAPHICS)
         .build()
     );
-    sceneDescriptorLayout = sceneDataDescriptorLayout->layout();
-    hk::debug::setName(sceneDescriptorLayout, "Frame Descriptor Layout");
+
+    global_desc_layout = descriptor_layout->layout();
+    hk::debug::setName(global_desc_layout, "Per Frame Descriptor Set Layout");
 
     createFrameResources();
 
@@ -58,21 +70,14 @@ void Renderer::init(const Window *window)
 
     desc.stride = sizeof(LightSources);
     lights_buffer.init(desc);
-    LightSources lightsAA;
-    lightsAA.pointlights[0].position = {0.1f, 0.8f, 0.3f};
-    lightsAA.pointlights[0].color = {0.5f, 0.f, -1.0f, 1.f};
-    lightsAA.pointlights[0].intensity = 1.f;
-    updateLights(lightsAA);
     // end ubo
-
-    // FIX: temp
-    image_changed_ = true;
 
     use_ui_ = true;
 
     loadShaders();
 
-    offscreen_.init(&swapchain_);
+    offscreen_.init(&swapchain_, global_desc_layout);
+    post_process_.init(&swapchain_);
     present_.init(&swapchain_);
     ui_.init(window_, &swapchain_);
 
@@ -91,6 +96,7 @@ void Renderer::deinit()
     vkDestroySampler(device_, samplerNearest, nullptr);
 
     offscreen_.deinit();
+    post_process_.deinit();
     present_.deinit();
     ui_.deinit();
 
@@ -133,8 +139,8 @@ void Renderer::draw(hk::DrawContext &ctx)
 
     frame.descriptor_alloc.clear();
 
-    VkDescriptorSet scene_descriptor_set =
-        frame.descriptor_alloc.allocate(sceneDescriptorLayout);
+    VkDescriptorSet global_desc_set =
+        frame.descriptor_alloc.allocate(global_desc_layout);
 
     hk::DescriptorWriter writer;
     writer.writeBuffer(0, frame_data_buffer.buffer(),
@@ -154,27 +160,34 @@ void Renderer::draw(hk::DrawContext &ctx)
 
     offscreen_.begin(frame.cmd, image_idx);
 
-        // vkCmdBindPipeline(frame.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-        //                   offscreen_.pipeline.handle());
+        writer.updateSet(global_desc_set);
 
-        writer.updateSet(scene_descriptor_set);
+        // FIX: global desc set should be bound once before anything else
+
+        /* FIX: make 4 descriptor sets and change bound
+         * Per-frame    0
+         * Per-pass     1
+         * Per-material 2
+         * Per-instance 3
+         */
 
         for (auto &object : ctx.objects) {
-            // hk::MaterialInstance mat = object.materials2.at(0);
-            hk::MaterialInstance mat = object.materials.at(0).write(frame.descriptor_alloc, samplerLinear);
+            hk::MaterialInstance &mat = object.material;
 
-            vkCmdBindPipeline(frame.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mat.pipeline->pipeline);
+            vkCmdBindPipeline(frame.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mat.pipeline->handle());
 
+            // per-frame descriptor (0)
             vkCmdBindDescriptorSets(frame.cmd,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    mat.pipeline->layout, 0, 1,
-                                    &scene_descriptor_set, 0, nullptr);
+                                    mat.pipeline->layout(), 0, 1,
+                                    &global_desc_set, 0, nullptr);
 
             object.bind(frame.cmd);
 
+            // per-material descriptor (2)
             vkCmdBindDescriptorSets(frame.cmd,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    mat.pipeline->layout, 1, 1,
+                                    mat.pipeline->layout(), 1, 1,
                                     &mat.materialSet, 0, nullptr);
 
             u32 numInstances = u32(object.instances.size());
@@ -182,7 +195,8 @@ void Renderer::draw(hk::DrawContext &ctx)
             for (u32 meshIndex = 0; meshIndex < object.instances.size(); ++meshIndex) {
                 modelToWorld.transform = object.instances.at(meshIndex);
 
-                vkCmdPushConstants(frame.cmd, mat.pipeline->layout,
+                // per-instance descriptor (3)
+                vkCmdPushConstants(frame.cmd, mat.pipeline->layout(),
                                     VK_SHADER_STAGE_VERTEX_BIT, 0,
                                     sizeof(modelToWorld), &modelToWorld);
 
@@ -239,10 +253,30 @@ void Renderer::draw(hk::DrawContext &ctx)
                          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                          0, 0, NULL, 0, NULL, 1, &bar);
 
+    post_process_.render(offscreen_.color_,
+                         frame.cmd, image_idx,
+                         &frame.descriptor_alloc);
+
+    bar.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    bar.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    bar.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    bar.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    bar.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    bar.image = post_process_.color_.image();
+    bar.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    bar.subresourceRange.baseMipLevel = 0;
+    bar.subresourceRange.levelCount = 1;
+    bar.subresourceRange.baseArrayLayer = 0;
+    bar.subresourceRange.layerCount = 1;
+    vkCmdPipelineBarrier(frame.cmd,
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                         0, 0, NULL, 0, NULL, 1, &bar);
+
     if (use_ui_) {
         ui_.render(frame.cmd, image_idx);
     } else {
-        present_.render(offscreen_.color_,
+        present_.render(post_process_.color_,
                         frame.cmd, image_idx,
                         &frame.descriptor_alloc);
     }
@@ -341,7 +375,7 @@ void Renderer::createGridPipeline()
     builder.setColorBlend();
 
     hk::vector<VkDescriptorSetLayout> descriptorSetsLayouts = {
-        sceneDescriptorLayout,
+        global_desc_layout,
     };
     builder.setLayout(descriptorSetsLayouts);
 
@@ -369,13 +403,13 @@ void Renderer::loadShaders()
     desc.debug = false;
 #endif
 
-    desc.path = path + "DefaultVS.hlsl";
+    desc.path = path + "Default.vert.hlsl";
     hndlDefaultVS = hk::assets()->load(desc.path, &desc);
     hk::assets()->attachCallback(hndlDefaultVS, [this](){
         resized = true;
     });
 
-    desc.path = path + "GridVS.hlsl";
+    desc.path = path + "Grid.vert.hlsl";
     hndlGridVS = hk::assets()->load(desc.path, &desc);
     hk::assets()->attachCallback(hndlGridVS, [this](){
         createGridPipeline();
@@ -383,31 +417,31 @@ void Renderer::loadShaders()
 
     desc.type = ShaderType::Pixel;
 
-    desc.path = path + "DefaultPS.hlsl";
+    desc.path = path + "Default.frag.hlsl";
     hndlDefaultPS = hk::assets()->load(desc.path, &desc);
     hk::assets()->attachCallback(hndlDefaultPS, [this](){
         resized = true;
     });
 
-    desc.path = path + "NormalsPS.hlsl";
+    desc.path = path + "Normals.frag.hlsl";
     hndlNormalsPS = hk::assets()->load(desc.path, &desc);
     hk::assets()->attachCallback(hndlNormalsPS, [this](){
         resized = true;
     });
 
-    desc.path = path + "TexturePS.hlsl";
+    desc.path = path + "Texture.frag.hlsl";
     hndlTexturePS = hk::assets()->load(desc.path, &desc);
     hk::assets()->attachCallback(hndlTexturePS, [this](){
         resized = true;
     });
 
-    desc.path = path + "Phong.hlsl";
-    hndlPhong = hk::assets()->load(desc.path, &desc);
-    hk::assets()->attachCallback(hndlPhong, [this](){
+    desc.path = path + "PBR.frag.hlsl";
+    hndlPBR = hk::assets()->load(desc.path, &desc);
+    hk::assets()->attachCallback(hndlPBR, [this](){
         resized = true;
     });
 
-    desc.path = path + "GridPS.hlsl";
+    desc.path = path + "Grid.frag.hlsl";
     hndlGridPS = hk::assets()->load(desc.path, &desc);
     hk::assets()->attachCallback(hndlGridPS, [this](){
         createGridPipeline();
@@ -460,12 +494,13 @@ void Renderer::resize(const hk::event::EventContext &size, void *listener)
 
     renderer->ui_.deinit();
     renderer->present_.deinit();
+    renderer->post_process_.deinit();
     renderer->offscreen_.deinit();
 
-    renderer->offscreen_.init(&renderer->swapchain_);
+    renderer->offscreen_.init(&renderer->swapchain_, renderer->global_desc_layout);
+    renderer->post_process_.init(&renderer->swapchain_);
     renderer->present_.init(&renderer->swapchain_);
     renderer->ui_.init(renderer->window_, &renderer->swapchain_);
 
-    renderer->image_changed_ = true;
     renderer->resized = false;
 }

@@ -45,6 +45,36 @@ void AssetManager::init(const std::string &folder)
             }
         }
     );
+
+    // Create fallback textures for color map and non-color maps
+    hndl_fallback_color = load("PNG\\Purple\\texture_08.png");
+
+    TextureAsset *asset = new TextureAsset();
+    assets_.push_back(asset);
+    asset->handle = index_++;
+
+    asset->name = "Fallback Transparent Texture";
+    asset->type = Asset::Type::TEXTURE;
+
+    Image *image = new Image();
+    image->init({
+        hk::Image::Usage::TRANSFER_DST | hk::Image::Usage::SAMPLED,
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        1, 1, 4
+    });
+    u8 *data = new u8[4];
+    data[0] = 0;
+    data[1] = 0;
+    data[2] = 0;
+    data[3] = 0;
+    image->write(data);
+    delete[] data;
+
+    asset->texture = image;
+
+    hndl_fallback_noncolor = asset->handle;
 }
 
 void AssetManager::deinit()
@@ -99,7 +129,7 @@ u32 AssetManager::load(const std::string &path, void *data)
 
             } else {
                 LOG_WARN("File doesn't exists:", path);
-                ALWAYS_ASSERT(0); // TODO: add fallback
+                ALWAYS_ASSERT(0, "File doesn't exists:", path); // TODO: add fallback
                 return 0;
             }
         } else {
@@ -302,13 +332,18 @@ u32 AssetManager::createMaterial(void *data)
 
     asset->type = Asset::Type::MATERIAL;
 
-    if (!asset->data.hndlDiffuse) {
-        asset->data.hndlDiffuse = load("PNG\\Purple\\texture_08.png");
+    if (!asset->data.map_handles[Material::BASECOLOR]) {
+        asset->data.map_handles[Material::BASECOLOR] = hndl_fallback_color;
+    }
+
+    for (u32 i = Material::BASECOLOR + 1; i < Material::MAX_TEXTURE_TYPE; ++i) {
+        if (asset->data.map_handles[i]) { continue; }
+        asset->data.map_handles[i] = hndl_fallback_noncolor;
     }
 
     const std::string path = "..\\engine\\assets\\shaders\\";
-    asset->data.hndlVS = hk::assets()->load(path + "DefaultVS.hlsl");
-    asset->data.hndlPS = hk::assets()->load(path + "Phong.hlsl");
+    asset->data.vertex_shader = hk::assets()->load(path + "Default.vert.hlsl");
+    asset->data.pixel_shader = hk::assets()->load(path + "PBR.frag.hlsl");
 
     return asset->handle;
 }

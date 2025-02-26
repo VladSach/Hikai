@@ -6,23 +6,34 @@ void Viewport::init(Renderer *renderer, Camera *camera, b8 viewport)
     renderer_ = renderer;
 
     is_viewport_ = viewport;
+
+    use_post_process_ = false;
+
+    hk::event::subscribe(hk::event::EVENT_WINDOW_RESIZE,
+        [&](const hk::event::EventContext &context, void *listener) {
+            (void)context; (void)listener;
+
+            // if (viewport_image_) {
+            //     hk::imgui::removeTexture(viewport_image_);
+            // }
+
+            post_process_ =
+                hk::imgui::addTexture(renderer_->post_process_.color_.view(),
+                                      renderer_->samplerLinear);
+            offscreen_ =
+                hk::imgui::addTexture(renderer_->offscreen_.color_.view(),
+                                      renderer_->samplerLinear);
+    }, this);
 }
 
 void Viewport::deinit()
 {
+    // hk::event::unsubscribe(hk::event::EVENT_WINDOW_RESIZE, this);
 }
 
 void Viewport::display(hk::SceneNode *selected)
 {
-    if (renderer_->image_changed_) {
-        // hk::imgui::removeTexture(viewport_image_);
-
-        viewport_image_ = hk::imgui::addTexture(
-            renderer_->offscreen_.color_.view(),
-            renderer_->samplerLinear);
-
-        renderer_->image_changed_ = false;
-    }
+    viewport_image_ = use_post_process_ ? post_process_ : offscreen_;
 
     hk::imgui::push([&](){
         ImGuiWindowFlags flags = ImGuiWindowFlags_None;
@@ -41,7 +52,6 @@ void Viewport::display(hk::SceneNode *selected)
                     ImGuiWindowFlags_NoResize |
                     ImGuiWindowFlags_NoBringToFrontOnFocus |
                     ImGuiWindowFlags_None;
-
         }
 
         if (ImGui::Begin("Viewport", 0, flags)) {

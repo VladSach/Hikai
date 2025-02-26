@@ -15,6 +15,7 @@
 #include "renderer/renderpass/UIPass.h"
 #include "renderer/renderpass/PresentPass.h"
 #include "renderer/renderpass/OffscreenPass.h"
+#include "renderer/renderpass/PostProcessPass.h"
 
 #include "math/hkmath.h"
 
@@ -37,12 +38,33 @@ struct SceneData {
 };
 
 struct LightSources {
-    // SpotLight spotlights[maxLightsSize];
-    hk::PointLight pointlights[3];
-    // DirectionalLight directional;
+    struct PointLight {
+        hkm::vec4f color;
+        f32 intensity;
+        hkm::vec3f pos;
+    } pointlights[3];
+
+    struct SpotLight {
+        hkm::vec4f color;
+        hkm::vec3f dir;
+
+        f32 inner_cutoff;
+        f32 outer_cutoff;
+
+        hkm::vec3f pos;
+    } spotlights[3];
+
+    struct DirectionalLight {
+        hkm::vec4f color;
+        hkm::vec3f dir;
+
+        f32 pad;
+    } directional;
 
     u32 spotlightsSize = 0;
     u32 pointlightsSize = 0;
+
+    u64 pad;
 };
 
 class Renderer {
@@ -71,15 +93,6 @@ public:
 
 // FIX: temp public
 public:
-    // FIX: temp
-    b8 image_changed_ = false;
-
-    // FIX: temp, maybe move to offscreen_
-    SceneData frame_data;
-    hk::Buffer frame_data_buffer;
-    LightSources lights;
-    hk::Buffer lights_buffer;
-
     // TODO: probably don't need it
     const Window *window_;
 
@@ -89,8 +102,15 @@ public:
 
     b8 use_ui_ = true;
 
+    hk::DescriptorAllocator global_desc_alloc;
+
     // TODO: move to offscreen
-    VkDescriptorSetLayout sceneDescriptorLayout;
+    // Scene Data
+    VkDescriptorSetLayout global_desc_layout; // per frame
+    SceneData frame_data;
+    hk::Buffer frame_data_buffer;
+    LightSources lights;
+    hk::Buffer lights_buffer;
 
     struct FrameData {
         VkCommandBuffer cmd = VK_NULL_HANDLE;
@@ -109,6 +129,7 @@ public:
     hk::UIPass ui_;
     hk::PresentPass present_;
     hk::OffscreenPass offscreen_;
+    hk::PostProcessPass post_process_;
 
     VkSampler samplerLinear;
     VkSampler samplerNearest;
@@ -117,7 +138,7 @@ public:
     u32 hndlDefaultPS;
     u32 hndlNormalsPS;
     u32 hndlTexturePS;
-    u32 hndlPhong;
+    u32 hndlPBR;
 
     hk::Pipeline gridPipeline;
     u32 hndlGridVS;

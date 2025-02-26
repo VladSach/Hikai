@@ -33,10 +33,18 @@ void InspectorPanel::display(hk::SceneNode *node)
                 addTransform(node);
 
                 if (node->object) {
-                    hk::MeshAsset &mesh = hk::assets()->getMesh(node->entity->hndlMesh);
-                    addMeshInfo(mesh);
+                    if (node->entity->hndlMesh) {
+                        hk::MeshAsset &mesh = hk::assets()->getMesh(node->entity->hndlMesh);
+                        addMeshInfo(mesh);
+                    }
 
-                    addMaterialInfo(node);
+                    if (node->entity->hndlMaterial) {
+                        addMaterialInfo(node);
+                    }
+
+                    if (node->entity->light) {
+                        addLightInfo(node);
+                    }
                 }
             }
 
@@ -104,7 +112,34 @@ void InspectorPanel::addTransform(hk::SceneNode *node)
             hkm::vec3f rot = hkm::toEulerAngles(tr.rotation) * hkm::rad2degree;
             ImGui::SetNextItemWidth(-1);
             rota = ImGui::DragFloat3("##Rotation", &rot[0], .1f);
-            tr.rotation = hkm::fromEulerAngles(rot * hkm::degree2rad);
+            // tr.rotation = hkm::fromEulerAngles(rot * hkm::degree2rad);
+
+            ImGui::Separator();
+
+            float matrixTranslation[3], matrixRotation[3], matrixScale[3];
+            ImGuizmo::DecomposeMatrixToComponents(*tr.toMat4f().n, matrixTranslation, matrixRotation, matrixScale);
+
+            // ImGui::TableNextRow();
+            // ImGui::TableSetColumnIndex(0);
+            // ImGui::Text("Tr");
+            // ImGui::TableSetColumnIndex(1);
+            // ImGui::SetNextItemWidth(-1);
+            // ImGui::DragFloat3("##Tr", matrixTranslation);
+            //
+            // ImGui::TableNextRow();
+            // ImGui::TableSetColumnIndex(0);
+            // ImGui::Text("Sc");
+            // ImGui::TableSetColumnIndex(1);
+            // ImGui::SetNextItemWidth(-1);
+            // ImGui::DragFloat3("##Sc", matrixScale);
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("Rt");
+            ImGui::TableSetColumnIndex(1);
+            ImGui::SetNextItemWidth(-1);
+            ImGui::DragFloat3("##Rt", matrixRotation);
+            // ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, gizmoMatrix.m16);
 
             ImGui::EndTable();
         }
@@ -146,7 +181,7 @@ void InspectorPanel::addMaterialInfo(hk::SceneNode *node)
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 20.f));
         if (ImGui::BeginCombo("##MaterialCombo", "", ImGuiComboFlags_NoArrowButton | ImGuiComboFlags_CustomPreview)) {
             for (u32 i = 0; i < materials.size(); ++i) {
-                ImGui::Image(hke::thumbnail::get(materials.at(i)->data.hndlDiffuse), {40.f, combo_height});
+                ImGui::Image(hke::thumbnail::get(materials.at(i)->data.map_handles[hk::Material::BASECOLOR]), {40.f, combo_height});
 
                 ImGui::SameLine();
 
@@ -171,7 +206,7 @@ void InspectorPanel::addMaterialInfo(hk::SceneNode *node)
         hk::MaterialAsset &material = hk::assets()->getMaterial(node->entity->hndlMaterial);
 
         if (ImGui::BeginComboPreview()) {
-            ImGui::Image(hke::thumbnail::get(material.data.hndlDiffuse), {40.f, 40.f});
+            ImGui::Image(hke::thumbnail::get(material.data.map_handles[hk::Material::BASECOLOR]), {40.f, 40.f});
             ImGui::Text("%s", material.name.c_str());
             ImGui::EndComboPreview();
         }
@@ -186,42 +221,58 @@ void InspectorPanel::addMaterialInfo(hk::SceneNode *node)
 
         // Toggles
         if (ImGui::TreeNodeEx("Constants", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::ColorEdit4("Color", &material.data.constants.color.x);
+            ImGui::ColorEdit3("Color",    &material.data.constants.color.x);
+            ImGui::ColorEdit3("Specular", &material.data.constants.specular.x);
+            ImGui::ColorEdit3("Ambient",  &material.data.constants.ambient.x);
 
-            ImGui::InputFloat("Alpha",        &material.data.constants.alpha,        .0f, 1.f, "%.3f");
-            ImGui::InputFloat("Shininess",    &material.data.constants.shininess,    .0f, 1.f, "%.3f");
-            ImGui::InputFloat("Reflectivity", &material.data.constants.reflectivity, .0f, 1.f, "%.3f");
+            ImGui::Checkbox("Twosided", &material.data.twosided);
+
+            ImGui::InputFloat("Opacity", &material.data.constants.opacity, .0f, 1.f, "%.3f");
+
+            ImGui::InputFloat("Metalness", &material.data.constants.metalness, .0f, 1.f, "%.3f");
+            ImGui::InputFloat("Roughness", &material.data.constants.roughness, .0f, 1.f, "%.3f");
+
             ImGui::TreePop();
         }
 
-        if (ImGui::TreeNodeEx("Diffuse", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Image(hke::thumbnail::get(material.data.hndlDiffuse), {100.f, 100.f});
+        constexpr const char *material_names[] = {
+            "Base Color",
+            "Normal Map",
+            "Emissive Map",
+            "Metalness Map",
+            "Roughness Map",
+            "Ambient Occlusion Map",
+        };
 
-            if (ImGui::BeginDragDropTarget()) {
-                if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PAYLOAD")) {
-                    std::string path = reinterpret_cast<const char*>(payload->Data);
-                    material.data.hndlDiffuse = hk::assets()->load(path);
+        ImGuiTreeNodeFlags flags;
+        for (u32 i = 0; i < hk::Material::MAX_TEXTURE_TYPE; ++i) {
+            u32 &map_handle = material.data.map_handles[i];
+
+            flags = ImGuiTreeNodeFlags_None;
+            if (map_handle) { flags |= ImGuiTreeNodeFlags_DefaultOpen; }
+
+            if (ImGui::TreeNodeEx(material_names[i], flags)) {
+                ImGui::Image(hke::thumbnail::get(map_handle), {100.f, 100.f});
+
+                if (ImGui::BeginDragDropTarget()) {
+                    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_PAYLOAD")) {
+                        std::string path = reinterpret_cast<const char*>(payload->Data);
+                        map_handle = hk::assets()->load(path);
+
+                        // to force reload of material since user changed it
+                        node->entity->attachMaterial(material.handle);
+                        // TODO: reload all entities that uses this material
+                    }
+                    ImGui::EndDragDropTarget();
                 }
-                ImGui::EndDragDropTarget();
+
+                ImGui::TreePop();
             }
-
-            ImGui::TreePop();
-        }
-
-        if (ImGui::TreeNodeEx("Normal", ImGuiTreeNodeFlags_DefaultOpen)) {
-            if (!material.data.hndlNormal) {
-                ImGui::Text("No Texture");
-            } else {
-                ImGui::Image(hke::thumbnail::get(material.data.hndlNormal), {100.f, 100.f});
-            }
-
-
-            ImGui::TreePop();
         }
 
         if (ImGui::TreeNodeEx("Shaders", ImGuiTreeNodeFlags_DefaultOpen)) {
-            hk::ShaderAsset &vs = hk::assets()->getShader(material.data.hndlVS);
-            hk::ShaderAsset &ps = hk::assets()->getShader(material.data.hndlPS);
+            hk::ShaderAsset &vs = hk::assets()->getShader(material.data.vertex_shader);
+            hk::ShaderAsset &ps = hk::assets()->getShader(material.data.pixel_shader);
 
             ImGui::Text("%s", vs.name.c_str());
             ImGui::Text("%s", ps.name.c_str());
@@ -230,4 +281,18 @@ void InspectorPanel::addMaterialInfo(hk::SceneNode *node)
         }
     }
 
+}
+
+void InspectorPanel::addLightInfo(hk::SceneNode *node)
+{
+    if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::ColorEdit4("Color", &node->entity->light->color[0])) {
+            node->entity->attachLight(*node->entity->light);
+        }
+
+        if (node->entity->light->type == hk::Light::Type::SPOT_LIGHT) {
+            ImGui::DragFloat("Inner", &node->entity->light->inner_cutoff, 0.5f, 0, 45);
+            ImGui::DragFloat("Outer", &node->entity->light->outer_cutoff, 0.5f, 0, 45);
+        }
+    }
 }

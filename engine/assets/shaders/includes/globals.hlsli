@@ -11,11 +11,30 @@ cbuffer PerFrame : register(b0) {
 cbuffer Lights : register(b1) {
     struct PointLight {
         float4 color;
-        float3 position;
         float intensity;
+        float3 position;
+    };
+
+    struct SpotLight {
+        float4 color;
+        float3 direction;
+
+        float inner_cutoff;
+        float outer_cutoff;
+
+        float3 position;
+    };
+
+    struct DirectionalLight {
+        float3 color;
+        float3 direction;
+
+        float pad;
     };
 
     PointLight pointlights[3];
+    SpotLight spotlights[3];
+    DirectionalLight directional;
 
     uint spotLightsNum;
     uint pointLightsNum;

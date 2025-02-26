@@ -17,6 +17,9 @@ u32 loadMaterial(const aiMaterial* material, const std::string &path)
 {
     hk::MaterialAsset *asset = new MaterialAsset();
 
+    // path without filename
+    const std::string path_ = path.substr(0, path.find_last_of("/\\") + 1);
+
     aiString name;
     material->Get(AI_MATKEY_NAME, name);
     asset->name = name.C_Str();
@@ -26,21 +29,88 @@ u32 loadMaterial(const aiMaterial* material, const std::string &path)
 
     // Get constants
     material->Get(AI_MATKEY_COLOR_DIFFUSE,  mat.constants.color);
-    material->Get(AI_MATKEY_COLOR_SPECULAR, mat.constants.emissive);
-    material->Get(AI_MATKEY_OPACITY,        mat.constants.alpha);
-    material->Get(AI_MATKEY_SHININESS,      mat.constants.shininess);
-    material->Get(AI_MATKEY_REFLECTIVITY,   mat.constants.reflectivity);
+    material->Get(AI_MATKEY_COLOR_SPECULAR, mat.constants.specular);
+    material->Get(AI_MATKEY_COLOR_AMBIENT,  mat.constants.ambient);
+    // material->Get(AI_MATKEY_COLOR_EMISSIVE, mat.constants.emissive);
+    // material->Get(AI_MATKEY_COLOR_TRANSPARENT, mat.constants.emissive);
+    // material->Get(AI_MATKEY_COLOR_REFLECTIVE,  mat.constants.emissive);
+
+    material->Get(AI_MATKEY_TWOSIDED,       mat.twosided);
+    // material->Get(AI_MATKEY_BLEND_FUNC,       mat.constants.twosided);
+
+    material->Get(AI_MATKEY_OPACITY,        mat.constants.opacity);
+
+    // material->Get(AI_MATKEY_SHININESS,    mat.constants.shininess);
+    // material->Get(AI_MATKEY_REFLECTIVITY, mat.constants.reflectivity);
+    material->Get(AI_MATKEY_METALLIC_FACTOR,  mat.constants.metalness);
+    material->Get(AI_MATKEY_ROUGHNESS_FACTOR, mat.constants.roughness);
 
     // Load textures
     aiString asspath;
     for (u32 i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE); ++i) {
         if (material->GetTexture(aiTextureType_DIFFUSE, i, &asspath) == AI_SUCCESS) {
-            mat.hndlDiffuse = hk::assets()->load(path.substr(0, path.find_last_of("/\\") + 1) + asspath.C_Str());
+            mat.map_handles[Material::BASECOLOR] = hk::assets()->load(path_ + asspath.C_Str());
         }
     }
+
+    for (u32 i = 0; i < material->GetTextureCount(aiTextureType_EMISSIVE); ++i) {
+        if (material->GetTexture(aiTextureType_EMISSIVE, i, &asspath) == AI_SUCCESS) {
+            mat.map_handles[Material::EMISSIVE] = hk::assets()->load(path_ + asspath.C_Str());
+        }
+    }
+
     for (u32 i = 0; i < material->GetTextureCount(aiTextureType_NORMALS); ++i) {
         if (material->GetTexture(aiTextureType_NORMALS, i, &asspath) == AI_SUCCESS) {
-            mat.hndlNormal = hk::assets()->load(path.substr(0, path.find_last_of("/\\") + 1) + asspath.C_Str());
+            mat.map_handles[Material::NORMAL] = hk::assets()->load(path_ + asspath.C_Str());
+        }
+    }
+
+    for (u32 i = 0; i < material->GetTextureCount(aiTextureType_SHININESS); ++i) {
+        if (material->GetTexture(aiTextureType_SHININESS, i, &asspath) == AI_SUCCESS) {
+            mat.map_handles[Material::ROUGHNESS] = hk::assets()->load(path_ + asspath.C_Str());
+        }
+    }
+
+    for (u32 i = 0; i < material->GetTextureCount(aiTextureType_LIGHTMAP); ++i) {
+        if (material->GetTexture(aiTextureType_LIGHTMAP, i, &asspath) == AI_SUCCESS) {
+            mat.map_handles[Material::AMBIENT_OCCLUSION] = hk::assets()->load(path_ + asspath.C_Str());
+        }
+    }
+
+    // PBR Materials
+    for (u32 i = 0; i < material->GetTextureCount(aiTextureType_BASE_COLOR); ++i) {
+        if (material->GetTexture(aiTextureType_BASE_COLOR, i, &asspath) == AI_SUCCESS) {
+            mat.map_handles[Material::BASECOLOR] = hk::assets()->load(path_ + asspath.C_Str());
+        }
+    }
+
+    for (u32 i = 0; i < material->GetTextureCount(aiTextureType_NORMAL_CAMERA); ++i) {
+        if (material->GetTexture(aiTextureType_NORMAL_CAMERA, i, &asspath) == AI_SUCCESS) {
+            mat.map_handles[Material::NORMAL] = hk::assets()->load(path_ + asspath.C_Str());
+        }
+    }
+
+    for (u32 i = 0; i < material->GetTextureCount(aiTextureType_EMISSION_COLOR); ++i) {
+        if (material->GetTexture(aiTextureType_EMISSION_COLOR, i, &asspath) == AI_SUCCESS) {
+            mat.map_handles[Material::EMISSIVE] = hk::assets()->load(path_ + asspath.C_Str());
+        }
+    }
+
+    for (u32 i = 0; i < material->GetTextureCount(aiTextureType_METALNESS); ++i) {
+        if (material->GetTexture(aiTextureType_METALNESS, i, &asspath) == AI_SUCCESS) {
+            mat.map_handles[Material::METALNESS] = hk::assets()->load(path_ + asspath.C_Str());
+        }
+    }
+
+    for (u32 i = 0; i < material->GetTextureCount(aiTextureType_DIFFUSE_ROUGHNESS); ++i) {
+        if (material->GetTexture(aiTextureType_DIFFUSE_ROUGHNESS, i, &asspath) == AI_SUCCESS) {
+            mat.map_handles[Material::ROUGHNESS] = hk::assets()->load(path_ + asspath.C_Str());
+        }
+    }
+
+    for (u32 i = 0; i < material->GetTextureCount(aiTextureType_AMBIENT_OCCLUSION); ++i) {
+        if (material->GetTexture(aiTextureType_AMBIENT_OCCLUSION, i, &asspath) == AI_SUCCESS) {
+            mat.map_handles[Material::AMBIENT_OCCLUSION] = hk::assets()->load(path_ + asspath.C_Str());
         }
     }
 
@@ -53,7 +123,8 @@ u32 loadModel(const std::string &path)
 
     i32 flags = aiProcess_Triangulate |
                 aiProcess_GenBoundingBoxes |
-                aiProcess_FlipUVs |
+                // aiProcess_FlipUVs |
+                aiProcess_ConvertToLeftHanded |
                 aiProcess_CalcTangentSpace;
 
     const aiScene *assimpScene = importer.ReadFile(path, flags);
@@ -86,8 +157,8 @@ u32 loadModel(const std::string &path)
             vertex.pos       = reinterpret_cast<hkm::vec3f&>(srcMesh->mVertices[v]);
             vertex.tc        = reinterpret_cast<hkm::vec2f&>(srcMesh->mTextureCoords[0][v]);
             vertex.normal    = reinterpret_cast<hkm::vec3f&>(srcMesh->mNormals[v]);
-            // vertex.tangent   = reinterpret_cast<hkm::vec3f&>(srcMesh->mTangents[v]);
-            // vertex.bitangent = reinterpret_cast<hkm::vec3f&>(srcMesh->mBitangents[v]) * -1.f; // Flip V
+            vertex.tangent   = reinterpret_cast<hkm::vec3f&>(srcMesh->mTangents[v]);
+            vertex.bitangent = reinterpret_cast<hkm::vec3f&>(srcMesh->mBitangents[v]) * -1.f; // Flip V
         }
 
         for (u32 f = 0; f < srcMesh->mNumFaces; ++f) {

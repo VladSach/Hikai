@@ -7,46 +7,53 @@
 
 #include "renderer/vkwrappers/Buffer.h"
 #include "renderer/vkwrappers/Image.h"
+#include "renderer/vkwrappers/Pipeline.h"
 #include "renderer/vkwrappers/Descriptors.h"
 
 namespace hk {
 
 struct Material {
     struct {
-        hkm::vec4f color = 1.f;
-        hkm::vec4f emissive;
-        f32 alpha = 1.f;
-        f32 shininess = 0.f;
-        f32 reflectivity = 0.f;
+        hkm::vec4f color = 0.f;
+        hkm::vec4f specular = 0.f;
+        hkm::vec4f ambient = 0.f;
+
+        f32 opacity = 1.f;
+
+        // f32 shininess = 0.f;
+        // f32 reflectivity = 0.f;
+        f32 metalness = 0.f;
+        f32 roughness = 0.f;
     } constants;
 
-    u32 hndlDiffuse = 0;
-    u32 hndlNormal = 0;
-    // hk::Image *diffuse;
-    // hk::Image *normal;
-    // hk::Image *emissive;
-    // hk::Image *metalness;
-    // hk::Image *roughness;
-    // hk::Image *lightmap; // Ambient Occlusion
+    b8 twosided = false;
 
-    // Shanders
-    u32 hndlVS;
-    u32 hndlPS;
-};
+    enum TextureType {
+        BASECOLOR = 0,
+        NORMAL,
+        EMISSIVE,
+        METALNESS,
+        ROUGHNESS,
+        AMBIENT_OCCLUSION,
 
+        MAX_TEXTURE_TYPE
+    };
 
-struct MaterialPipeline {
-    VkPipeline pipeline;
-    VkPipelineLayout layout;
+    u32 map_handles[MAX_TEXTURE_TYPE];
+
+    // Shaders
+    u32 vertex_shader;
+    u32 pixel_shader;
 };
 
 struct MaterialInstance {
-    MaterialPipeline* pipeline;
+    hk::Pipeline *pipeline;
     VkDescriptorSet materialSet;
 };
 
 struct RenderMaterial {
-    MaterialPipeline pipeline;
+    hk::Pipeline pipeline;
+
     DescriptorWriter writer;
     VkDescriptorSetLayout materialLayout;
 

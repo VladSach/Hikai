@@ -5,18 +5,21 @@
 
 namespace hk {
 
-void OffscreenPass::init(hk::Swapchain *swapchain)
+void OffscreenPass::init(hk::Swapchain *swapchain, VkDescriptorSetLayout layout)
 {
     LOG_TRACE("Creating Offscreen RenderPass");
 
     device_ = hk::context()->device();
     swapchain_ = swapchain;
+    set_layout_ = layout;
 
-    color_format_ = swapchain_->format();
+    // color_format_ = swapchain_->format();
+    color_format_ = VK_FORMAT_R16G16B16A16_SFLOAT; // HDR
     depth_format_ = VK_FORMAT_D32_SFLOAT;
     size_ = swapchain_->extent();
 
     createRenderPass();
+    createPipeline();
     createFramebuffers();
 }
 
@@ -196,41 +199,14 @@ void OffscreenPass::createRenderPass()
 void OffscreenPass::createPipeline()
 {
     // hk::PipelineBuilder builder;
-    //
+
     // builder.setShader(ShaderType::Vertex, hk::assets()->getShader(hndl_vertex).module);
     // builder.setShader(ShaderType::Pixel, hk::assets()->getShader(hndl_pixel).module);
-    //
-    // hk::vector<hk::bitflag<Format>> layout = {
-    //     // position
-    //     hk::Format::SIGNED | hk::Format::FLOAT |
-    //     hk::Format::VEC3 | hk::Format::B32,
-    //
-    //     // normal
-    //     hk::Format::SIGNED | hk::Format::FLOAT |
-    //     hk::Format::VEC3 | hk::Format::B32,
-    //
-    //     // texture coordinates
-    //     hk::Format::SIGNED | hk::Format::FLOAT |
-    //     hk::Format::VEC2 | hk::Format::B32,
-    // };
-    // builder.setVertexLayout(sizeof(Vertex), layout);
-    //
-    // builder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-    // builder.setRasterizer(VK_POLYGON_MODE_FILL,
-    //                       VK_CULL_MODE_BACK_BIT,
-    //                       VK_FRONT_FACE_CLOCKWISE);
-    // builder.setMultisampling();
-    // builder.setColorBlend();
-    //
+
     // hk::vector<VkDescriptorSetLayout> descriptorSetsLayouts = {
     //     set_layout_
     // };
     // builder.setLayout(descriptorSetsLayouts);
-    //
-    // builder.setPushConstants(sizeof(modelToWorld));
-    //
-    // builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL);
-    // builder.setRenderInfo(color_format_, depth_format_);
     //
     // pipeline_ = builder.build(device_, render_pass_);
     // hk::debug::setName(pipeline_.handle(), "Offscreen Pipeline");

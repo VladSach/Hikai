@@ -6,6 +6,7 @@
 #include "renderer/vkwrappers/Buffer.h"
 
 #include "renderer/object/Mesh.h"
+#include "renderer/object/Transform.h"
 
 namespace hk {
 
@@ -18,10 +19,10 @@ struct RenderObject {
     hk::vector<hkm::mat4f> instances;
 
     // Instance material || Mesh Instance 1 <=> 1 Material
-    // TODO: Would want to keep here material instance and not render material
-    // but can't figure out descriptor set lifetime right now
-    hk::vector<RenderMaterial> materials;
-    // hk::vector<MaterialInstance> materials2;
+    // FIX: different meshes can have the same material, it's not a 1 to 1
+    // TODO: take out render material out of here(?)
+    RenderMaterial rm;
+    MaterialInstance material;
 
     ~RenderObject() { deinit(); }
 
@@ -62,8 +63,8 @@ struct RenderObject {
 };
 
 struct RenderLight {
-    Light light;
-    hkm::mat4f pos;
+    Light *light;
+    Transform transform;
 };
 
 struct DrawContext {

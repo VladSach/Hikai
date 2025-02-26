@@ -33,7 +33,7 @@ void SceneGraph::update()
         // FIX: probably temp
         else if (node->object) {
             if (node->entity) {
-                if (node->entity->dirty) {
+                if (node->entity->dirty.any()) {
                     dirty_.push(node);
                 }
             }
@@ -100,8 +100,9 @@ void SceneGraph::addModel(u32 handle, const Transform &transform)
 
             Entity *entity = new Entity();
             entity->attachMesh(child->handle);
-            if (child->hndlTextures.size())
+            if (child->hndlTextures.size()) {
                 entity->attachMaterial(child->hndlTextures.at(0));
+            }
             node->entity = entity;
 
             node->idxObject = objects_;
@@ -118,7 +119,7 @@ void SceneGraph::addModel(u32 handle, const Transform &transform)
     root_->children.push_back(parent);
 }
 
-void SceneGraph::addLight(Light light, const Transform &transform)
+void SceneGraph::addLight(const Light &light, const Transform &transform)
 {
     SceneNode *node = new SceneNode();
     node->idx = size_++;
@@ -143,6 +144,7 @@ void SceneGraph::updateDrawContext(DrawContext &context, Renderer &renderer)
 {
     if (dirty_.empty()) { return; }
 
+    // FIX: why is this here again?
     vkDeviceWaitIdle(renderer.device_);
 
     context.objects.resize(objects_);
@@ -150,43 +152,80 @@ void SceneGraph::updateDrawContext(DrawContext &context, Renderer &renderer)
 
     for (; !dirty_.empty(); dirty_.pop()) {
         SceneNode *node = dirty_.front();
-        RenderObject &object = context.objects.at(node->idxObject);
 
-        // TODO: build only once
-        if ((node->entity->dirty >> 7) & 1) {
-            hk::MeshAsset mesh = hk::assets()->getMesh(node->entity->hndlMesh);
-            object.create(mesh.mesh);
+        // If node is a Mesh object
+        if (node->entity->hndlMesh || node->entity->hndlMaterial) {
+            RenderObject &object = context.objects.at(node->idxObject);
 
-            node->entity->dirty ^= 0b10000000;
-        }
+            // TODO: build only once
+            if (node->entity->dirty.test(0)) {
+                hk::MeshAsset mesh = hk::assets()->getMesh(node->entity->hndlMesh);
+                object.create(mesh.mesh);
 
-        // TODO: i don't think that works right, if i clear position,
-        // that means it can't be more that one instance?
-        object.instances.clear();
-        object.instances.push_back(node->world.toMat4f());
+                node->entity->dirty.flip(0);
+            }
 
-        if ((node->entity->dirty >> 6) & 1) {
-            // object.materials.clear();
-            object.materials.resize(1);
+            // TODO: i don't think that works right, if i clear position,
+            // that means it can't be more that one instance?
+            object.instances.clear();
+            object.instances.push_back(node->world.toMat4f());
 
-            object.materials.at(0).clear();
+            if (node->entity->dirty.test(1)) {
+                object.rm.material =
+                    &hk::assets()->getMaterial(node->entity->hndlMaterial).data;
 
-            object.materials.at(0).material =
-                &hk::assets()->getMaterial(node->entity->hndlMaterial).data;
+                object.rm.build(
+                    renderer.offscreen_.render_pass_,
+                    sizeof(ModelToWorld),
+                    renderer.global_desc_layout,
+                    renderer.swapchain_.format(),
+                    renderer.offscreen_.depth_.format());
 
-            object.materials.at(0).build(
-                renderer.offscreen_.render_pass_,
-                sizeof(ModelToWorld),
-                renderer.sceneDescriptorLayout,
-                renderer.swapchain_.format(),
-                renderer.offscreen_.depth_.format());
+                object.material = object.rm.write(renderer.global_desc_alloc,
+                                                  renderer.samplerLinear);
 
-            // object.materials2.resize(1);
-            // object.materials2.at(0) = object.materials.at(0).write(renderer.frameDescriptors, renderer.samplerLinear);
+                node->entity->dirty.flip(1);
+            }
+        } else if (node->entity->light) {
+            RenderLight &light = context.lights.at(node->idxObject);
 
-            node->entity->dirty ^= 0b01000000;
+            light.transform = node->world;
+
+            if (node->entity->dirty.test(2)) {
+                light.light = node->entity->light;
+
+                node->entity->dirty.flip(2);
+            }
         }
     }
+
+    // FIX: temp
+    LightSources lightsAA;
+    for (u32 i = 0; i < context.lights.size(); ++i) {
+        auto light = context.lights.at(i);
+
+        if (light.light->type == hk::Light::Type::POINT_LIGHT) {
+            lightsAA.pointlights[lightsAA.pointlightsSize].color = light.light->color;
+            lightsAA.pointlights[lightsAA.pointlightsSize].intensity = light.light->intensity;
+
+            lightsAA.pointlights[lightsAA.pointlightsSize].pos = light.transform.pos;
+
+            ++lightsAA.pointlightsSize;
+        } else if (light.light->type == hk::Light::Type::SPOT_LIGHT) {
+            lightsAA.spotlights[lightsAA.spotlightsSize].color = light.light->color;
+            lightsAA.spotlights[lightsAA.spotlightsSize].inner_cutoff = light.light->inner_cutoff;
+            lightsAA.spotlights[lightsAA.spotlightsSize].outer_cutoff = light.light->outer_cutoff;
+
+            lightsAA.spotlights[lightsAA.spotlightsSize].pos = light.transform.pos;
+            lightsAA.spotlights[lightsAA.spotlightsSize].dir = hkm::toEulerAngles(light.transform.rotation);
+
+            ++lightsAA.spotlightsSize;
+        } else if (light.light->type == hk::Light::Type::DIRECTIONAL_LIGHT) {
+            lightsAA.directional.color = light.light->color;
+            lightsAA.directional.dir = hkm::toEulerAngles(light.transform.rotation);
+        }
+    }
+    renderer.updateLights(lightsAA);
 }
 
 }

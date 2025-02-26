@@ -98,7 +98,7 @@ struct MeshAsset : public Asset {
     hk::vector<hkm::mat4f> instances;
     hk::vector<hkm::mat4f> instancesInv;
 
-    hk::vector<u32> hndlTextures;
+    hk::vector<u32> hndlTextures; // Materials?
 };
 
 struct ModelAsset : public Asset {

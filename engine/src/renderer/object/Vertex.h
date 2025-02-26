@@ -7,7 +7,9 @@ struct Vertex {
     hkm::vec3f pos;
     hkm::vec3f normal;
     hkm::vec2f tc;
-    // hkm::vec3f color;
+    hkm::vec3f tangent;
+    hkm::vec3f bitangent;
+    u32 pad[2];
 
     constexpr b8 operator ==(const Vertex &other) const {
         return (

@@ -29,7 +29,7 @@ void Editor::init()
     metrics.init();
     settings.init(renderer_);
 
-    hkm::quaternion rot = hkm::fromAxisAngle({0.f, 1.f, 0.f}, 180.f * hkm::degree2rad);
+    hkm::quaternion rot = hkm::fromAxisAngle({0.f, 1.f, 0.f}, 0.f * hkm::degree2rad);
 
     u32 handle = 0;
     handle = hk::assets()->load("Rei Plush.fbx");
@@ -39,30 +39,29 @@ void Editor::init()
     scene_.addModel(handle, { {1.5f, 0.f, 0.f}, .001f, rot });
 
     handle = hk::assets()->load("Samurai.fbx");
-    scene_.addModel(handle, { {-1.5f, 0.f, 0.f}, .001f, rot });
+    scene_.addModel(handle, { {-1.5f, 0.f, 0.f}, 1.f, rot });
 
     handle = hk::assets()->load("warrior.fbx");
     scene_.addModel(handle, { {.0f, 0.f, 1.5f}, .001f, rot });
 
-    // hk::Light red_light = hk::Light({1.f, .0f, .0f, 1.f}, 1.f);
-    // hk::Entity *light_entity = new hk::Entity();
-    // light_entity->attachLight(red_light);
-    // hk::SceneNode light_node;
-    // light_node.name = "Red Light";
-    // light_node.object = true;
-    // light_node.entity = light_entity;
-    // scene.addNode(light_node);
+    handle = hk::assets()->load("sponza.obj");
+    scene_.addModel(handle, { {.0f, 0.f, .0f}, .01f, rot });
 
-    // hk::evesys()->subscribe(hk::EventCode::EVENT_ASSET_LOADED,
-    //     [&](const hk::EventContext &context, void *listener) {
-    //         const u32 handle = context.u32[0];
-    //         const hk::Asset::Type type = static_cast<hk::Asset::Type>(context.u32[1]);
-    //
-    //         if (type != hk::Asset::Type::MODEL) { return; }
-    //
-    //         scene.addModel(handle);
-    //     },
-    // this);
+    hk::Light light;
+    light.type = hk::Light::Type::POINT_LIGHT;
+    light.color = {0.823f, 0.760f, 0.635f, 1.f};
+    light.intensity = 1.f;
+    scene_.addLight(light, {{0.1f, 0.8f, 0.3f}, 1.f, rot});
+
+    light.type = hk::Light::Type::SPOT_LIGHT;
+    light.color = {0.0f, 0.0, 1.0, 1.f};
+    light.inner_cutoff = 6.f;
+    light.outer_cutoff = 9.f;
+    scene_.addLight(light, {{0.1f, 0.8f, 0.3f}, 1.f, rot});
+
+    light.type = hk::Light::Type::DIRECTIONAL_LIGHT;
+    light.color = {1.0f, 0.0, 0.0, 1.f};
+    scene_.addLight(light, {{0.1f, 0.8f, 0.3f}, 1.f, rot});
 }
 
 void Editor::deinit()
@@ -79,9 +78,7 @@ void Editor::deinit()
 void Editor::update(f32 dt)
 {
     processInput(dt);
-
 }
-
 
 void Editor::render()
 {
@@ -93,6 +90,9 @@ void Editor::render()
     });
 
     showMenuBar();
+
+    // FIX: don't do it every frame
+    viewport.setPostProcess(settings.enable_post_process_);
 
     viewport.display(selected);
 
@@ -202,6 +202,9 @@ void Editor::processInput(f32 dt)
         offset += {0.f, 1.f, 0.f};
     if (hk::input::isKeyDown(hk::input::Button::KEY_LCTRL))
         offset += {0.f, -1.f, 0.f};
+
+    if (hk::input::isKeyDown(hk::input::Button::KEY_LSHIFT))
+        offset *= 4.f;
 
     if (hk::input::isKeyDown(hk::input::Button::KEY_Q))
         angles = {0.f, 0.f, -1.f};

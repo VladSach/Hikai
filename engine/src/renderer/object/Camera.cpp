@@ -4,8 +4,7 @@
 
 void Camera::setPerspective(f32 fov, f32 aspectRatio, f32 nearPlane, f32 farPlane)
 {
-    constexpr f32 to_radians = 3.14f / 180;
-    f32 scale = 1/std::tanf(fov * .5f * to_radians);
+    f32 scale = 1 / std::tanf(fov * .5f * hkm::degree2rad);
 
     f32 remap_z1 = nearPlane / (nearPlane - farPlane);
     f32 remap_z2 = farPlane * nearPlane / (nearPlane - farPlane);

@@ -11,7 +11,7 @@ namespace hk {
 
 class OffscreenPass {
 public:
-    void init(hk::Swapchain *swapchain);
+    void init(hk::Swapchain *swapchain, VkDescriptorSetLayout layout);
     void deinit();
 
     // void render(VkCommandBuffer cmd, u32 idx);
@@ -27,7 +27,7 @@ private:
 
 // FIX: temp public
 public:
-    hk::Pipeline pipeline_; // TODO: remove
+    // hk::Pipeline pipeline_;
     VkRenderPass render_pass_ = VK_NULL_HANDLE;
     // FIX: shouln't have multilple framebuffers?
     VkFramebuffer framebuffer_ = VK_NULL_HANDLE;
@@ -37,8 +37,8 @@ public:
 
     VkDescriptorSetLayout set_layout_;
 
-    u32 hndl_vertex;
-    u32 hndl_pixel;
+    // u32 hndl_vertex;
+    // u32 hndl_pixel;
 
     // Configs
     VkFormat color_format_;

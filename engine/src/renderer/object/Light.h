@@ -5,58 +5,48 @@
 
 namespace hk {
 
-// FIX: delete
 struct Light {
+    enum class Type {
+        POINT_LIGHT,
+        SPOT_LIGHT,
+        DIRECTIONAL_LIGHT
+    } type;
+
     hkm::vec4f color;
-    f32 intensity;
+    f32 intensity; // intensity can be color.w
 
-    constexpr Light() : color(), intensity(0.f) {}
-    constexpr Light(const hkm::vec4f &color, f32 intensity)
-    : color(color), intensity(intensity)
-    {}
+    // Pointlight only
+    f32 range;
 
+    // Spotlight only
+    // hkm::vec3f dir;
+    f32 inner_cutoff;
+    f32 outer_cutoff;
+
+    // constexpr Light() : color(), intensity(.0f) {}
+    // constexpr Light(const hkm::vec4f &color, f32 intensity)
+    // : color(color), intensity(intensity)
+    // {}
+    //
 };
 
-class PointLight {
-public:
+struct SpotLight {
+    hkm::vec3f dir;
     hkm::vec4f color;
-    hkm::vec3f position; // FIX: temp
-    f32 intensity;
 
-public:
-    PointLight()
-    : position(), color(), intensity(0.f)
+    f32 inner_cutoff;
+    f32 outer_cutoff;
+
+    constexpr SpotLight()
+    : dir(), color(), inner_cutoff(.0f), outer_cutoff(.0f)
     {}
 
-    PointLight(const hkm::vec3f &pos, const hkm::vec4f &color)
-    : position(pos), color(color)
+    constexpr SpotLight(
+        const hkm::vec3f &direction,
+        const hkm::vec4f &color,
+        f32 inner, f32 outer)
+    : dir(direction), color(color), inner_cutoff(inner), outer_cutoff(outer)
     {}
-
-};
-
-class SpotLight {
-public:
-    hkm::vec4f position;
-    hkm::vec4f direction;
-
-    hkm::vec3f color;
-
-    float innerCutoff;
-    float outerCutoff;
-
-public:
-    SpotLight()
-    : position(0), direction(0), color(0),
-      innerCutoff(0), outerCutoff(0)
-    {}
-
-    SpotLight(const hkm::vec3f &pos, const hkm::vec3f &dir,
-              const hkm::vec3f &color,
-              float in, float out)
-    : position(pos), direction(dir), color(color),
-      innerCutoff(in), outerCutoff(out)
-    {}
-
 };
 
 }

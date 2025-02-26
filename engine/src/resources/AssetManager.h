@@ -93,6 +93,9 @@ private:
     // PERF: rethink usage of unordered_map. why even use handles,
     // if forced to use map nonetheless
     std::unordered_map<std::string, u32> paths_;
+
+    u32 hndl_fallback_color;
+    u32 hndl_fallback_noncolor;
 };
 
 HKAPI AssetManager *assets();

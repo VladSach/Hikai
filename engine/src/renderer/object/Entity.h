@@ -11,17 +11,18 @@ namespace hk {
 
 struct Entity {
     u32 id;
+
+    hk::bitset<7> dirty;
+
     u32 hndlMesh = 0;
     u32 hndlMaterial = 0;
     Light *light = nullptr;
-
-    u8 dirty = 0; // TODO: change to bitfield
 
     // TODO: entity-component
     void attachMesh(u32 handle)
     {
         hndlMesh = handle;
-        dirty ^= 0b10000000;
+        dirty.flip(0);
     }
 
     void attachMaterial(u32 handle)
@@ -31,25 +32,25 @@ struct Entity {
         hk::MaterialAsset &asset = hk::assets()->getMaterial(handle);
 
         // FIX: temp, should be material callback, not shaders
-        hk::assets()->attachCallback(asset.data.hndlVS, [&](){
-            dirty ^= dirty ? 0 : 0b01000000;
+        hk::assets()->attachCallback(asset.data.vertex_shader, [&](){
+            dirty.flip(1);
         });
-        hk::assets()->attachCallback(asset.data.hndlPS, [&](){
-            dirty ^= dirty ? 0 : 0b01000000;
+        hk::assets()->attachCallback(asset.data.pixel_shader, [&](){
+            dirty.flip(1);
         });
 
-        dirty ^= 0b01000000;
+        dirty.flip(1);
     }
 
     void attachLight(const Light &l)
     {
-        if (!light) { return; }
+        // FIX: why would light be a pointer?
+        if (!light) delete light;
 
         light = new Light();
-        light->color = l.color;
-        light->intensity = l.intensity;
+        *light = l;
 
-        dirty ^= 0b00100000;
+        dirty.flip(2);
     }
 };
 

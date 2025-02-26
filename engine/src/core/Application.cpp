@@ -23,13 +23,13 @@ Application::Application(const AppDesc &desc)
 
     hk::input::init();
 
+    renderer_ = new Renderer();
+    renderer_->init(window_);
+
     // FIX: temp development fix
     hk::assets()->init(hk::filesystem::canonical("..\\editor\\assets"));
 
     scene_.init();
-
-    renderer_ = new Renderer();
-    renderer_->init(window_);
 
     running = true;
 }

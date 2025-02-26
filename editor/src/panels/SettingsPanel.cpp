@@ -10,6 +10,7 @@ void SettingsPanel::init(Renderer *renderer)
     renderer_ = renderer;
 
     is_open_ = false;
+    enable_post_process_ = true;
 }
 
 void SettingsPanel::deinit()
@@ -23,12 +24,15 @@ void SettingsPanel::display()
     hk::imgui::push([&](){
         if (ImGui::Begin("Settings", &is_open_)) {
 
-            if (ImGui::BeginChild("Vulkan")) {
+            if (ImGui::CollapsingHeader("Vulkan")) {
                 addInstanceSettings();
                 addSwapchainSettings();
-            } ImGui::EndChild();
+            }
 
-            addShaderSettings();
+            if (ImGui::CollapsingHeader("Shaders", ImGuiTreeNodeFlags_DefaultOpen)) {
+                addShaderSettings();
+            }
+
 
         } ImGui::End();
     });
@@ -36,7 +40,7 @@ void SettingsPanel::display()
 
 void SettingsPanel::addInstanceSettings()
 {
-    if (ImGui::CollapsingHeader("Instance")) {
+    if (ImGui::TreeNode("Instance")) {
         hk::VulkanContext::InstanceInfo &info = hk::context()->instanceInfo();
         ImGui::Text("API Version: %s",
                     hk::vkApiToString(info.apiVersion).c_str());
@@ -85,6 +89,8 @@ void SettingsPanel::addInstanceSettings()
             }
             ImGui::TreePop();
         }
+
+        ImGui::TreePop();
     }
 }
 
@@ -92,7 +98,7 @@ void SettingsPanel::addSwapchainSettings()
 {
     hk::Swapchain &swapchain = renderer_->swapchain_;
 
-    if (ImGui::CollapsingHeader("Swapchain")) {
+    if (ImGui::TreeNode("Swapchain")) {
         if (ImGui::TreeNode("Surface Formats")) {
             for (u32 i = 0; i < swapchain.info().formats.size(); ++i) {
                 auto &format = swapchain.info().formats.at(i);
@@ -217,11 +223,61 @@ void SettingsPanel::addSwapchainSettings()
 
             ImGui::TreePop();
         }
+
+        ImGui::TreePop();
     }
 }
 
 void SettingsPanel::addShaderSettings()
 {
+    if (ImGui::TreeNode("PBR")) {
+
+        // TODO: choose between BRDFs, NDFs, and others
+
+        ImGui::TreePop();
+    }
+
+    if (ImGui::TreeNodeEx("Post Process", ImGuiTreeNodeFlags_DefaultOpen)) {
+        b8 changed = false;
+        changed = ImGui::Checkbox("Enabled", &enable_post_process_);
+
+        // FIX: temp?
+        if (changed) {
+            hk::event::EventContext context;
+            context.u32[0] = renderer_->window_->width();
+            context.u32[1] = renderer_->window_->height();
+            hk::event::fire(hk::event::EVENT_WINDOW_RESIZE, context);
+        }
+
+        // ImGui::InputFloat("Exposure", ev100);
+
+        // Tone Mapping selection
+        constexpr const char *items[] = {
+            "None",
+            "Reinhard",
+            "ACES",
+            "Custom",
+        };
+
+        static u32 curr = 0;
+        const char *preview = items[curr];
+        if (ImGui::BeginCombo("Tone Mapping", preview)) {
+            for (u32 i = 0; i < 4; ++i) {
+                const b8 selected = (curr == i);
+
+                if (ImGui::Selectable(items[i], selected)) {
+                    curr = i;
+                    // TODO: change tone mapping
+                }
+
+                if (selected) { ImGui::SetItemDefaultFocus(); }
+            }
+            ImGui::EndCombo();
+        }
+
+        ImGui::TreePop();
+    }
+
     // if (ImGui::CollapsingHeader("Shaders")) {
     //     constexpr const char *items[] = {
     //         "Default",

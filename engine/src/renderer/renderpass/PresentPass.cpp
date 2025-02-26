@@ -284,7 +284,7 @@ void PresentPass::loadShaders()
     desc.debug = false;
 #endif
 
-    desc.path = path + "PresentVS.hlsl";
+    desc.path = path + "Present.vert.hlsl";
     hndl_vertex_ = hk::assets()->load(desc.path, &desc);
     hk::assets()->attachCallback(hndl_vertex_, [this](){
         deinit();
@@ -293,7 +293,7 @@ void PresentPass::loadShaders()
 
     desc.type = ShaderType::Pixel;
 
-    desc.path = path + "PresentPS.hlsl";
+    desc.path = path + "Present.frag.hlsl";
     hndl_pixel_ = hk::assets()->load(desc.path, &desc);
     hk::assets()->attachCallback(hndl_pixel_, [this](){
         deinit();

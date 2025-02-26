@@ -29,6 +29,7 @@ struct SceneNode {
     // SceneNode can be either object (Mesh, Light, Camera, etc)
     // or just collection of other nodes
     b8 object = false;
+    // FIX: add enum what object type is it (than why need entity component?)
 
     // Viable only when node is an object
     Entity *entity = nullptr;
@@ -51,7 +52,7 @@ public:
 
     HKAPI void addNode(const SceneNode &node);
     HKAPI void addModel(u32 handle, const Transform &transform = Transform());
-    HKAPI void addLight(Light light, const Transform &transform = Transform());
+    HKAPI void addLight(const Light &light, const Transform &transform = Transform());
 
     void updateDrawContext(DrawContext &context, Renderer &renderer);
 
@@ -64,9 +65,8 @@ private:
     SceneNode *root_ = nullptr;
     u32 size_ = 0;
 
-    // FIX: rename
-    u32 objects_ = 0;
-    u32 lights_ = 0;
+    u32 objects_ = 0; // Amount of objects in a scene
+    u32 lights_ = 0;  // Amount of lights in a scene
 
     // Queue with nodes that requires change in draw context
     std::queue<SceneNode*> dirty_;

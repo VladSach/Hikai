@@ -187,7 +187,7 @@ constexpr vec3f operator *(const quaternion &q, const vec3f &v)
     return v * q;
 }
 
-// angle passed in radians
+// Angle passed in radians
 inline quaternion fromAxisAngle(const vec3f &v, f32 angle)
 {
     vec3f N = normalize(v);
@@ -203,6 +203,7 @@ inline quaternion fromAxisAngle(const vec3f &v, f32 angle)
     return normalize(quaternion(x, y, z, cosAngle));
 }
 
+// Angles passed in radians
 inline quaternion fromEulerAngles(const vec3f &angles)
 {
     f32 yaw   = angles.x;
@@ -223,6 +224,7 @@ inline quaternion fromEulerAngles(const vec3f &angles)
     return quaternion(x, y, z, w);
 }
 
+// Angles returned in radians
 inline vec3f toEulerAngles(const quaternion &quat)
 {
     f32 roll = 0;
@@ -234,18 +236,32 @@ inline vec3f toEulerAngles(const quaternion &quat)
     f32 z = quat.z;
     f32 w = quat.w;
 
+    // https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToEuler/
+    f32 test = x * y - z * w;
+    f32 unit = x*x + y*y + z*z + w*w;
+    if (test > .499f * unit) {
+        yaw = 2.f * std::atan2(x, w);
+        roll = pi * .5f;
+        pitch = 0.f;
+        return vec3f(pitch, yaw, roll);
+    }
+
+    if (test < -.499f * unit) {
+        yaw = 2.f * std::atan2(x, w);
+        roll = pi * .5f;
+        pitch = 0.f;
+        return vec3f(-pitch, -yaw, roll);
+    }
+
     // Pitch (x-axis rotation)
     f32 sinr_cosp = 2.f * (w * x + y * z);
     f32 cosr_cosp = 1.f - 2.f * (x * x + y * y);
     pitch = std::atan2(sinr_cosp, cosr_cosp);
 
     // Yaw (y-axis rotation)
-    f32 sinp = 2.f * (w * y - z * x);
-    if (std::abs(sinp) >= 1.f) {
-        yaw = std::copysign(3.14f / 2.f, sinp);
-    } else {
-        yaw = std::asin(sinp);
-    }
+    f32 sinp = std::sqrt(1.f + 2.f * (w * y - z * x));
+    f32 cosp = std::sqrt(1.f - 2.f * (w * y - z * x));
+    yaw = 2.f * std::atan2(sinp, cosp) - pi * .5f;
 
     // Roll (z-axis rotation)
     f32 siny_cosp = 2.f * (w * z + x * y);
