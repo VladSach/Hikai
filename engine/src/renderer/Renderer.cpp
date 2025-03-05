@@ -187,7 +187,7 @@ void Renderer::draw(hk::DrawContext &ctx)
             // per-material descriptor (2)
             vkCmdBindDescriptorSets(frame.cmd,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    mat.pipeline->layout(), 1, 1,
+                                    mat.pipeline->layout(), 2, 1,
                                     &mat.materialSet, 0, nullptr);
 
             u32 numInstances = u32(object.instances.size());
@@ -197,8 +197,8 @@ void Renderer::draw(hk::DrawContext &ctx)
 
                 // per-instance descriptor (3)
                 vkCmdPushConstants(frame.cmd, mat.pipeline->layout(),
-                                    VK_SHADER_STAGE_VERTEX_BIT, 0,
-                                    sizeof(modelToWorld), &modelToWorld);
+                                   VK_SHADER_STAGE_VERTEX_BIT, 0,
+                                   sizeof(modelToWorld), &modelToWorld);
 
                 vkCmdDrawIndexed(frame.cmd,
                                     object.indexBuffer.size(),
@@ -210,13 +210,64 @@ void Renderer::draw(hk::DrawContext &ctx)
 
         }
 
-        // vkCmdBindPipeline(frame.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-        //                   offscreen_.pipeline.handle());
+        // Light pass
+        vkCmdNextSubpass(frame.cmd, VK_SUBPASS_CONTENTS_INLINE);
+
+        // TODO: change all images layout to shader read
+
+        // FIX: shouldn't be bound twice
+        writer.clear();
+        writer.updateSet(global_desc_set);
+        writer.writeBuffer(0, frame_data_buffer.buffer(),
+                        sizeof(SceneData), 0,
+                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+
+        writer.writeBuffer(1, lights_buffer.buffer(),
+                        sizeof(LightSources), 0,
+                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        vkCmdBindDescriptorSets(frame.cmd,
+                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                offscreen_.pipeline_.layout(), 0, 1,
+                                &global_desc_set, 0, nullptr);
+
+        VkDescriptorSet light_set = global_desc_alloc.allocate(offscreen_.set_layout_);
+        writer.clear();
+        writer.writeImage(0, offscreen_.position_.view(), VK_NULL_HANDLE,
+                          // offscreen_.position_.layout(),
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                          VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
+        writer.writeImage(1, offscreen_.normal_.view(), VK_NULL_HANDLE,
+                          // offscreen_.normal_.layout(),
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                          VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
+        writer.writeImage(2, offscreen_.albedo_.view(), VK_NULL_HANDLE,
+                          // offscreen_.albedo_.layout(),
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                          VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
+        writer.writeImage(3, offscreen_.material_.view(), VK_NULL_HANDLE,
+                          // offscreen_.material_.layout(),
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                          VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
+        writer.writeImage(4, offscreen_.depth_.view(), VK_NULL_HANDLE,
+                          // offscreen_.depth_.layout(),
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                          VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
+
+        writer.updateSet(light_set);
+
+        vkCmdBindPipeline(frame.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                          offscreen_.pipeline_.handle());
+
+        vkCmdBindDescriptorSets(frame.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            offscreen_.pipeline_.layout(), 1, 1,
+                            &light_set, 0, nullptr);
+
+        vkCmdDraw(frame.cmd, 3, 1, 0, 0);
 
         // Draw grid shader
-        vkCmdBindPipeline(frame.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                            gridPipeline.handle());
-        vkCmdDraw(frame.cmd, 4, 1, 0, 0);
+        // vkCmdBindPipeline(frame.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+        //                   gridPipeline.handle());
+        // vkCmdDraw(frame.cmd, 4, 1, 0, 0);
 
     offscreen_.end(frame.cmd);
 
@@ -237,22 +288,22 @@ void Renderer::draw(hk::DrawContext &ctx)
      * from-that-color-image-in-the-fragment-shader
      */
     VkImageMemoryBarrier bar = {};
-    bar.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    bar.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    bar.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    bar.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-    bar.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    bar.image = offscreen_.color_.image();
-    bar.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    bar.subresourceRange.baseMipLevel = 0;
-    bar.subresourceRange.levelCount = 1;
-    bar.subresourceRange.baseArrayLayer = 0;
-    bar.subresourceRange.layerCount = 1;
-    vkCmdPipelineBarrier(frame.cmd,
-                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                         0, 0, NULL, 0, NULL, 1, &bar);
-
+    // bar.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    // bar.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    // bar.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    // bar.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    // bar.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    // bar.image = offscreen_.color_.image();
+    // bar.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    // bar.subresourceRange.baseMipLevel = 0;
+    // bar.subresourceRange.levelCount = 1;
+    // bar.subresourceRange.baseArrayLayer = 0;
+    // bar.subresourceRange.layerCount = 1;
+    // vkCmdPipelineBarrier(frame.cmd,
+    //                      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+    //                      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+    //                      0, 0, NULL, 0, NULL, 1, &bar);
+    //
     post_process_.render(offscreen_.color_,
                          frame.cmd, image_idx,
                          &frame.descriptor_alloc);
@@ -382,9 +433,9 @@ void Renderer::createGridPipeline()
     builder.setPushConstants(sizeof(modelToWorld));
 
     builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL);
-    builder.setRenderInfo(swapchain_.format(), offscreen_.depth_.format());
+    builder.setRenderInfo({ swapchain_.format() }, offscreen_.depth_.format());
 
-    gridPipeline = builder.build(device_, offscreen_.render_pass_);
+    gridPipeline = builder.build(device_, offscreen_.render_pass_, 1);
     hk::debug::setName(gridPipeline.handle(), "Grid Pipeline");
 }
 

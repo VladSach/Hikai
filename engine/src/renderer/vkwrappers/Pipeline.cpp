@@ -156,16 +156,18 @@ void PipelineBuilder::setPushConstants(u32 structSize)
     pipelineLayoutInfo.pushConstantRangeCount = 1;
 }
 
-void PipelineBuilder::setRenderInfo(VkFormat colorFormat, VkFormat depthFormat)
+void PipelineBuilder::setRenderInfo(const hk::vector<VkFormat> &colorFormats,
+                                    VkFormat depthFormat)
 {
-    colorAttachmentformat = colorFormat;
+    colorAttachmentFormats = colorFormats;
+
     renderInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-    renderInfo.colorAttachmentCount = 1;
-    renderInfo.pColorAttachmentFormats = &colorAttachmentformat;
+    renderInfo.colorAttachmentCount = colorAttachmentFormats.size();
+    renderInfo.pColorAttachmentFormats = colorAttachmentFormats.data();
     renderInfo.depthAttachmentFormat = depthFormat;
 }
 
-hk::Pipeline PipelineBuilder::build(VkDevice device, VkRenderPass pass)
+hk::Pipeline PipelineBuilder::build(VkDevice device, VkRenderPass pass, u32 subpass)
 {
     VkResult err;
 
@@ -191,8 +193,14 @@ hk::Pipeline PipelineBuilder::build(VkDevice device, VkRenderPass pass)
     // colorBlending.pNext = nullptr;
     colorBlending.logicOpEnable = VK_FALSE;
     colorBlending.logicOp = VK_LOGIC_OP_COPY;
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments = &colorBlendAttachment;
+    // // FIX: temp
+    colorBlending.attachmentCount = colorAttachmentFormats.size();
+    hk::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments;
+    for (auto format : colorAttachmentFormats) {
+        colorBlendAttachment.blendEnable = VK_FALSE;
+        colorBlendAttachments.push_back(colorBlendAttachment);
+    }
+    colorBlending.pAttachments = colorBlendAttachments.data();
 
     err = vkCreatePipelineLayout(device, &pipelineLayoutInfo,
                                  nullptr, &out.layout());
@@ -216,7 +224,7 @@ hk::Pipeline PipelineBuilder::build(VkDevice device, VkRenderPass pass)
 
     pipelineInfo.layout = out.layout();
     pipelineInfo.renderPass = pass;
-    pipelineInfo.subpass = 0;
+    pipelineInfo.subpass = subpass;
 
     err = vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1,
                                     &pipelineInfo, nullptr, &out.handle());
@@ -237,7 +245,7 @@ void PipelineBuilder::clear()
     depthStencil = {};
     pipelineLayoutInfo = {};
     renderInfo = {};
-    colorAttachmentformat = VK_FORMAT_UNDEFINED;
+    colorAttachmentFormats.clear();
 
     attributeDescs.clear();
     bindingDescription = {};

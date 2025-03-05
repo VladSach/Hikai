@@ -58,6 +58,7 @@ void AssetManager::init(const std::string &folder)
 
     Image *image = new Image();
     image->init({
+        asset->name,
         hk::Image::Usage::TRANSFER_DST | hk::Image::Usage::SAMPLED,
         VK_FORMAT_R8G8B8A8_SRGB,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -343,7 +344,7 @@ u32 AssetManager::createMaterial(void *data)
 
     const std::string path = "..\\engine\\assets\\shaders\\";
     asset->data.vertex_shader = hk::assets()->load(path + "Default.vert.hlsl");
-    asset->data.pixel_shader = hk::assets()->load(path + "PBR.frag.hlsl");
+    asset->data.pixel_shader = hk::assets()->load(path + "Deferred.frag.hlsl");
 
     return asset->handle;
 }

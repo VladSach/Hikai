@@ -21,6 +21,7 @@ Image* loadImage(const std::string &path)
 
     Image *image = new Image();
     image->init({
+        path.substr(path.find_last_of("/\\") + 1),
         hk::Image::Usage::TRANSFER_DST | hk::Image::Usage::SAMPLED,
         VK_FORMAT_R8G8B8A8_SRGB,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,

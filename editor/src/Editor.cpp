@@ -91,10 +91,7 @@ void Editor::render()
 
     showMenuBar();
 
-    // FIX: don't do it every frame
-    viewport.setPostProcess(settings.enable_post_process_);
-
-    viewport.display(selected);
+    viewport.display(selected, settings.viewport_image_);
 
     assets.display();
     hierarchy.display();

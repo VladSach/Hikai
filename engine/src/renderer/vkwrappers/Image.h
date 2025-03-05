@@ -24,9 +24,11 @@ public:
 
         COLOR_ATTACHMENT = 1 << 4,
         DEPTH_STENCIL_ATTACHMENT = 1 << 5,
+        INPUT_ATTACHMENT = 1 << 6,
     };
 
     struct ImageDesc {
+        std::string name = "Unknown";
         hk::bitflag<Usage> usage;
 
         VkFormat format;
@@ -61,12 +63,6 @@ public:
     void transitionLayout(VkImageLayout target);
 
     void generateMipmaps();
-
-    inline void setName(const std::string &name) {
-        hk::debug::setName(image_,  "Image: " + name);
-        hk::debug::setName(view_,   "Image View: " + name);
-        hk::debug::setName(memory_, "Image Memory: " + name);
-    }
 
 public:
     constexpr u32 width() const { return width_; }

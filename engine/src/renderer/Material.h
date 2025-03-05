@@ -62,7 +62,8 @@ struct RenderMaterial {
 
     void build(VkRenderPass renderpass, u32 pushConstSize,
                VkDescriptorSetLayout sceneDescriptorLayout,
-               VkFormat swapchainFormat, VkFormat depthFormat);
+               VkDescriptorSetLayout passDescriptorLayout,
+               hk::vector<VkFormat> formats, VkFormat depthFormat);
     void clear();
 
     MaterialInstance write(DescriptorAllocator &allocator, VkSampler sampler);

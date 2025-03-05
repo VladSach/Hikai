@@ -43,9 +43,10 @@ public:
     void setDepthStencil(VkBool32 enable, VkCompareOp op);
     void setLayout(const hk::vector<VkDescriptorSetLayout> &layouts);
     void setPushConstants(u32 structSize);
-    void setRenderInfo(VkFormat colorFormat, VkFormat depthFormat);
+    void setRenderInfo(const hk::vector<VkFormat> &colorFormats,
+                       VkFormat depthFormat);
 
-    hk::Pipeline build(VkDevice device, VkRenderPass pass);
+    hk::Pipeline build(VkDevice device, VkRenderPass pass, u32 subpass = 0);
 
 private:
     hk::vector<VkPipelineShaderStageCreateInfo> shaderStages;
@@ -62,7 +63,7 @@ private:
     VkVertexInputBindingDescription bindingDescription = {};
 
     VkPipelineRenderingCreateInfo renderInfo = {};
-    VkFormat colorAttachmentformat;
+    hk::vector<VkFormat> colorAttachmentFormats;
 
     // FIX: temp
     VkPushConstantRange pushConstant = {};

@@ -8,7 +8,8 @@ namespace hk {
 
 void hk::RenderMaterial::build(VkRenderPass renderpass, u32 pushConstSize,
                          VkDescriptorSetLayout sceneDescriptorLayout,
-                         VkFormat swapchainFormat, VkFormat depthFormat)
+                         VkDescriptorSetLayout passDescriptorLayout,
+                         hk::vector<VkFormat> formats, VkFormat depthFormat)
 {
     // TODO: Make this dynamic
     // hk::DescriptorLayout::Builder layoutBuilder;
@@ -77,12 +78,13 @@ void hk::RenderMaterial::build(VkRenderPass renderpass, u32 pushConstSize,
     builder.setMultisampling();
     builder.setColorBlend();
     builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL);
-    builder.setRenderInfo(swapchainFormat, depthFormat);
+    builder.setRenderInfo(formats, depthFormat);
 
     builder.setPushConstants(pushConstSize);
 
     hk::vector<VkDescriptorSetLayout> layouts = {
         sceneDescriptorLayout,
+        passDescriptorLayout,
         materialLayout
     };
 
@@ -122,7 +124,7 @@ MaterialInstance RenderMaterial::write(DescriptorAllocator &allocator, VkSampler
 
         map = hk::assets()->getTexture(handle).texture;
         writer.writeImage(i + 1, map->view(), sampler, map->layout(),
-                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+                          VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     }
 
     writer.updateSet(matData.materialSet);

@@ -19,6 +19,9 @@ private:
 public:
     b8 is_open_;
 
+    // Viewport Settings
+    void *viewport_image_;
+
     b8 enable_post_process_;
 
 private:

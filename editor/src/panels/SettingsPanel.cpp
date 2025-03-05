@@ -11,6 +11,18 @@ void SettingsPanel::init(Renderer *renderer)
 
     is_open_ = false;
     enable_post_process_ = true;
+
+    hk::event::subscribe(hk::event::EVENT_WINDOW_RESIZE,
+        [&](const hk::event::EventContext &context, void *listener) {
+            (void)context; (void)listener;
+
+            // if (viewport_image_) {
+            //     hk::imgui::removeTexture(viewport_image_);
+            // }
+
+            viewport_image_ = hk::imgui::addTexture(renderer_->post_process_.color_.view(),
+                                                    renderer_->samplerLinear);
+    }, this);
 }
 
 void SettingsPanel::deinit()
@@ -230,6 +242,43 @@ void SettingsPanel::addSwapchainSettings()
 
 void SettingsPanel::addShaderSettings()
 {
+    if (ImGui::TreeNode("Deferred Rendering")) {
+
+        constexpr const char *items[] = {
+            "Final Color",
+            "Position",
+            "Normal",
+            "Albedo",
+            "Material",
+            "Depth",
+        };
+
+        static u32 curr = 0;
+        const char *preview = items[curr];
+        if (ImGui::BeginCombo("Buffer", preview)) {
+            for (u32 i = 0; i < 6; ++i) {
+                const b8 selected = (curr == i);
+
+                if (ImGui::Selectable(items[i], selected)) {
+                    curr = i;
+
+                    // FIX: temp
+                    if (i == 0) viewport_image_ = hk::imgui::addTexture(renderer_->post_process_.color_.view(), renderer_->samplerLinear);
+                    else if (i == 1) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.position_.view(), renderer_->samplerLinear);
+                    else if (i == 2) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.normal_.view(), renderer_->samplerLinear);
+                    else if (i == 3) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.albedo_.view(), renderer_->samplerLinear);
+                    else if (i == 4) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.material_.view(), renderer_->samplerLinear);
+                    else if (i == 5) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.depth_.view(), renderer_->samplerLinear);
+                }
+
+                if (selected) { ImGui::SetItemDefaultFocus(); }
+            }
+            ImGui::EndCombo();
+        }
+
+        ImGui::TreePop();
+    }
+
     if (ImGui::TreeNode("PBR")) {
 
         // TODO: choose between BRDFs, NDFs, and others
@@ -241,12 +290,14 @@ void SettingsPanel::addShaderSettings()
         b8 changed = false;
         changed = ImGui::Checkbox("Enabled", &enable_post_process_);
 
-        // FIX: temp?
         if (changed) {
-            hk::event::EventContext context;
-            context.u32[0] = renderer_->window_->width();
-            context.u32[1] = renderer_->window_->height();
-            hk::event::fire(hk::event::EVENT_WINDOW_RESIZE, context);
+            // hk::event::EventContext context;
+            // context.u32[0] = renderer_->window_->width();
+            // context.u32[1] = renderer_->window_->height();
+            // hk::event::fire(hk::event::EVENT_WINDOW_RESIZE, context);
+            viewport_image_ = enable_post_process_ ?
+                hk::imgui::addTexture(renderer_->post_process_.color_.view(), renderer_->samplerLinear) :
+                hk::imgui::addTexture(renderer_->offscreen_.color_.view(), renderer_->samplerLinear);
         }
 
         // ImGui::InputFloat("Exposure", ev100);

@@ -185,7 +185,7 @@ debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     }
 
     // TODO: turn on
-    // hk::log::dispatch();
+    hk::log::dispatch();
 
     // hk::event::fire(hk::event::ERROR_VK_VALIDATION_LAYER, {});
 

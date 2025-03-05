@@ -23,10 +23,10 @@ VertexOutput main(VertexInput input) {
     output.position = mul(viewProj, world_pos);
 
     float4x4 inverse_model = transpose(inverse(modelToWorld.mat));
-    float3 tangent = normalize(mul(inverse_model, float4(input.tangent, 0.f)));
+    float3 tangent = normalize(mul(inverse_model, float4(input.tangent, 0.f)).xyz);
 
-    output.normal = normalize(mul(inverse_model, float4(input.normal, 0.f))).xyz;
-    output.tangent = normalize(tangent - dot(tangent.xyz, output.normal) * output.normal).xyz;
+    output.normal = normalize(mul(inverse_model, float4(input.normal, 0.f)).xyz);
+    output.tangent = normalize(tangent - dot(tangent.xyz, output.normal) * output.normal.xyz);
 
     output.tc = input.tc;
     output.world = world_pos.xyz;

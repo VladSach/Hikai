@@ -23,26 +23,44 @@ public:
 private:
     void createFramebuffers();
     void createRenderPass();
+    void loadShaders();
     void createPipeline();
 
 // FIX: temp public
 public:
-    // hk::Pipeline pipeline_;
     VkRenderPass render_pass_ = VK_NULL_HANDLE;
-    // FIX: shouln't have multilple framebuffers?
+
+    // Gbuffer
+    hk::Image position_;
+    hk::Image normal_;
+    hk::Image albedo_;
+    hk::Image material_; // Material Properties i.e metallic, roughness
+
+    hk::Image depth_;
     VkFramebuffer framebuffer_ = VK_NULL_HANDLE;
 
-    hk::Image color_;
-    hk::Image depth_;
 
+    // TODO:
+    // albedo   3d [0, 1]    r8g8b8unorm
+    // material 4d [0, 1]    r8g8b8a8unorm | metallic, roughness, ao, ? | maybe bitshift together to reduce size
+    // normal   4d [-1, +1]  r16g16b16a16snorm | rg from map, ba from vertex | packed in octahedrons
+    // emmision 3d [0, +inf] r16g16b16a16float
+    // metadata 1d r32uint | entity id, material id, whatever is needed
+    // No need for position
+    // https://mynameismjp.wordpress.com/2009/03/10/reconstructing-position-from-depth/
+
+    // Light pass
+    hk::Image color_;
+    hk::Pipeline pipeline_;
     VkDescriptorSetLayout set_layout_;
 
-    // u32 hndl_vertex;
-    // u32 hndl_pixel;
+    u32 hndl_vertex_;
+    u32 hndl_pixel_;
 
     // Configs
     VkFormat color_format_;
     VkFormat depth_format_;
+    hk::vector<VkFormat> formats_;
     VkExtent2D size_;
 
     // Convenience

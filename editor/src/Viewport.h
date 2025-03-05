@@ -10,10 +10,7 @@ public:
     void init(Renderer *renderer, Camera *camera, b8 viewport);
     void deinit();
 
-    void display(hk::SceneNode *selected);
-
-    // FIX: temp post process param, change to setImage(void*)
-    void setPostProcess(b8 post_process) { use_post_process_ = post_process; }
+    void display(hk::SceneNode *selected, void *image);
 
 private:
     void processInput();
@@ -27,12 +24,6 @@ public:
 private:
     Camera *camera_;
     Renderer *renderer_;
-
-    void *viewport_image_;
-
-    b8 use_post_process_;
-    void *offscreen_;
-    void *post_process_;
 
     b8 is_mouse_over_viewport_ = false;
     b8 is_viewport_;

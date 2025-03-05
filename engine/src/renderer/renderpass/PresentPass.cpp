@@ -422,7 +422,7 @@ void PresentPass::createPipeline()
     builder.setLayout(set_layouts);
 
     builder.setDepthStencil(VK_FALSE, VK_COMPARE_OP_NEVER);
-    builder.setRenderInfo(color_format_, VK_FORMAT_UNDEFINED);
+    builder.setRenderInfo({ color_format_ }, VK_FORMAT_UNDEFINED);
 
     pipeline_ = builder.build(device_, render_pass_);
     hk::debug::setName(pipeline_.handle(), "Present Pipeline");

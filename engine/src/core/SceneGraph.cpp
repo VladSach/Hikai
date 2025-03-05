@@ -178,7 +178,8 @@ void SceneGraph::updateDrawContext(DrawContext &context, Renderer &renderer)
                     renderer.offscreen_.render_pass_,
                     sizeof(ModelToWorld),
                     renderer.global_desc_layout,
-                    renderer.swapchain_.format(),
+                    renderer.offscreen_.set_layout_,
+                    renderer.offscreen_.formats_,
                     renderer.offscreen_.depth_.format());
 
                 object.material = object.rm.write(renderer.global_desc_alloc,

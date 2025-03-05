@@ -22,10 +22,13 @@ void Image::init(const ImageDesc &desc)
         flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     if (usage_ & Usage::SAMPLED)
         flags |= VK_IMAGE_USAGE_SAMPLED_BIT;
+
     if (usage_ & Usage::COLOR_ATTACHMENT)
         flags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     if (usage_ & Usage::DEPTH_STENCIL_ATTACHMENT)
         flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    if (usage_ & Usage::INPUT_ATTACHMENT)
+        flags |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 
     VulkanImageDesc imageDesc = {
         width_, height_,
@@ -38,6 +41,10 @@ void Image::init(const ImageDesc &desc)
     allocateImage(imageDesc);
 
     transitionLayout(desc.layout);
+
+    hk::debug::setName(image_,  "Image: "        + desc.name);
+    hk::debug::setName(view_,   "Image View: "   + desc.name);
+    hk::debug::setName(memory_, "Image Memory: " + desc.name);
 }
 
 void Image::deinit()

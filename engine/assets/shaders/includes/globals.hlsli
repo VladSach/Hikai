@@ -49,4 +49,7 @@ struct ModelToWorld {
 // GLSL-like mod function
 #define mod(x, y) ((x) - (y) * floor((x)/(y)))
 
+// Defines
+static const float PI = 3.14159265358979323846f;
+
 #endif // HK_GLOBALS_HLSLI

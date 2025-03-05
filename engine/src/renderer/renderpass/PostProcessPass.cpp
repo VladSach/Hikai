@@ -13,7 +13,6 @@ void PostProcessPass::init(hk::Swapchain *swapchain)
     swapchain_ = swapchain;
 
     color_format_ = swapchain_->format();
-    // depth_format_ = VK_FORMAT_D32_SFLOAT;
     size_ = swapchain_->extent();
 
     loadShaders();
@@ -70,8 +69,8 @@ void PostProcessPass::render(const hk::Image &source,
 
     VkDescriptorSet present_set = alloc->allocate(set_layout_);
 
-    // writer.clear();
-    writer.writeImage(2, source.view(), sampler_, source.layout(),
+    writer.writeImage(2, source.view(), sampler_,
+                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     writer.updateSet(present_set);
@@ -145,6 +144,7 @@ void PostProcessPass::createFramebuffers()
     VkResult err;
 
     color_.init({
+        "Post Process Color Attachment",
         hk::Image::Usage::SAMPLED      |
         hk::Image::Usage::TRANSFER_SRC |
         hk::Image::Usage::TRANSFER_DST |
@@ -155,7 +155,6 @@ void PostProcessPass::createFramebuffers()
         VK_IMAGE_ASPECT_COLOR_BIT,
         size_.width, size_.height, 1,
     });
-    color_.setName("Post Process Color");
 
     VkImageView attachments[] = {
         color_.view(),
@@ -259,7 +258,7 @@ void PostProcessPass::createPipeline()
     builder.setLayout(set_layouts);
 
     builder.setDepthStencil(VK_FALSE, VK_COMPARE_OP_NEVER);
-    builder.setRenderInfo(color_format_, VK_FORMAT_UNDEFINED);
+    builder.setRenderInfo({ color_format_ }, VK_FORMAT_UNDEFINED);
 
     pipeline_ = builder.build(device_, render_pass_);
     hk::debug::setName(pipeline_.handle(), "Post Process Pipeline");

@@ -27,6 +27,9 @@ void draw(VkCommandBuffer cmd);
 
 namespace utils {
 
+// TODO: wrappers
+// void Combo(const char *name, const char *items[], std::function if_selected);
+
 inline void drawMatrix4x4(const hkm::mat4f &matrix)
 {
     ImGuiTableFlags flags = ImGuiTableFlags_RowBg;

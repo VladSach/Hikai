@@ -6,24 +6,6 @@ void Viewport::init(Renderer *renderer, Camera *camera, b8 viewport)
     renderer_ = renderer;
 
     is_viewport_ = viewport;
-
-    use_post_process_ = false;
-
-    hk::event::subscribe(hk::event::EVENT_WINDOW_RESIZE,
-        [&](const hk::event::EventContext &context, void *listener) {
-            (void)context; (void)listener;
-
-            // if (viewport_image_) {
-            //     hk::imgui::removeTexture(viewport_image_);
-            // }
-
-            post_process_ =
-                hk::imgui::addTexture(renderer_->post_process_.color_.view(),
-                                      renderer_->samplerLinear);
-            offscreen_ =
-                hk::imgui::addTexture(renderer_->offscreen_.color_.view(),
-                                      renderer_->samplerLinear);
-    }, this);
 }
 
 void Viewport::deinit()
@@ -31,9 +13,8 @@ void Viewport::deinit()
     // hk::event::unsubscribe(hk::event::EVENT_WINDOW_RESIZE, this);
 }
 
-void Viewport::display(hk::SceneNode *selected)
+void Viewport::display(hk::SceneNode *selected, void *image)
 {
-    viewport_image_ = use_post_process_ ? post_process_ : offscreen_;
 
     hk::imgui::push([&](){
         ImGuiWindowFlags flags = ImGuiWindowFlags_None;
@@ -60,7 +41,7 @@ void Viewport::display(hk::SceneNode *selected)
             processInput();
 
             ImVec2 panel_size = ImGui::GetContentRegionAvail();
-            ImGui::Image(viewport_image_, ImVec2{ panel_size.x, panel_size.y });
+            ImGui::Image(image, ImVec2{ panel_size.x, panel_size.y });
 
             showControls();
 
