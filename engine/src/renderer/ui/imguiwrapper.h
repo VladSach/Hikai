@@ -46,8 +46,8 @@ inline void drawMatrix4x4(const hkm::mat4f &matrix)
     }
 }
 
-}
+} // namespace utils
 
-}
+} // namespace hk::imgui
 
 #endif // HK_IMGUI_WRAPPER_H

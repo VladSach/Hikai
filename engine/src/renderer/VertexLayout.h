@@ -3,8 +3,8 @@
 
 #include "vendor/vulkan/vulkan.h"
 
-#include "utils/numerics/hkbitflag.h"
-#include "utils/containers/hkvector.h"
+#include "hkstl/numerics/hkbitflag.h"
+#include "hkstl/containers/hkvector.h"
 
 namespace hk {
 
@@ -30,10 +30,12 @@ enum class Format : u16 {
     VEC4       = 1 << 14,
 };
 
-hk::vector<VkVertexInputAttributeDescription>
-createVertexLayout(const hk::vector<hk::bitflag<Format>> &formats);
-
 REGISTER_ENUM(Format);
+
+using VertexLayout = hk::vector<hk::bitflag<Format>>;
+
+hk::vector<VkVertexInputAttributeDescription>
+createVertexLayout(const VertexLayout &formats, u32 binding = 0);
 
 }
 

@@ -3,9 +3,12 @@
 
 #include "vendor/vulkan/vulkan.h"
 
+#include "renderer/vkwrappers/Buffer.h"
 #include "renderer/vkwrappers/Pipeline.h"
 #include "renderer/vkwrappers/Swapchain.h"
-#include "utils/containers/hkvector.h"
+#include "renderer/vkwrappers/Descriptors.h"
+
+#include "hkstl/containers/hkvector.h"
 
 namespace hk {
 
@@ -24,7 +27,7 @@ private:
     void createFramebuffers();
     void createRenderPass();
     void loadShaders();
-    void createPipeline();
+    void createPipeline(VkDescriptorSetLayout scene_layout);
 
 // FIX: temp public
 public:
@@ -49,10 +52,15 @@ public:
     // No need for position
     // https://mynameismjp.wordpress.com/2009/03/10/reconstructing-position-from-depth/
 
+    // Geometry pass
+    // FIX: rename, it's not geometry but rather global pipeline
+    // it's single use is to bind global desc set
+    hk::Pipeline geometry_pipeline_;
+
     // Light pass
     hk::Image color_;
     hk::Pipeline pipeline_;
-    VkDescriptorSetLayout set_layout_;
+    hk::DescriptorLayout set_layout_;
 
     u32 hndl_vertex_;
     u32 hndl_pixel_;

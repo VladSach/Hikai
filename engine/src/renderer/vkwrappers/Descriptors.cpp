@@ -5,7 +5,8 @@ namespace hk {
 DescriptorLayout::Builder& DescriptorLayout::Builder::addBinding(
     u32 binding,
     VkDescriptorType type,
-    VkShaderStageFlags stages)
+    VkShaderStageFlags stages,
+    VkSampler *immutable_samplers)
 {
     ALWAYS_ASSERT(!bindings_.count(binding),
                   "Descriptor binding:", binding, "is already in use");
@@ -15,44 +16,46 @@ DescriptorLayout::Builder& DescriptorLayout::Builder::addBinding(
     layout.descriptorCount = 1;
     layout.descriptorType = type;
     layout.stageFlags = stages;
-    // layout.pImmutableSamplers = VK_NULL_HANDLE;
+    layout.pImmutableSamplers = immutable_samplers;
 
     bindings_[binding] = layout;
 
     return *this;
 }
 
-DescriptorLayout DescriptorLayout::Builder::build()
+hk::vector<VkDescriptorSetLayoutBinding> DescriptorLayout::Builder::build()
 {
     hk::vector<VkDescriptorSetLayoutBinding> bindings;
     for (auto &binding : bindings_) {
         bindings.push_back(binding.second);
     }
 
-    return DescriptorLayout(bindings);
+    return bindings;
 }
 
-void DescriptorLayout::init(hk::vector<VkDescriptorSetLayoutBinding> bindings)
+void DescriptorLayout::init(const hk::vector<VkDescriptorSetLayoutBinding> &bindings)
 {
     VkResult err;
 
     VkDescriptorSetLayoutCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    info.pBindings = bindings.data();
+    info.pBindings = bindings.size() ? bindings.data() : nullptr;
     info.bindingCount = bindings.size();
     // info.pNext = nullptr;
     // info.flags = 0;
 
     VkDevice device = hk::context()->device();
-    err = vkCreateDescriptorSetLayout(device, &info, nullptr, &layout_);
+    err = vkCreateDescriptorSetLayout(device, &info, nullptr, &handle_);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Descriptor Set Layout");
 }
 
 void DescriptorLayout::deinit()
 {
-    VkDevice device = hk::context()->device();
-    vkDestroyDescriptorSetLayout(device, layout_, nullptr);
-    layout_ = VK_NULL_HANDLE;
+    if (handle_) {
+        VkDevice device = hk::context()->device();
+        vkDestroyDescriptorSetLayout(device, handle_, nullptr);
+        handle_ = VK_NULL_HANDLE;
+    }
 }
 
 void DescriptorAllocator::init(
@@ -114,28 +117,28 @@ VkDescriptorSet DescriptorAllocator::allocate(
     // Get or create a pool to allocate from
     VkDescriptorPool poolToUse = getPool();
 
-    VkDescriptorSetAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.pNext = pNext;
-    allocInfo.descriptorPool = poolToUse;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &layout;
+    VkDescriptorSetAllocateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    info.pNext = pNext;
+    info.descriptorPool = poolToUse;
+    info.descriptorSetCount = 1;
+    info.pSetLayouts = &layout;
 
-    VkDescriptorSet descriptorSet;
-    err = vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet);
+    VkDescriptorSet descriptor_set;
+    err = vkAllocateDescriptorSets(device, &info, &descriptor_set);
 
     if (err == VK_ERROR_OUT_OF_POOL_MEMORY || err == VK_ERROR_FRAGMENTED_POOL) {
         fullPools.push_back(poolToUse);
 
         poolToUse = getPool();
-        allocInfo.descriptorPool = poolToUse;
+        info.descriptorPool = poolToUse;
 
-        err = vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet);
+        err = vkAllocateDescriptorSets(device, &info, &descriptor_set);
         ALWAYS_ASSERT(!err, "Failed to allocate Vulkan Descriptor Set");
     }
 
     readyPools.push_back(poolToUse);
-    return descriptorSet;
+    return descriptor_set;
 }
 
 VkDescriptorPool DescriptorAllocator::getPool()

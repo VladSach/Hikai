@@ -1,7 +1,7 @@
 #include "Queue.h"
 
-#include "utils/containers/hkvector.h"
-#include "utils/numerics/hkbit.h"
+#include "hkstl/numerics/hkbit.h"
+#include "hkstl/containers/hkvector.h"
 
 namespace hk {
 

@@ -1,10 +1,6 @@
 #include "MetricsPanel.h"
 
-#include "renderer/ui/imguiwrapper.h"
-
-#include "utils/Logger.h"
 #include "platform/info.h"
-#include "renderer/vkwrappers/vkutils.h"
 
 void MetricsPanel::init()
 {

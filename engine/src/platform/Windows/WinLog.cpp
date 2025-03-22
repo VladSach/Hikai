@@ -170,7 +170,7 @@ void logWinConsole(const hk::log::Log &log)
                 row.push_back(' ');
                 message.erase(0, pos + delimiter.length());
             }
-            wss << "\n   + " << row.c_str();
+            wss << "\n   + " << row.c_str() << message.c_str();
         } else {
             wss << message.c_str();
         }

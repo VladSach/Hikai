@@ -1,8 +1,9 @@
 #include "UIPass.h"
 
 #include "renderer/VulkanContext.h"
-
 #include "renderer/ui/imguiwrapper.h"
+
+#include "resources/AssetManager.h"
 
 namespace hk {
 
@@ -119,28 +120,12 @@ void UIPass::createRenderPass()
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &color_attachment;
 
-    // VkSubpassDependency dependency = {};
-    // dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    // dependency.dstSubpass = 0;
-    // dependency.srcStageMask =
-    //     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-    //     VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    // dependency.dstStageMask =
-    //     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-    //     VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    // dependency.dstAccessMask =
-    //     VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-    //     VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
-    //     VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
     VkRenderPassCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     info.attachmentCount = 1;
     info.pAttachments = attachments;
     info.subpassCount = 1;
     info.pSubpasses = &subpass;
-    // info.dependencyCount = 1;
-    // info.pDependencies = &dependency;
 
     err = vkCreateRenderPass(device_, &info, nullptr, &render_pass_);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Render Pass");

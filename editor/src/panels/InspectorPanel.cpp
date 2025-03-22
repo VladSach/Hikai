@@ -8,6 +8,7 @@ void InspectorPanel::init()
 {
     is_open_ = true;
 
+    // FIX: remove
     hk::event::subscribe(hk::event::EVENT_ASSET_LOADED,
         [&](const hk::event::EventContext &context, void *listener) {
             (void)listener;
@@ -140,6 +141,9 @@ void InspectorPanel::addTransform(hk::SceneNode *node)
             ImGui::SetNextItemWidth(-1);
             ImGui::DragFloat3("##Rt", matrixRotation);
             // ImGuizmo::RecomposeMatrixFromComponents(matrixTranslation, matrixRotation, matrixScale, gizmoMatrix.m16);
+            // FIX: temp rotation fix
+            hkm::vec3f rotat = matrixRotation;
+            tr.rotation = hkm::fromEulerAngles(rotat * hkm::degree2rad);
 
             ImGui::EndTable();
         }
@@ -175,7 +179,7 @@ void InspectorPanel::addMaterialInfo(hk::SceneNode *node)
 
     if (ImGui::CollapsingHeader("Material", ImGuiTreeNodeFlags_DefaultOpen)) {
 
-        b8 change_material = false;
+        b8 material_swaped = false;
 
         // https://github.com/ocornut/imgui/issues/5963
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 20.f));
@@ -188,7 +192,7 @@ void InspectorPanel::addMaterialInfo(hk::SceneNode *node)
                 const b8 is_selected = (idx == i);
                 if (ImGui::Selectable(materials.at(i)->name.c_str(), is_selected, 0, ImVec2(0, combo_height))) {
                     idx = i;
-                    change_material = true;
+                    material_swaped = true;
                 }
 
                 if (is_selected) { ImGui::SetItemDefaultFocus(); }
@@ -198,7 +202,7 @@ void InspectorPanel::addMaterialInfo(hk::SceneNode *node)
         }
         ImGui::PopStyleVar();
 
-        if (change_material) {
+        if (material_swaped) {
             node->entity->attachMaterial(materials.at(idx)->handle);
             node->dirty = true;
         }
@@ -259,9 +263,9 @@ void InspectorPanel::addMaterialInfo(hk::SceneNode *node)
                         std::string path = reinterpret_cast<const char*>(payload->Data);
                         map_handle = hk::assets()->load(path);
 
-                        // to force reload of material since user changed it
-                        node->entity->attachMaterial(material.handle);
-                        // TODO: reload all entities that uses this material
+                        hk::event::EventContext ctx;
+                        ctx.u32[0] = material.handle;
+                        hk::event::fire(hk::event::EVENT_MATERIAL_MODIFIED, ctx);
                     }
                     ImGui::EndDragDropTarget();
                 }
@@ -285,14 +289,20 @@ void InspectorPanel::addMaterialInfo(hk::SceneNode *node)
 
 void InspectorPanel::addLightInfo(hk::SceneNode *node)
 {
+    hk::Light &light = *node->entity->light;
+
     if (ImGui::CollapsingHeader("Light", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ImGui::ColorEdit4("Color", &node->entity->light->color[0])) {
-            node->entity->attachLight(*node->entity->light);
+        if (ImGui::ColorEdit4("Color", &light.color[0])) {
+            node->entity->attachLight(light);
+        }
+
+        if (ImGui::InputFloat("Range", &light.range)) {
+            node->entity->attachLight(light);
         }
 
         if (node->entity->light->type == hk::Light::Type::SPOT_LIGHT) {
-            ImGui::DragFloat("Inner", &node->entity->light->inner_cutoff, 0.5f, 0, 45);
-            ImGui::DragFloat("Outer", &node->entity->light->outer_cutoff, 0.5f, 0, 45);
+            ImGui::DragFloat("Inner", &light.inner_cutoff, 0.5f, 0, 45);
+            ImGui::DragFloat("Outer", &light.outer_cutoff, 0.5f, 0, 45);
         }
     }
 }

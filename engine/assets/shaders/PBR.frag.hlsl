@@ -42,7 +42,7 @@ float4 main(PixelInput input) : SV_Target0
     float VdotH = max(dot(V, H), 0.f);
 
     float3 F = fresnel(VdotH, F0);
-    float  D = ggx(pow(roughness, 4), NdotH);
+    float  D = GGX(pow(roughness, 4), NdotH);
     float  G = smith(pow(roughness, 4), NdotV, NdotL);
 
     // Cook-Torrance

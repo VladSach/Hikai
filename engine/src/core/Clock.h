@@ -1,7 +1,7 @@
 #ifndef HK_CLOCK_H
 #define HK_CLOCK_H
 
-#include "defines.h"
+#include "hkcommon.h"
 
 #include <chrono>
 

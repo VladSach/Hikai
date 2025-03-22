@@ -5,7 +5,9 @@
 
 #include "renderer/vkwrappers/Pipeline.h"
 #include "renderer/vkwrappers/Swapchain.h"
-#include "utils/containers/hkvector.h"
+#include "renderer/vkwrappers/Descriptors.h"
+
+#include "hkstl/containers/hkvector.h"
 
 namespace hk {
 

@@ -3,9 +3,7 @@
 
 #include "vendor/vulkan/vulkan.h"
 
-#include "defines.h"
-
-#include "utils/numerics/hkbitflag.h"
+#include "hkstl/numerics/hkbitflag.h"
 
 namespace hk {
 
@@ -50,7 +48,7 @@ public:
     };
 
     struct VulkanBufferDesc {
-        VkDeviceSize size;
+        VkDeviceSize mem_size;
         VkBufferUsageFlags usage;
         VkMemoryPropertyFlags properties;
     };
@@ -61,6 +59,8 @@ public:
 
     void init(const BufferDesc &desc);
     void deinit();
+
+    void resize(u32 size);
 
     void map();
     void unmap();

@@ -1,6 +1,9 @@
 #ifndef HK_UTILS_HLSLI
 #define HK_UTILS_HLSLI
 
+// GLSL-like mod function
+#define mod(x, y) ((x) - (y) * floor((x)/(y)))
+
 float4x4 inverse(float4x4 input) {
 #define minor(a,b,c) determinant(float3x3(input.a, input.b, input.c))
     float4x4 cofactors = float4x4(

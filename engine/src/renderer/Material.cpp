@@ -12,47 +12,22 @@ void hk::RenderMaterial::build(VkRenderPass renderpass, u32 pushConstSize,
                          hk::vector<VkFormat> formats, VkFormat depthFormat)
 {
     // TODO: Make this dynamic
-    // hk::DescriptorLayout::Builder layoutBuilder;
-    // layoutBuilder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS);
-    // layoutBuilder.addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_ALL_GRAPHICS);
-    // layoutBuilder.addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-    // materialLayout = layoutBuilder.build().layout();
-
-    hk::DescriptorLayout *materialLayoutHK =
-        new hk::DescriptorLayout(hk::DescriptorLayout::Builder()
-        .addBinding(0,
-                    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    VK_SHADER_STAGE_ALL_GRAPHICS)
-        .addBinding(1,
-                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    VK_SHADER_STAGE_ALL_GRAPHICS)
-        .addBinding(2,
-                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    VK_SHADER_STAGE_ALL_GRAPHICS)
-        .addBinding(3,
-                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    VK_SHADER_STAGE_ALL_GRAPHICS)
-        .addBinding(4,
-                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    VK_SHADER_STAGE_ALL_GRAPHICS)
-        .addBinding(5,
-                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    VK_SHADER_STAGE_ALL_GRAPHICS)
-        .addBinding(6,
-                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    VK_SHADER_STAGE_ALL_GRAPHICS)
-        .build()
-    );
-    materialLayout = materialLayoutHK->layout();
-
-    VkDevice device = context()->device();
+    hk::DescriptorLayout::Builder l_builder;
+    l_builder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT);
+    l_builder.addBinding(1, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,  VK_SHADER_STAGE_FRAGMENT_BIT);
+    l_builder.addBinding(2, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,  VK_SHADER_STAGE_FRAGMENT_BIT);
+    l_builder.addBinding(3, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,  VK_SHADER_STAGE_FRAGMENT_BIT);
+    l_builder.addBinding(4, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,  VK_SHADER_STAGE_FRAGMENT_BIT);
+    l_builder.addBinding(5, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,  VK_SHADER_STAGE_FRAGMENT_BIT);
+    l_builder.addBinding(6, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,  VK_SHADER_STAGE_FRAGMENT_BIT);
+    layout.init(l_builder.build());
 
     PipelineBuilder builder;
 
-    builder.setShader(ShaderType::Vertex, assets()->getShader(material->vertex_shader).module);
-    builder.setShader(ShaderType::Pixel,  assets()->getShader(material->pixel_shader).module);
+    builder.setShader(material->vertex_shader);
+    builder.setShader(material->pixel_shader);
 
-    hk::vector<hk::bitflag<Format>> layout = {
+    hk::vector<hk::bitflag<Format>> vert_layout = {
         // position
         hk::Format::SIGNED | hk::Format::FLOAT |
         hk::Format::VEC3 | hk::Format::B32,
@@ -69,28 +44,42 @@ void hk::RenderMaterial::build(VkRenderPass renderpass, u32 pushConstSize,
         hk::Format::SIGNED | hk::Format::FLOAT |
         hk::Format::VEC3 | hk::Format::B32,
     };
-    builder.setVertexLayout(sizeof(Vertex), layout);
+    builder.setVertexLayout(sizeof(Vertex), vert_layout);
 
     builder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     builder.setRasterizer(VK_POLYGON_MODE_FILL,
                           material->twosided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT,
                           VK_FRONT_FACE_CLOCKWISE);
     builder.setMultisampling();
-    builder.setColorBlend();
-    builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL);
-    builder.setRenderInfo(formats, depthFormat);
 
-    builder.setPushConstants(pushConstSize);
+    builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL, depthFormat);
+    // FIX: temp
+    hk::vector<std::pair<VkFormat, BlendState>> colors = {
+        { VK_FORMAT_R32G32B32A32_SFLOAT, hk::BlendState::DEFAULT },
+        { VK_FORMAT_R16G16B16A16_SFLOAT, hk::BlendState::NONE },
+        { VK_FORMAT_R8G8B8A8_UNORM,      hk::BlendState::NONE },
+        { VK_FORMAT_R8G8B8A8_UNORM,      hk::BlendState::NONE },
+        { VK_FORMAT_R32_SFLOAT,          hk::BlendState::NONE },
+    };
+    builder.setColors(colors);
+
+    builder.setPushConstants({{VK_SHADER_STAGE_ALL_GRAPHICS, 0, pushConstSize }});
 
     hk::vector<VkDescriptorSetLayout> layouts = {
         sceneDescriptorLayout,
         passDescriptorLayout,
-        materialLayout
+        layout.handle(),
     };
 
-    builder.setLayout(layouts);
+    builder.setDescriptors(layouts);
 
-    pipeline = builder.build(device, renderpass);
+    hk::vector<VkDynamicState> dynamic_states = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR,
+    };
+    builder.setDynamicStates(dynamic_states);
+
+    pipeline = builder.build(renderpass);
     // hk::debug::setName(pipeline.handle(), "Material Pipeline");
     // hk::debug::setName(pipeline.layout(), "Material Pipeline Layout");
 
@@ -109,7 +98,10 @@ MaterialInstance RenderMaterial::write(DescriptorAllocator &allocator, VkSampler
     MaterialInstance matData;
     matData.pipeline = &pipeline;
 
-    matData.materialSet = allocator.allocate(materialLayout);
+    matData.materialSet = allocator.allocate(layout.handle());
+    static u32 count = 0;
+    hk::debug::setName(matData.materialSet,
+                       "Descriptor Set - Material #" + std::to_string(count++));
 
     writer.clear();
 
@@ -124,7 +116,8 @@ MaterialInstance RenderMaterial::write(DescriptorAllocator &allocator, VkSampler
 
         map = hk::assets()->getTexture(handle).texture;
         writer.writeImage(i + 1, map->view(), sampler, map->layout(),
-                          VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+                          // TODO: If sampler != nullptr -> use combined image
+                          VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
     }
 
     writer.updateSet(matData.materialSet);
@@ -135,6 +128,8 @@ MaterialInstance RenderMaterial::write(DescriptorAllocator &allocator, VkSampler
 void RenderMaterial::clear()
 {
     buf.deinit();
+    pipeline.deinit();
+    layout.deinit();
     material = nullptr;
 }
 

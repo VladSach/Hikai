@@ -2,9 +2,6 @@
 
 #include "renderer/ui/imguiwrapper.h"
 
-#include "utils/Logger.h"
-#include "utils/containers/hkvector.h"
-
 #include <fstream>
 #include <iomanip>
 

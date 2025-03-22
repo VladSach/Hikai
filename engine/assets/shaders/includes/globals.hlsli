@@ -1,12 +1,31 @@
 #ifndef HK_GLOBALS_HLSLI
 #define HK_GLOBALS_HLSLI
 
-cbuffer PerFrame : register(b0) {
+// Defines
+static const float PI = 3.14159265358979323846f;
+
+// Global Descriptor Set
+cbuffer PerFrame : register(b0, space0) {
     float2 resolution;
     float3 cameraPos;
     float time;
     float4x4 viewProj;
 };
+
+/*
+// Per-Frame data
+cbuffer GlobalData : register(b0, space0) {
+    struct CameraData {
+        float3 pos;
+        float4x4 view_proj;
+    } camera;
+
+    struct FrameData {
+        float2 resolution;
+        float time;
+    } frame;
+};
+*/
 
 cbuffer Lights : register(b1) {
     struct PointLight {
@@ -40,16 +59,24 @@ cbuffer Lights : register(b1) {
     uint pointLightsNum;
 }
 
-// TODO: move out of global
-[[vk::push_constant]]
-struct ModelToWorld {
-    float4x4 mat;
-} modelToWorld;
+/* ===== Samplers ===== */
+namespace hk {
+namespace sampler {
+SamplerState nearest_repeat : register(s2);
+SamplerState nearest_mirror : register(s3);
+SamplerState nearest_clamp  : register(s4);
+SamplerState nearest_border : register(s5);
 
-// GLSL-like mod function
-#define mod(x, y) ((x) - (y) * floor((x)/(y)))
+SamplerState linear_repeat : register(s6);
+SamplerState linear_mirror : register(s7);
+SamplerState linear_clamp  : register(s8);
+SamplerState linear_border : register(s9);
 
-// Defines
-static const float PI = 3.14159265358979323846f;
+SamplerState anisotropic_repeat : register(s10);
+SamplerState anisotropic_mirror : register(s11);
+SamplerState anisotropic_clamp  : register(s12);
+SamplerState anisotropic_border : register(s13);
+}
+}
 
 #endif // HK_GLOBALS_HLSLI

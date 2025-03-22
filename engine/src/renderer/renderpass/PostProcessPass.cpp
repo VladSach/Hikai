@@ -45,6 +45,7 @@ void PostProcessPass::deinit()
     swapchain_ = nullptr;
     device_ = VK_NULL_HANDLE;
 
+    set_layout_.deinit();
     color_format_ = VK_FORMAT_UNDEFINED;
     size_ = {};
 }
@@ -53,6 +54,8 @@ void PostProcessPass::render(const hk::Image &source,
                              VkCommandBuffer cmd, u32 idx,
                              hk::DescriptorAllocator *alloc)
 {
+    (void)idx;
+
     hk::DescriptorWriter writer;
 
     VkClearValue post_process_clear[1] = {};
@@ -67,7 +70,7 @@ void PostProcessPass::render(const hk::Image &source,
     post_process_info.clearValueCount = 1;
     post_process_info.pClearValues = post_process_clear;
 
-    VkDescriptorSet present_set = alloc->allocate(set_layout_);
+    VkDescriptorSet present_set = alloc->allocate(set_layout_.handle());
 
     writer.writeImage(2, source.view(), sampler_,
                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -230,10 +233,8 @@ void PostProcessPass::createPipeline()
 {
     hk::PipelineBuilder builder;
 
-    VkShaderModule vs = hk::assets()->getShader(hndl_vertex_).module;
-    VkShaderModule ps = hk::assets()->getShader(hndl_pixel_).module;
-    builder.setShader(ShaderType::Vertex, vs);
-    builder.setShader(ShaderType::Pixel, ps);
+    builder.setShader(hndl_vertex_);
+    builder.setShader(hndl_pixel_);
 
     builder.setVertexLayout(0, 0);
 
@@ -242,25 +243,28 @@ void PostProcessPass::createPipeline()
                           VK_CULL_MODE_FRONT_BIT,
                           VK_FRONT_FACE_COUNTER_CLOCKWISE);
     builder.setMultisampling();
-    builder.setColorBlend();
 
-    hk::DescriptorLayout *post_process_layout =
-        new hk::DescriptorLayout(hk::DescriptorLayout::Builder()
+    set_layout_.init(hk::DescriptorLayout::Builder()
         .addBinding(2,
                     VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                     VK_SHADER_STAGE_ALL_GRAPHICS)
         .build()
     );
-    set_layout_ = post_process_layout->layout();
-    hk::debug::setName(set_layout_, "Post Process Descriptor Layout");
+    hk::debug::setName(set_layout_.handle(), "Post Process Descriptor Layout");
 
-    hk::vector<VkDescriptorSetLayout> set_layouts = { set_layout_ };
-    builder.setLayout(set_layouts);
+    hk::vector<VkDescriptorSetLayout> set_layouts = { set_layout_.handle() };
+    builder.setDescriptors(set_layouts);
 
-    builder.setDepthStencil(VK_FALSE, VK_COMPARE_OP_NEVER);
-    builder.setRenderInfo({ color_format_ }, VK_FORMAT_UNDEFINED);
+    builder.setDepthStencil(VK_FALSE, VK_COMPARE_OP_NEVER, VK_FORMAT_UNDEFINED);
+    builder.setColors({{ color_format_, hk::BlendState::DEFAULT }});
 
-    pipeline_ = builder.build(device_, render_pass_);
+    hk::vector<VkDynamicState> dynamic_states = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR,
+    };
+    builder.setDynamicStates(dynamic_states);
+
+    pipeline_ = builder.build(render_pass_);
     hk::debug::setName(pipeline_.handle(), "Post Process Pipeline");
 }
 

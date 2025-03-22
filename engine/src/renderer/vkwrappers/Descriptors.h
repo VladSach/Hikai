@@ -5,7 +5,7 @@
 
 #include "renderer/VulkanContext.h"
 
-#include "utils/containers/hkvector.h"
+#include "hkstl/containers/hkvector.h"
 
 // TODO: replace
 #include <deque>
@@ -19,28 +19,31 @@ public:
     public:
         Builder& addBinding(u32 binding,
                             VkDescriptorType type,
-                            VkShaderStageFlags stages);
+                            VkShaderStageFlags stages,
+                            VkSampler *immutable_samplers = VK_NULL_HANDLE);
 
-        DescriptorLayout build();
+        hk::vector<VkDescriptorSetLayoutBinding> build();
 
     private:
-        // hk::vector<VkDescriptorSetLayoutBinding> bindings_;
         std::unordered_map<u32, VkDescriptorSetLayoutBinding> bindings_ = {};
     };
 
-    DescriptorLayout(hk::vector<VkDescriptorSetLayoutBinding> bindings)
-    {
-        init(bindings);
-    }
+public:
+    DescriptorLayout() = default;
     ~DescriptorLayout() { deinit(); }
 
-    void init(hk::vector<VkDescriptorSetLayoutBinding> bindings);
+    // If bindings is empty - creates null/dummy descriptor layout
+    void init(const hk::vector<VkDescriptorSetLayoutBinding> &bindings);
     void deinit();
 
-    constexpr VkDescriptorSetLayout layout() const { return layout_; }
+    constexpr VkDescriptorSetLayout handle() const
+    {
+        DEV_ASSERT(handle_, "Trying to access VK_NULL_HANDLE");
+        return handle_;
+    }
 
 private:
-    VkDescriptorSetLayout layout_ = VK_NULL_HANDLE;
+    VkDescriptorSetLayout handle_ = VK_NULL_HANDLE;
 };
 
 

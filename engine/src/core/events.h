@@ -1,9 +1,9 @@
 #ifndef HK_EVENTS_H
 #define HK_EVENTS_H
 
-#include "defines.h"
-#include "utils/containers/hkvector.h"
-#include "utils/containers/hkring_buffer.h"
+#include "hkcommon.h"
+#include "hkstl/containers/hkvector.h"
+#include "hkstl/containers/hkring_buffer.h"
 
 #include <functional>
 #include <unordered_map>
@@ -88,6 +88,12 @@ enum EventCode : u32 {
 
     // u32[0] = handle, u32[1] = asset type
     EVENT_ASSET_LOADED,
+
+    // u32[0] = handle, u32[1] = asset type
+    // EVENT_ASSET_MODIFIED,
+
+    // u32[0] = handle
+    EVENT_MATERIAL_MODIFIED,
 
     MAX_EVENT_CODES
 };

@@ -1,7 +1,7 @@
 #ifndef HK_VERTEX_H
 #define HK_VERTEX_H
 
-#include "math/hkmath.h"
+#include "hkstl/math/hkmath.h"
 
 struct Vertex {
     hkm::vec3f pos;

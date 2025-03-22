@@ -1,7 +1,7 @@
 #include "Application.h"
 
 #include "input.h"
-#include "utils/filewatch.h"
+#include "hkstl/filewatch.h"
 #include "resources/AssetManager.h"
 #include "platform/filesystem.h"
 
@@ -23,11 +23,11 @@ Application::Application(const AppDesc &desc)
 
     hk::input::init();
 
-    renderer_ = new Renderer();
-    renderer_->init(window_);
-
     // FIX: temp development fix
     hk::assets()->init(hk::filesystem::canonical("..\\editor\\assets"));
+
+    renderer_ = new Renderer();
+    renderer_->init(window_);
 
     scene_.init();
 
@@ -99,9 +99,10 @@ void Application::run()
 
 void Application::cleanup()
 {
+    scene_.deinit();
     hk::assets()->deinit();
-    hk::filewatch::deinit();
     renderer_->deinit();
+    hk::filewatch::deinit();
     hk::input::deinit();
     window_->deinit();
     hk::event::deinit();

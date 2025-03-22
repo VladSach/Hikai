@@ -24,7 +24,7 @@
 
 #include "platform/filesystem.h"
 
-#include "utils/strings/hklocale.h"
+#include "hkstl/strings/hklocale.h"
 
 namespace hk::dxc {
 
@@ -100,12 +100,23 @@ hk::vector<u32> loadShader(const ShaderDesc &desc)
     ALWAYS_ASSERT(SUCCEEDED(err), "Failed to create IDxcBlobEncoding");
 
     hk::vector<LPCWSTR> args;
+    // Name of the shader file to be displayed e.g. in an error message
+    std::wstring filename =
+        hk::string_convert(desc.path.substr(desc.path.find_last_of("/\\") + 1));
+    u64 ext_idx = filename.rfind('.');
+    args.push_back(filename.substr(ext_idx, 4).c_str());
+
+    // TODO: can use ext to map for file types automaticaly
+    // but will work only with correct file types (vert, frag, etc)
+
     std::wstring wmain(desc.entry.begin(), desc.entry.end());
     // -E for the entry point (eg. 'main')
     args.push_back(L"-E");
     args.push_back((LPCWSTR)wmain.c_str());
 
     constexpr wchar_t const *types[] = {
+        L"none",
+
         L"vs_",
         L"hs_",
         L"ds_",
@@ -137,7 +148,7 @@ hk::vector<u32> loadShader(const ShaderDesc &desc)
     } break;
     case ShaderIR::SPIRV: {
         args.push_back(L"-spirv");
-        args.push_back(L"-fspv-target-env=vulkan1.3");
+        args.push_back(L"-fspv-target-env=vulkan1.3"); // TODO: take from instance
         args.push_back(L"-fvk-use-dx-layout");
     } break;
     }

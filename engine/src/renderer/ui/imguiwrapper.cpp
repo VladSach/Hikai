@@ -91,6 +91,8 @@ void deinit()
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
+
+    vkDestroyDescriptorPool(hk::context()->device(), imgui_pool, nullptr);
 }
 
 void draw(VkCommandBuffer cmd)

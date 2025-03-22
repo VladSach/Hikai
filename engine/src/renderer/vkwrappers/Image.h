@@ -3,12 +3,10 @@
 
 #include "vendor/vulkan/vulkan.h"
 
-#include "defines.h"
-#include "utils/numerics/hkbitflag.h"
+#include "hkstl/numerics/hkbitflag.h"
 
 // FIX: temp
 #include <string>
-#include "renderer/vkwrappers/vkdebug.h"
 
 namespace hk {
 
@@ -28,7 +26,9 @@ public:
     };
 
     struct ImageDesc {
+        // Optional
         std::string name = "Unknown";
+
         hk::bitflag<Usage> usage;
 
         VkFormat format;
@@ -87,7 +87,6 @@ private:
     u32 mip_levels_ = 1;
     u32 array_layers_ = 1;
 
-    // Usage usage_ = Usage::NONE;
     hk::bitflag<Usage> usage_ = Usage::NONE;
 
     VkImage image_         = VK_NULL_HANDLE;

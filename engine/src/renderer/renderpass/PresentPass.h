@@ -7,7 +7,7 @@
 #include "renderer/vkwrappers/Swapchain.h"
 #include "renderer/vkwrappers/Descriptors.h"
 
-#include "utils/containers/hkvector.h"
+#include "hkstl/containers/hkvector.h"
 
 namespace hk {
 
@@ -40,7 +40,7 @@ private:
     u32 hndl_vertex_;
     u32 hndl_pixel_;
 
-    VkDescriptorSetLayout set_layout_;
+    hk::DescriptorLayout set_layout_;
 
     VkSampler sampler_;
 

@@ -11,7 +11,6 @@ void OffscreenPass::init(hk::Swapchain *swapchain, VkDescriptorSetLayout layout)
 
     device_ = hk::context()->device();
     swapchain_ = swapchain;
-    set_layout_ = layout;
 
     // color_format_ = swapchain_->format();
     color_format_ = VK_FORMAT_R16G16B16A16_SFLOAT; // HDR
@@ -20,7 +19,7 @@ void OffscreenPass::init(hk::Swapchain *swapchain, VkDescriptorSetLayout layout)
 
     createRenderPass();
     loadShaders();
-    createPipeline();
+    createPipeline(layout);
     createFramebuffers();
 }
 
@@ -31,8 +30,15 @@ void OffscreenPass::deinit()
     vkDestroyFramebuffer(device_, framebuffer_, nullptr);
     framebuffer_ = VK_NULL_HANDLE;
 
+    position_.deinit();
+    normal_.deinit();
     albedo_.deinit();
+    material_.deinit();
     depth_.deinit();
+    color_.deinit();
+
+    geometry_pipeline_.deinit();
+    pipeline_.deinit();
 
     vkDestroyRenderPass(device_, render_pass_, nullptr);
     render_pass_ = VK_NULL_HANDLE;
@@ -40,6 +46,7 @@ void OffscreenPass::deinit()
     swapchain_ = nullptr;
     device_ = VK_NULL_HANDLE;
 
+    set_layout_.deinit();
     color_format_ = VK_FORMAT_UNDEFINED;
     size_ = {};
 }
@@ -66,20 +73,6 @@ void OffscreenPass::begin(VkCommandBuffer cmd, u32 idx)
     begin_info.pClearValues = clear_values;
 
     vkCmdBeginRenderPass(cmd, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
-
-    VkViewport viewport = {};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<f32>(size_.width);
-    viewport.height = static_cast<f32>(size_.height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(cmd, 0, 1, &viewport);
-
-    VkRect2D scissor = {};
-    scissor.offset = {0, 0};
-    scissor.extent = size_;
-    vkCmdSetScissor(cmd, 0, 1, &scissor);
 }
 
 void OffscreenPass::end(VkCommandBuffer cmd)
@@ -91,58 +84,53 @@ void OffscreenPass::createFramebuffers()
 {
     VkResult err;
 
+    // NOTE: Layouts are undefined, subpasses handle transitions by themselfs
+    // TODO: better image system, so it would work with subpasses and swapchain
+
     position_.init({
         "Deferred Position attachment",
-        hk::Image::Usage::SAMPLED      |
-        // hk::Image::Usage::TRANSFER_SRC |
-        // hk::Image::Usage::TRANSFER_DST |
+        hk::Image::Usage::SAMPLED          |
         hk::Image::Usage::COLOR_ATTACHMENT |
         hk::Image::Usage::INPUT_ATTACHMENT,
         VK_FORMAT_R32G32B32A32_SFLOAT,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_ASPECT_COLOR_BIT,
         size_.width, size_.height, 1,
     });
 
     normal_.init({
         "Deferred Normal attachment",
-        hk::Image::Usage::SAMPLED      |
-        // hk::Image::Usage::TRANSFER_SRC |
-        // hk::Image::Usage::TRANSFER_DST |
+        hk::Image::Usage::SAMPLED          |
         hk::Image::Usage::COLOR_ATTACHMENT |
         hk::Image::Usage::INPUT_ATTACHMENT,
         VK_FORMAT_R16G16B16A16_SFLOAT,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_ASPECT_COLOR_BIT,
         size_.width, size_.height, 1,
     });
 
     albedo_.init({
         "Deferred Albedo attachment",
-        hk::Image::Usage::SAMPLED      |
-        // hk::Image::Usage::TRANSFER_SRC |
-        // hk::Image::Usage::TRANSFER_DST |
+        hk::Image::Usage::SAMPLED          |
         hk::Image::Usage::COLOR_ATTACHMENT |
         hk::Image::Usage::INPUT_ATTACHMENT,
         VK_FORMAT_R8G8B8A8_UNORM,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_ASPECT_COLOR_BIT,
         size_.width, size_.height, 1,
     });
 
     material_.init({
         "Deferred Material attachment",
-        hk::Image::Usage::SAMPLED      |
-        // hk::Image::Usage::TRANSFER_SRC |
-        // hk::Image::Usage::TRANSFER_DST |
+        hk::Image::Usage::SAMPLED          |
         hk::Image::Usage::COLOR_ATTACHMENT |
         hk::Image::Usage::INPUT_ATTACHMENT,
         VK_FORMAT_R8G8B8A8_UNORM,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_ASPECT_COLOR_BIT,
         size_.width, size_.height, 1,
     });
@@ -152,7 +140,8 @@ void OffscreenPass::createFramebuffers()
         hk::Image::Usage::DEPTH_STENCIL_ATTACHMENT |
         hk::Image::Usage::INPUT_ATTACHMENT,
         depth_format_,
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_ASPECT_DEPTH_BIT,
         size_.width, size_.height, 1,
     });
@@ -164,8 +153,8 @@ void OffscreenPass::createFramebuffers()
         hk::Image::Usage::TRANSFER_DST |
         hk::Image::Usage::COLOR_ATTACHMENT,
         color_format_,
-        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        // VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_ASPECT_COLOR_BIT,
         size_.width, size_.height, 1,
     });
@@ -200,7 +189,7 @@ void OffscreenPass::createRenderPass()
     VkAttachmentDescription attachments[6] = {};
 
     // Position Attachment
-    attachments[0].format = VK_FORMAT_R8G8B8A8_UNORM;
+    attachments[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
     attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
     attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -385,26 +374,74 @@ void OffscreenPass::loadShaders()
     hk::assets()->load(desc.path, &desc);
 }
 
-void OffscreenPass::createPipeline()
+void OffscreenPass::createPipeline(VkDescriptorSetLayout scene_layout)
 {
     hk::PipelineBuilder builder;
 
-    VkShaderModule vs = hk::assets()->getShader(hndl_vertex_).module;
-    VkShaderModule ps = hk::assets()->getShader(hndl_pixel_).module;
-    builder.setShader(ShaderType::Vertex, vs);
-    builder.setShader(ShaderType::Pixel, ps);
+    builder.setName("Geometry Pass");
+
+    builder.setPushConstants({{ VK_SHADER_STAGE_ALL_GRAPHICS, 0, 64 }});
+    builder.setDescriptors({ scene_layout });
+
+    u32 empty_vert;
+    u32 empty_pixel;
+    const std::string path = "..\\engine\\assets\\shaders\\";
+
+    hk::dxc::ShaderDesc desc;
+    desc.entry = "main";
+    desc.type = ShaderType::Vertex;
+    desc.model = ShaderModel::SM_6_0;
+    desc.ir = ShaderIR::SPIRV;
+#ifdef HKDEBUG
+    desc.debug = true;
+#else
+    desc.debug = false;
+#endif
+
+    desc.path = path + "Empty.vert.hlsl";
+    empty_vert = hk::assets()->load(desc.path, &desc);
+
+    desc.type = ShaderType::Pixel;
+    desc.path = path + "Empty.frag.hlsl";
+    empty_pixel = hk::assets()->load(desc.path, &desc);
+
+    builder.setShader(empty_vert);
+    builder.setShader(empty_pixel);
 
     builder.setVertexLayout(0, 0);
-
     builder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
     builder.setRasterizer(VK_POLYGON_MODE_FILL,
                           VK_CULL_MODE_FRONT_BIT,
                           VK_FRONT_FACE_COUNTER_CLOCKWISE);
-    builder.setMultisampling();
-    builder.setColorBlend();
 
-    hk::DescriptorLayout *light_layout =
-        new hk::DescriptorLayout(hk::DescriptorLayout::Builder()
+    builder.setMultisampling();
+
+    builder.setDepthStencil(VK_FALSE, VK_COMPARE_OP_NEVER, VK_FORMAT_UNDEFINED);
+
+    hk::vector<std::pair<VkFormat, BlendState>> colors = {
+        { VK_FORMAT_R32G32B32A32_SFLOAT, hk::BlendState::NONE },
+        { VK_FORMAT_R16G16B16A16_SFLOAT, hk::BlendState::NONE },
+        { VK_FORMAT_R8G8B8A8_UNORM,      hk::BlendState::NONE },
+        { VK_FORMAT_R8G8B8A8_UNORM,      hk::BlendState::NONE },
+        { VK_FORMAT_R32_SFLOAT,          hk::BlendState::NONE },
+    };
+    builder.setColors(colors);
+
+    builder.setDynamicStates({
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR,
+    });
+
+    geometry_pipeline_ = builder.build(render_pass_);
+
+    // Light pipeline
+    builder.clear();
+
+    builder.setName("Light Pass");
+
+    builder.setPushConstants({{ VK_SHADER_STAGE_ALL_GRAPHICS, 0, 64 }});
+
+    set_layout_.init(hk::DescriptorLayout::Builder()
         .addBinding(0,
                     VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
                     VK_SHADER_STAGE_FRAGMENT_BIT)
@@ -422,31 +459,34 @@ void OffscreenPass::createPipeline()
                     VK_SHADER_STAGE_FRAGMENT_BIT)
         .build()
     );
-
-    VkDescriptorSetLayout scene_layout = set_layout_;
-
-    set_layout_ = light_layout->layout();
-    hk::debug::setName(set_layout_, "Light Descriptor Layout");
+    hk::debug::setName(set_layout_.handle(), "Light Descriptor Layout");
 
     hk::vector<VkDescriptorSetLayout> set_layouts = {
         scene_layout,
-        set_layout_
+        set_layout_.handle(),
     };
-    builder.setLayout(set_layouts);
+    builder.setDescriptors(set_layouts);
 
-    builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL);
+    builder.setShader(hndl_vertex_);
+    builder.setShader(hndl_pixel_);
 
-    formats_ = {
-        VK_FORMAT_R8G8B8A8_UNORM,
-        VK_FORMAT_R16G16B16A16_SFLOAT,
-        VK_FORMAT_R8G8B8A8_UNORM,
-        VK_FORMAT_R8G8B8A8_UNORM,
-        VK_FORMAT_R32_SFLOAT,
-    };
-    builder.setRenderInfo({ color_format_ }, depth_format_);
+    builder.setVertexLayout(0, 0);
+    builder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
 
-    pipeline_ = builder.build(device_, render_pass_, 1);
-    hk::debug::setName(pipeline_.handle(), "Light Pipeline");
+    builder.setRasterizer(VK_POLYGON_MODE_FILL,
+                          VK_CULL_MODE_FRONT_BIT,
+                          VK_FRONT_FACE_COUNTER_CLOCKWISE);
+    builder.setMultisampling();
+
+    builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL, depth_format_);
+    builder.setColors({{ color_format_, hk::BlendState::DEFAULT }});
+
+    builder.setDynamicStates({
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR,
+    });
+
+    pipeline_ = builder.build(render_pass_, 1);
 }
 
 }

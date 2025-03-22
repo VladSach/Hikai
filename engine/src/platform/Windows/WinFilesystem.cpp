@@ -3,7 +3,7 @@
 #include "win.h"
 #include "PathCch.h"
 
-#include "utils/strings/hklocale.h"
+#include "hkstl/strings/hklocale.h"
 
 #include <fstream>
 #include <string>

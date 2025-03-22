@@ -28,6 +28,7 @@ struct RenderObject {
 
     void deinit()
     {
+        rm.clear();
         indexBuffer.deinit();
         vertexBuffer.deinit();
     }
@@ -56,9 +57,10 @@ struct RenderObject {
         indexBuffer.update(mesh.indices.data());
     }
 
-    void bind(VkCommandBuffer commandBuffer) {
-        vertexBuffer.bind(commandBuffer);
-        indexBuffer.bind(commandBuffer);
+    void bind(VkCommandBuffer cmd)
+    {
+        vertexBuffer.bind(cmd);
+        indexBuffer.bind(cmd);
     }
 };
 

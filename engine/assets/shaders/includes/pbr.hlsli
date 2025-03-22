@@ -21,14 +21,11 @@ float smith(float rough4, float NoV, float NoL)
 
 /* ===== Isotropic Normal Distribution Functions ===== */
 
-
 // GGX/Trowbridge-Reitz
 // Real-Time Rendering 4th Edition, page 340, equation 9.41
 // rough4 is initial roughness value in power of 4
-float ggx(float rough4, float NoH)
+float GGX(float rough4, float NoH)
 {
-    // TODO: PI
-    const float PI = 3.14;
     float denom = NoH * NoH * (rough4 - 1.f) + 1.f;
     denom = PI * denom * denom;
     return rough4 / denom;

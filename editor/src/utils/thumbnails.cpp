@@ -21,7 +21,7 @@ void* get(u32 handle)
 
     hk::Image *image = hk::assets()->getTexture(handle).texture;
 
-    cache[handle] = hk::imgui::addTexture(image->view(), r->samplerLinear);
+    cache[handle] = hk::imgui::addTexture(image->view(), r->samplers_.linear.repeat);
 
     return cache[handle];
 }

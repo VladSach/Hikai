@@ -1,16 +1,16 @@
 #include "Renderer.h"
 
 #include "platform/platform.h"
-#include "renderer/VertexLayout.h"
-#include "renderer/vkwrappers/vkdebug.h"
 #include "resources/AssetManager.h"
 
-// TODO: change with hikai implementation
-#include <algorithm>
-#include <set>
+#include "renderer/VertexLayout.h"
+#include "renderer/ui/debug_draw.h"
 
 // FIX: temp
-static ModelToWorld modelToWorld;
+#include "renderer/ui/imguidebug.h"
+
+// FIX: temp
+static InstanceData instance_data;
 
 void Renderer::init(const Window *window)
 {
@@ -34,25 +34,42 @@ void Renderer::init(const Window *window)
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,  3 },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
+        { VK_DESCRIPTOR_TYPE_SAMPLER, 12 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 6 },
         { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
+        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 6 },
     };
-
     global_desc_alloc.init(100, sizes);
 
-    hk::DescriptorLayout *descriptor_layout =
-        new hk::DescriptorLayout(hk::DescriptorLayout::Builder()
-        .addBinding(0,
-                    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    VK_SHADER_STAGE_ALL_GRAPHICS)
-        .addBinding(1,
-                    // PERF: right now no need to change to ssbo but maybe later
-                    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    VK_SHADER_STAGE_ALL_GRAPHICS)
+    createSamplers();
+
+    global_desc_layout.init(
+        hk::DescriptorLayout::Builder()
+        // Scene and other data
+        .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
+
+        // Lights
+        // PERF: right now no need to change to ssbo but maybe later
+        .addBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
+
+        // Static Samplers
+        .addBinding(2, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.nearest.repeat)
+        .addBinding(3, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.nearest.mirror)
+        .addBinding(4, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.nearest.clamp)
+        .addBinding(5, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.nearest.border)
+
+        .addBinding(6, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.linear.repeat)
+        .addBinding(7, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.linear.mirror)
+        .addBinding(8, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.linear.clamp)
+        .addBinding(9, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.linear.border)
+
+        .addBinding(10, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.anisotropic.repeat)
+        .addBinding(11, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.anisotropic.mirror)
+        .addBinding(12, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.anisotropic.clamp)
+        .addBinding(13, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.anisotropic.border)
         .build()
     );
-
-    global_desc_layout = descriptor_layout->layout();
-    hk::debug::setName(global_desc_layout, "Per Frame Descriptor Set Layout");
+    hk::debug::setName(global_desc_layout.handle(), "Per Frame Descriptor Set Layout");
 
     createFrameResources();
 
@@ -70,20 +87,24 @@ void Renderer::init(const Window *window)
 
     desc.stride = sizeof(LightSources);
     lights_buffer.init(desc);
+
+    hk::debug::setName(frame_data_buffer.buffer(), "Uniform Buffer - Global");
+    hk::debug::setName(lights_buffer.buffer(), "Uniform Buffer - Lights");
     // end ubo
 
     use_ui_ = true;
 
     loadShaders();
 
-    offscreen_.init(&swapchain_, global_desc_layout);
+    offscreen_.init(&swapchain_, global_desc_layout.handle());
     post_process_.init(&swapchain_);
     present_.init(&swapchain_);
     ui_.init(window_, &swapchain_);
 
-    createGridPipeline();
+    hk::dd::init(global_desc_layout.handle(),
+                 offscreen_.set_layout_.handle(), offscreen_.render_pass_);
 
-    createSamplers();
+    createGridPipeline();
 
     hk::event::subscribe(hk::event::EVENT_WINDOW_RESIZE, resize, this);
 }
@@ -92,21 +113,41 @@ void Renderer::deinit()
 {
     vkDeviceWaitIdle(device_);
 
-    vkDestroySampler(device_, samplerLinear,  nullptr);
-    vkDestroySampler(device_, samplerNearest, nullptr);
+    vkDestroySampler(device_, samplers_.linear.repeat, nullptr);
+    vkDestroySampler(device_, samplers_.linear.mirror, nullptr);
+    vkDestroySampler(device_, samplers_.linear.clamp,  nullptr);
+    vkDestroySampler(device_, samplers_.linear.border, nullptr);
+
+    vkDestroySampler(device_, samplers_.nearest.repeat, nullptr);
+    vkDestroySampler(device_, samplers_.nearest.mirror, nullptr);
+    vkDestroySampler(device_, samplers_.nearest.clamp,  nullptr);
+    vkDestroySampler(device_, samplers_.nearest.border, nullptr);
+
+    vkDestroySampler(device_, samplers_.anisotropic.repeat, nullptr);
+    vkDestroySampler(device_, samplers_.anisotropic.mirror, nullptr);
+    vkDestroySampler(device_, samplers_.anisotropic.clamp,  nullptr);
+    vkDestroySampler(device_, samplers_.anisotropic.border, nullptr);
 
     offscreen_.deinit();
     post_process_.deinit();
     present_.deinit();
     ui_.deinit();
 
+    gridPipeline.deinit();
+    hk::dd::deinit();
+
+    global_desc_layout.deinit();
+    global_desc_alloc.deinit();
+
     // FIX: temp
     frame_data_buffer.deinit();
+    lights_buffer.deinit();
 
     for (auto frame : frames_) {
         vkDestroySemaphore(device_, frame.acquire_semaphore, nullptr);
         vkDestroySemaphore(device_, frame.submit_semaphore, nullptr);
         vkDestroyFence(device_, frame.in_flight_fence, nullptr);
+        frame.descriptor_alloc.deinit();
     }
 
     swapchain_.deinit();
@@ -128,8 +169,10 @@ void Renderer::draw(hk::DrawContext &ctx)
     vkResetFences(device_, 1, &frame.in_flight_fence);
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR) {
-        resize({static_cast<u16>(window_->width()),
-                static_cast<u16>(window_->height())}, this);
+        hk::event::EventContext context;
+        context.u32[0] = window_->width();
+        context.u32[1] = window_->height();
+        resize(context, this);
         return;
     } else if (err != VK_SUCCESS && err != VK_SUBOPTIMAL_KHR) {
         LOG_ERROR("Failed to acquire Swapchain image");
@@ -140,16 +183,9 @@ void Renderer::draw(hk::DrawContext &ctx)
     frame.descriptor_alloc.clear();
 
     VkDescriptorSet global_desc_set =
-        frame.descriptor_alloc.allocate(global_desc_layout);
+        frame.descriptor_alloc.allocate(global_desc_layout.handle());
 
     hk::DescriptorWriter writer;
-    writer.writeBuffer(0, frame_data_buffer.buffer(),
-                       sizeof(SceneData), 0,
-                       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-
-    writer.writeBuffer(1, lights_buffer.buffer(),
-                       sizeof(LightSources), 0,
-                       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -158,54 +194,72 @@ void Renderer::draw(hk::DrawContext &ctx)
     err = vkBeginCommandBuffer(frame.cmd, &beginInfo);
     ALWAYS_ASSERT(!err, "Failed to begin Command Buffer");
 
-    offscreen_.begin(frame.cmd, image_idx);
+    VkViewport viewport = {};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<f32>(swapchain_.extent().width);
+    viewport.height = static_cast<f32>(swapchain_.extent().height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
 
+    VkRect2D scissor = {};
+    scissor.offset = {0, 0};
+    scissor.extent = swapchain_.extent();
+
+    vkCmdSetViewport(frame.cmd, 0, 1, &viewport);
+    vkCmdSetScissor(frame.cmd, 0, 1, &scissor);
+
+    VkPipelineBindPoint bind_point_graphics = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
+    /* === Descriptor Sets ===
+     * Per-frame    0
+     * Per-pass     1
+     * Per-material 2
+     * Per-instance 3 (right now push constants)
+     */
+
+    offscreen_.begin(frame.cmd, image_idx);
+        writer.writeBuffer(0, frame_data_buffer.buffer(),
+                           sizeof(SceneData), 0,
+                           VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        writer.writeBuffer(1, lights_buffer.buffer(),
+                           sizeof(LightSources), 0,
+                           VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         writer.updateSet(global_desc_set);
 
-        // FIX: global desc set should be bound once before anything else
+        offscreen_.geometry_pipeline_.bind(frame.cmd, bind_point_graphics);
 
-        /* FIX: make 4 descriptor sets and change bound
-         * Per-frame    0
-         * Per-pass     1
-         * Per-material 2
-         * Per-instance 3
-         */
+        // per-frame descriptor (0)
+        vkCmdBindDescriptorSets(frame.cmd,
+                                bind_point_graphics,
+                                offscreen_.geometry_pipeline_.layout(), 0, 1,
+                                &global_desc_set, 0, nullptr);
 
+        // Geometry Pass
         for (auto &object : ctx.objects) {
             hk::MaterialInstance &mat = object.material;
 
-            vkCmdBindPipeline(frame.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mat.pipeline->handle());
-
-            // per-frame descriptor (0)
-            vkCmdBindDescriptorSets(frame.cmd,
-                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    mat.pipeline->layout(), 0, 1,
-                                    &global_desc_set, 0, nullptr);
+            mat.pipeline->bind(frame.cmd, bind_point_graphics);
 
             object.bind(frame.cmd);
 
             // per-material descriptor (2)
             vkCmdBindDescriptorSets(frame.cmd,
-                                    VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    bind_point_graphics,
                                     mat.pipeline->layout(), 2, 1,
                                     &mat.materialSet, 0, nullptr);
 
-            u32 numInstances = u32(object.instances.size());
-
-            for (u32 meshIndex = 0; meshIndex < object.instances.size(); ++meshIndex) {
-                modelToWorld.transform = object.instances.at(meshIndex);
+            u32 instance_count = object.instances.size();
+            for (u32 mesh_idx = 0; mesh_idx < instance_count; ++mesh_idx) {
+                instance_data.model_to_world = object.instances.at(mesh_idx);
 
                 // per-instance descriptor (3)
                 vkCmdPushConstants(frame.cmd, mat.pipeline->layout(),
-                                   VK_SHADER_STAGE_VERTEX_BIT, 0,
-                                   sizeof(modelToWorld), &modelToWorld);
+                                   VK_SHADER_STAGE_ALL_GRAPHICS, 0,
+                                   sizeof(instance_data), &instance_data);
 
-                vkCmdDrawIndexed(frame.cmd,
-                                    object.indexBuffer.size(),
-                                    numInstances,
-                                    0,
-                                    0,
-                                    meshIndex);
+                vkCmdDrawIndexed(frame.cmd, object.indexBuffer.size(),
+                                 instance_count, 0, 0, mesh_idx);
             }
 
         }
@@ -215,22 +269,14 @@ void Renderer::draw(hk::DrawContext &ctx)
 
         // TODO: change all images layout to shader read
 
-        // FIX: shouldn't be bound twice
-        writer.clear();
-        writer.updateSet(global_desc_set);
-        writer.writeBuffer(0, frame_data_buffer.buffer(),
-                        sizeof(SceneData), 0,
-                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-
-        writer.writeBuffer(1, lights_buffer.buffer(),
-                        sizeof(LightSources), 0,
-                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        // FIX: temp
         vkCmdBindDescriptorSets(frame.cmd,
-                                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                bind_point_graphics,
                                 offscreen_.pipeline_.layout(), 0, 1,
                                 &global_desc_set, 0, nullptr);
 
-        VkDescriptorSet light_set = global_desc_alloc.allocate(offscreen_.set_layout_);
+        // per-pass descriptor (1)
+        VkDescriptorSet light_set = global_desc_alloc.allocate(offscreen_.set_layout_.handle());
         writer.clear();
         writer.writeImage(0, offscreen_.position_.view(), VK_NULL_HANDLE,
                           // offscreen_.position_.layout(),
@@ -255,22 +301,25 @@ void Renderer::draw(hk::DrawContext &ctx)
 
         writer.updateSet(light_set);
 
-        vkCmdBindPipeline(frame.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                          offscreen_.pipeline_.handle());
+        offscreen_.pipeline_.bind(frame.cmd, bind_point_graphics);
 
-        vkCmdBindDescriptorSets(frame.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+        vkCmdBindDescriptorSets(frame.cmd, bind_point_graphics,
                             offscreen_.pipeline_.layout(), 1, 1,
                             &light_set, 0, nullptr);
 
         vkCmdDraw(frame.cmd, 3, 1, 0, 0);
+
+        // TODO: move grid shader and debug draw to separate debug render pass
 
         // Draw grid shader
         // vkCmdBindPipeline(frame.cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
         //                   gridPipeline.handle());
         // vkCmdDraw(frame.cmd, 4, 1, 0, 0);
 
-    offscreen_.end(frame.cmd);
+        // Debug Draw
+        hk::dd::draw(frame.cmd);
 
+    offscreen_.end(frame.cmd);
 
     // VkResult f = vkGetFenceStatus(hk::context()->device(), frame.in_flight_fence);
     // LOG_DEBUG("Current Index: ", imageIndex,
@@ -355,8 +404,10 @@ void Renderer::draw(hk::DrawContext &ctx)
     err = swapchain_.present(image_idx, frame.submit_semaphore);
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR || resized) {
-        resize({static_cast<u16>(window_->width()),
-                static_cast<u16>(window_->height())}, this);
+        hk::event::EventContext context;
+        context.u32[0] = window_->width();
+        context.u32[1] = window_->height();
+        resize(context, this);
     } else if (err != VK_SUCCESS) {
         LOG_ERROR("Failed to present Swapchain image");
     }
@@ -411,10 +462,8 @@ void Renderer::createGridPipeline()
 {
     hk::PipelineBuilder builder;
 
-    VkShaderModule vs = hk::assets()->getShader(hndlGridVS).module;
-    VkShaderModule ps = hk::assets()->getShader(hndlGridPS).module;
-    builder.setShader(ShaderType::Vertex, vs);
-    builder.setShader(ShaderType::Pixel, ps);
+    builder.setShader(hndlGridVS);
+    builder.setShader(hndlGridPS);
 
     builder.setVertexLayout(0, 0);
 
@@ -423,19 +472,21 @@ void Renderer::createGridPipeline()
                           VK_CULL_MODE_NONE,
                           VK_FRONT_FACE_CLOCKWISE);
     builder.setMultisampling();
-    builder.setColorBlend();
 
     hk::vector<VkDescriptorSetLayout> descriptorSetsLayouts = {
-        global_desc_layout,
+        global_desc_layout.handle(),
     };
-    builder.setLayout(descriptorSetsLayouts);
+    builder.setDescriptors(descriptorSetsLayouts);
 
-    builder.setPushConstants(sizeof(modelToWorld));
+    builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL, offscreen_.depth_.format());
+    builder.setColors({{ swapchain_.format(), hk::BlendState::DEFAULT }});
 
-    builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL);
-    builder.setRenderInfo({ swapchain_.format() }, offscreen_.depth_.format());
-
-    gridPipeline = builder.build(device_, offscreen_.render_pass_, 1);
+    hk::vector<VkDynamicState> dynamic_states = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR,
+    };
+    builder.setDynamicStates(dynamic_states);
+    gridPipeline = builder.build(offscreen_.render_pass_, 1);
     hk::debug::setName(gridPipeline.handle(), "Grid Pipeline");
 }
 
@@ -480,12 +531,6 @@ void Renderer::loadShaders()
         resized = true;
     });
 
-    desc.path = path + "Texture.frag.hlsl";
-    hndlTexturePS = hk::assets()->load(desc.path, &desc);
-    hk::assets()->attachCallback(hndlTexturePS, [this](){
-        resized = true;
-    });
-
     desc.path = path + "PBR.frag.hlsl";
     hndlPBR = hk::assets()->load(desc.path, &desc);
     hk::assets()->attachCallback(hndlPBR, [this](){
@@ -497,61 +542,104 @@ void Renderer::loadShaders()
     hk::assets()->attachCallback(hndlGridPS, [this](){
         createGridPipeline();
     });
-
-    curShaderVS = hndlDefaultVS;
-    curShaderPS = hndlDefaultPS;
 }
 
 void Renderer::createSamplers()
 {
-    VkSamplerCreateInfo samplerInfo = {};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    // TODO: make sampler wrapper with more config
+    enum FilterType {
+        Nearest,
+        Linear,
+        Anisotropic,
+    };
+    auto createSampler = [&](FilterType filter, VkSamplerAddressMode mode, std::string name) {
+        VkResult err;
+        VkSampler out;
+        const auto physical_info = hk::context()->physicalInfo();
 
-    const auto info = hk::context()->physicalInfo();
+        VkSamplerCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        info.mipLodBias = 0.f;
+        info.compareEnable = VK_FALSE;
+        info.compareOp = VK_COMPARE_OP_ALWAYS;
+        info.minLod = 0.f;
+        info.maxLod = 0.f;
+        info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        info.unnormalizedCoordinates = VK_FALSE;
 
-    samplerInfo.anisotropyEnable = VK_TRUE;
-    samplerInfo.maxAnisotropy = info.properties.limits.maxSamplerAnisotropy;
-    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-    samplerInfo.unnormalizedCoordinates = VK_FALSE;
-    samplerInfo.compareEnable = VK_FALSE;
-    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    samplerInfo.mipLodBias = 0.0f;
-    samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
+        switch (filter) {
+        case FilterType::Nearest: {
+            info.magFilter = VK_FILTER_NEAREST;
+            info.minFilter = VK_FILTER_NEAREST;
+            info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+            info.anisotropyEnable = VK_FALSE;
+            info.maxAnisotropy = 0.f;
+        } break;
+        case FilterType::Linear: {
+            info.magFilter = VK_FILTER_LINEAR;
+            info.minFilter = VK_FILTER_LINEAR;
+            info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            info.anisotropyEnable = VK_FALSE;
+            info.maxAnisotropy = 0.f;
+        } break;
+        case FilterType::Anisotropic: {
+            info.magFilter = VK_FILTER_LINEAR;
+            info.minFilter = VK_FILTER_LINEAR;
+            info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+            info.anisotropyEnable = VK_TRUE;
+            info.maxAnisotropy = physical_info.properties.limits.maxSamplerAnisotropy;
+        } break;
+        }
 
-    vkCreateSampler(device_, &samplerInfo, nullptr, &samplerLinear);
-    hk::debug::setName(samplerLinear, "Default Linear Sampler");
+        info.addressModeU = mode;
+        info.addressModeV = mode;
+        info.addressModeW = mode;
 
-    samplerInfo.magFilter = VK_FILTER_LINEAR;
-    samplerInfo.minFilter = VK_FILTER_LINEAR;
+        err = vkCreateSampler(device_, &info, nullptr, &out);
+        ALWAYS_ASSERT(!err, "Failed to create Vulkan Sampler");
+        hk::debug::setName(out, name);
+        return out;
+    };
 
-    vkCreateSampler(device_, &samplerInfo, nullptr, &samplerNearest);
-    hk::debug::setName(samplerNearest, "Default Nearest Sampler");
+    // Nearest/Point samplers
+    Samplers::Nearest &nearest = samplers_.nearest;
+    nearest.repeat = createSampler(Nearest, VK_SAMPLER_ADDRESS_MODE_REPEAT,          "Global Nearest Repeat Sampler");
+    nearest.mirror = createSampler(Nearest, VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT, "Global Nearest Mirror Sampler");
+    nearest.clamp  = createSampler(Nearest, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,   "Global Nearest Clamp Sampler");
+    nearest.border = createSampler(Nearest, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, "Global Nearest Border Sampler");
+
+    // Linear samplers
+    Samplers::Linear &linear = samplers_.linear;
+    linear.repeat = createSampler(Linear, VK_SAMPLER_ADDRESS_MODE_REPEAT,          "Global Linear Repeat Sampler");
+    linear.mirror = createSampler(Linear, VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT, "Global Linear Mirror Sampler");
+    linear.clamp  = createSampler(Linear, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,   "Global Linear Clamp Sampler");
+    linear.border = createSampler(Linear, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, "Global Linear Border Sampler");
+
+    // Anisotropic samplers
+    Samplers::Anisotopic &aniso = samplers_.anisotropic;
+    aniso.repeat = createSampler(Anisotropic, VK_SAMPLER_ADDRESS_MODE_REPEAT,          "Global Anisotropic Repeat Sampler");
+    aniso.mirror = createSampler(Anisotropic, VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT, "Global Anisotropic Mirror Sampler");
+    aniso.clamp  = createSampler(Anisotropic, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,   "Global Anisotropic Clamp Sampler");
+    aniso.border = createSampler(Anisotropic, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, "Global Anisotropic Border Sampler");
 }
 
 void Renderer::resize(const hk::event::EventContext &size, void *listener)
 {
-    Renderer *renderer = reinterpret_cast<Renderer*>(listener);
+    Renderer *self = reinterpret_cast<Renderer*>(listener);
 
-    vkDeviceWaitIdle(renderer->device_);
+    vkDeviceWaitIdle(self->device_);
 
-    renderer->swapchain_.recreate({size.u32[0], size.u32[1]});
+    self->swapchain_.recreate({size.u32[0], size.u32[1]});
 
-    renderer->ui_.deinit();
-    renderer->present_.deinit();
-    renderer->post_process_.deinit();
-    renderer->offscreen_.deinit();
+    self->ui_.deinit();
+    self->present_.deinit();
+    self->post_process_.deinit();
+    self->offscreen_.deinit();
 
-    renderer->offscreen_.init(&renderer->swapchain_, renderer->global_desc_layout);
-    renderer->post_process_.init(&renderer->swapchain_);
-    renderer->present_.init(&renderer->swapchain_);
-    renderer->ui_.init(renderer->window_, &renderer->swapchain_);
+    self->offscreen_.init(&self->swapchain_, self->global_desc_layout.handle());
+    self->post_process_.init(&self->swapchain_);
+    self->present_.init(&self->swapchain_);
+    self->ui_.init(self->window_, &self->swapchain_);
 
-    renderer->resized = false;
+    self->resized = false;
 }

@@ -3,8 +3,8 @@
 
 #include "vendor/vulkan/vulkan.h"
 
-#include "defines.h"
-#include "utils/containers/hkvector.h"
+#include "hkcommon.h"
+#include "hkstl/containers/hkvector.h"
 
 namespace hk {
 

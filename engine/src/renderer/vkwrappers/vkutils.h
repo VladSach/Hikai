@@ -1,14 +1,14 @@
 #ifndef HK_VKUTILS_H
 #define HK_VKUTILS_H
 
-#include "defines.h"
 #include "vendor/vulkan/vulkan.h"
+
+#include "hkstl/utility/hkassert.h"
 
 #include <string>
 
 namespace hk {
 
-// TODO: probably should create a separate file for util functions
 inline std::string vkApiToString(u32 version)
 {
     std::string out;

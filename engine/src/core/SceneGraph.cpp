@@ -1,5 +1,7 @@
 #include "SceneGraph.h"
 
+#include "renderer/ui/debug_draw.h"
+
 namespace hk {
 
 void SceneGraph::init()
@@ -9,6 +11,11 @@ void SceneGraph::init()
     root_->dirty = false;
 
     size_ = 0;
+}
+
+void SceneGraph::deinit()
+{
+    LOG_DEBUG("Destroying Scene Graph");
 }
 
 void SceneGraph::update()
@@ -29,13 +36,40 @@ void SceneGraph::update()
             if (node->object) { dirty_.push(node); }
         }
 
-
-        // FIX: probably temp
+        // FIX: probably temp (or not)
         else if (node->object) {
             if (node->entity) {
                 if (node->entity->dirty.any()) {
                     dirty_.push(node);
                 }
+            }
+        }
+
+        // Draw debug sphere around lights
+        if (node->object && node->entity && node->entity->light && node->debug_draw) {
+            hk::Light &light = *node->entity->light;
+            // FIX: temp
+            hkm::vec4f c = node->entity->light->color;
+
+            hkm::vec3f normal = normalize(hkm::toEulerAngles(node->world.rotation));
+
+            switch(node->entity->light->type) {
+            case Light::Type::POINT_LIGHT: {
+                hk::dd::sphere({{c.x, c.y, c.z}, 3}, node->world.pos, light.range);
+            } break;
+            case Light::Type::SPOT_LIGHT: {
+                // hk::dd::circle({{c.x, c.y, c.z}, 3}, node->world.pos, .5f, normal);
+                hk::dd::conical_frustum(
+                        {{c.x, c.y, c.z}, 3},
+                        node->world.pos, light.inner_cutoff,
+                        node->world.pos + normal * light.range, light.outer_cutoff);
+                hk::dd::line({{c.x, c.y, c.z}, 6}, node->world.pos, node->world.pos + normal * .2f);
+            } break;
+            case Light::Type::DIRECTIONAL_LIGHT: {
+                hk::dd::line({{c.x, c.y, c.z}, 6}, node->world.pos, node->world.pos + normal * .2f);
+            } break;
+
+            default: break;
             }
         }
 
@@ -130,6 +164,14 @@ void SceneGraph::addLight(const Light &light, const Transform &transform)
     node->loaded = transform;
     node->local = node->loaded;
 
+    // FIX: maybe temp? i think lights should have default rotation
+    if (hkm::toEulerAngles(transform.rotation).length() < 0.01f) {
+        node->loaded.rotation = hkm::fromEulerAngles({0.f, -90.f, 0.f});
+        node->local.rotation = node->loaded.rotation;
+    }
+
+    node->debug_draw = true;
+
     Entity *entity = new Entity();
     entity->attachLight(light);
     node->entity = entity;
@@ -176,14 +218,13 @@ void SceneGraph::updateDrawContext(DrawContext &context, Renderer &renderer)
 
                 object.rm.build(
                     renderer.offscreen_.render_pass_,
-                    sizeof(ModelToWorld),
-                    renderer.global_desc_layout,
-                    renderer.offscreen_.set_layout_,
+                    sizeof(InstanceData),
+                    renderer.global_desc_layout.handle(),
+                    renderer.offscreen_.set_layout_.handle(),
                     renderer.offscreen_.formats_,
                     renderer.offscreen_.depth_.format());
 
-                object.material = object.rm.write(renderer.global_desc_alloc,
-                                                  renderer.samplerLinear);
+                object.material = object.rm.write(renderer.global_desc_alloc);
 
                 node->entity->dirty.flip(1);
             }

@@ -3,17 +3,14 @@
 
 #include "vendor/imgui/imgui_impl_win32.h"
 
-#include "debug.h"
-#include "defines.h"
-
 #include "platform/platform.h"
 #include "platform/args.h"
 #include "platform/info.h"
 
 #include "core/events.h"
 
-#include "utils/Logger.h"
-#include "utils/containers/hkvector.h"
+#include "hkstl/Logger.h"
+#include "hkstl/containers/hkvector.h"
 
 #include <winuser.h>
 #include <hidusage.h>

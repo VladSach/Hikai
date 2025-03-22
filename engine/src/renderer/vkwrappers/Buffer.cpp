@@ -4,6 +4,12 @@
 
 namespace hk {
 
+static constexpr u64 align_size(u64 size, u64 alignment)
+{
+    // https://github.com/SaschaWillems/Vulkan/blob/master/examples/dynamicuniformbuffer/dynamicuniformbuffer.cpp#L297
+    return (alignment == 0) ? size : (size + alignment - 1) & ~(alignment - 1);
+}
+
 void Buffer::init(const BufferDesc &desc)
 {
     if (buffer_ != VK_NULL_HANDLE) {
@@ -16,7 +22,11 @@ void Buffer::init(const BufferDesc &desc)
     property_ = desc.property;
 
     size_ = desc.size;
-    stride_ = desc.stride;
+
+    auto limits = hk::context()->physicalInfo().properties.limits;
+
+    stride_ = (type_ != Type::UNIFORM_BUFFER) ?
+        desc.stride : align_size(desc.stride, limits.minUniformBufferOffsetAlignment);
 
     device_ = hk::context()->device();
 
@@ -31,15 +41,19 @@ void Buffer::deinit()
         return;
     }
 
+    // TODO: change to 'b8 in_use'
     if (device_) { vkDeviceWaitIdle(device_); }
 
-    if (buffer_ != VK_NULL_HANDLE)
+    if (buffer_ != VK_NULL_HANDLE) {
         vkDestroyBuffer(device_, buffer_, nullptr);
-    if (memory_ != VK_NULL_HANDLE)
-        vkFreeMemory(device_, memory_, nullptr);
+        buffer_ = VK_NULL_HANDLE;
+    }
 
-    buffer_ = VK_NULL_HANDLE;
-    memory_ = VK_NULL_HANDLE;
+    if (memory_ != VK_NULL_HANDLE) {
+        vkFreeMemory(device_, memory_, nullptr);
+        memory_ = VK_NULL_HANDLE;
+    }
+
     device_ = VK_NULL_HANDLE;
 
     type_ = Type::NONE;
@@ -48,8 +62,16 @@ void Buffer::deinit()
 
     size_ = 0;
     stride_ = 0;
+}
 
-    mapped = nullptr;
+void Buffer::resize(u32 size)
+{
+    BufferDesc desc = {
+        type_, usage_, property_, size, stride_
+    };
+
+    deinit();
+    init(desc);
 }
 
 void Buffer::update(const void *data)
@@ -77,7 +99,6 @@ void Buffer::update(const void *data)
         stagingBuffer.write(data);
     stagingBuffer.unmap();
 
-    // hk::device()->copyBuffer(stagingBuffer.buffer(), buffer_, memsize());
     hk::context()->submitImmCmd([&](VkCommandBuffer cmd) {
         VkBufferCopy copyRegion = {};
         copyRegion.size = memsize();
@@ -127,13 +148,11 @@ void Buffer::bind(VkCommandBuffer commandBuffer)
 
 Buffer::VulkanBufferDesc Buffer::getDeviceBufferDesc() const
 {
-    ALWAYS_ASSERT(
-        static_cast<u32>(type_) && property_,
-        "Buffer should be initialized"
-    );
+    ALWAYS_ASSERT(static_cast<u32>(type_) && property_,
+                  "Buffer should be initialized");
 
     Buffer::VulkanBufferDesc desc = {};
-    desc.size = memsize();
+    desc.mem_size = memsize();
 
     switch(type_) {
     case Buffer::Type::VERTEX_BUFFER: {
@@ -178,8 +197,6 @@ Buffer::VulkanBufferDesc Buffer::getDeviceBufferDesc() const
     if (property_ & Property::CPU_CACHED)
         desc.properties |= VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
 
-    // LOG_ERROR("Unsupported Buffer Property");
-
     return desc;
 }
 
@@ -187,27 +204,24 @@ void Buffer::allocateBuffer(const VulkanBufferDesc &desc)
 {
     VkResult err;
 
-    VkPhysicalDevice physical = hk::context()->physical(); 
+    VkBufferCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    info.size = desc.mem_size;
+    info.usage = desc.usage;
+    info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    VkBufferCreateInfo bufferInfo = {};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = desc.size;
-    bufferInfo.usage = desc.usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    err = vkCreateBuffer(device_, &bufferInfo, nullptr, &buffer_);
+    err = vkCreateBuffer(device_, &info, nullptr, &buffer_);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Buffer");
 
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(device_, buffer_, &memRequirements);
+    VkMemoryRequirements mem_requirements;
+    vkGetBufferMemoryRequirements(device_, buffer_, &mem_requirements);
 
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(physical, &memProperties);
+    auto mem_properties = hk::context()->physicalInfo().memProperties;
 
-    u32 memIndex = 0;
-    for (; memIndex < memProperties.memoryTypeCount; ++memIndex) {
-        if ((memRequirements.memoryTypeBits & (1 << memIndex)) &&
-            (memProperties.memoryTypes[memIndex].propertyFlags &
+    u32 mem_index = 0;
+    for (; mem_index < mem_properties.memoryTypeCount; ++mem_index) {
+        if ((mem_requirements.memoryTypeBits & (1 << mem_index)) &&
+            (mem_properties.memoryTypes[mem_index].propertyFlags &
             desc.properties) == desc.properties)
         {
             break;
@@ -216,8 +230,8 @@ void Buffer::allocateBuffer(const VulkanBufferDesc &desc)
 
     VkMemoryAllocateInfo allocInfo = {};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = memIndex;
+    allocInfo.allocationSize = mem_requirements.size;
+    allocInfo.memoryTypeIndex = mem_index;
 
     err = vkAllocateMemory(device_, &allocInfo, nullptr, &memory_);
     ALWAYS_ASSERT(!err, "Failed to allocate Vulkan Buffer Memory");

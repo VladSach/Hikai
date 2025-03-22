@@ -56,7 +56,7 @@ void PresentPass::deinit()
     swapchain_ = nullptr;
     device_ = VK_NULL_HANDLE;
 
-    set_layout_ = VK_NULL_HANDLE;
+    set_layout_.deinit();
     can_copy_ = false;
     color_format_ = VK_FORMAT_UNDEFINED;
     size_ = {};
@@ -248,7 +248,7 @@ void PresentPass::pass(const hk::Image &source,
     present_info.clearValueCount = 1;
     present_info.pClearValues = present_clear;
 
-    VkDescriptorSet present_set = alloc->allocate(set_layout_);
+    VkDescriptorSet present_set = alloc->allocate(set_layout_.handle());
 
     // writer.clear();
     writer.writeImage(2, source.view(), sampler_, source.layout(),
@@ -394,10 +394,8 @@ void PresentPass::createPipeline()
 {
     hk::PipelineBuilder builder;
 
-    VkShaderModule vs = hk::assets()->getShader(hndl_vertex_).module;
-    VkShaderModule ps = hk::assets()->getShader(hndl_pixel_).module;
-    builder.setShader(ShaderType::Vertex, vs);
-    builder.setShader(ShaderType::Pixel, ps);
+    builder.setShader(hndl_vertex_);
+    builder.setShader(hndl_pixel_);
 
     builder.setVertexLayout(0, 0);
 
@@ -406,25 +404,28 @@ void PresentPass::createPipeline()
                           VK_CULL_MODE_FRONT_BIT,
                           VK_FRONT_FACE_COUNTER_CLOCKWISE);
     builder.setMultisampling();
-    builder.setColorBlend();
 
-    hk::DescriptorLayout *present_layout =
-        new hk::DescriptorLayout(hk::DescriptorLayout::Builder()
+    set_layout_.init(hk::DescriptorLayout::Builder()
         .addBinding(2,
                     VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    VK_SHADER_STAGE_ALL_GRAPHICS)
+                    VK_SHADER_STAGE_FRAGMENT_BIT)
         .build()
     );
-    set_layout_ = present_layout->layout();
-    hk::debug::setName(set_layout_, "Present Descriptor Layout");
+    hk::debug::setName(set_layout_.handle(), "Present Descriptor Layout");
 
-    hk::vector<VkDescriptorSetLayout> set_layouts = { set_layout_ };
-    builder.setLayout(set_layouts);
+    hk::vector<VkDescriptorSetLayout> set_layouts = { set_layout_.handle() };
+    builder.setDescriptors(set_layouts);
 
-    builder.setDepthStencil(VK_FALSE, VK_COMPARE_OP_NEVER);
-    builder.setRenderInfo({ color_format_ }, VK_FORMAT_UNDEFINED);
+    builder.setDepthStencil(VK_FALSE, VK_COMPARE_OP_NEVER, VK_FORMAT_UNDEFINED);
+    builder.setColors({{ color_format_, hk::BlendState::DEFAULT }});
 
-    pipeline_ = builder.build(device_, render_pass_);
+    hk::vector<VkDynamicState> dynamic_states = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR,
+    };
+    builder.setDynamicStates(dynamic_states);
+
+    pipeline_ = builder.build(render_pass_);
     hk::debug::setName(pipeline_.handle(), "Present Pipeline");
 }
 

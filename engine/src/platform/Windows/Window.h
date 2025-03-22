@@ -4,7 +4,8 @@
 #include "win.h"
 #include <windowsx.h>
 
-#include "defines.h"
+#include "hkcommon.h"
+#include "utility/hktypes.h"
 
 #include <string>
 

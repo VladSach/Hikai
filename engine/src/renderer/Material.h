@@ -3,7 +3,7 @@
 
 #include "math/vec4f.h"
 
-#include "utils/containers/hkvector.h"
+#include "hkstl/containers/hkvector.h"
 
 #include "renderer/vkwrappers/Buffer.h"
 #include "renderer/vkwrappers/Image.h"
@@ -52,10 +52,12 @@ struct MaterialInstance {
 };
 
 struct RenderMaterial {
+    // ~RenderMaterial() { clear(); }
+
     hk::Pipeline pipeline;
 
-    DescriptorWriter writer;
-    VkDescriptorSetLayout materialLayout;
+    hk::DescriptorWriter writer;
+    hk::DescriptorLayout layout;
 
     Buffer buf;
     Material *material;
@@ -64,9 +66,11 @@ struct RenderMaterial {
                VkDescriptorSetLayout sceneDescriptorLayout,
                VkDescriptorSetLayout passDescriptorLayout,
                hk::vector<VkFormat> formats, VkFormat depthFormat);
+
     void clear();
 
-    MaterialInstance write(DescriptorAllocator &allocator, VkSampler sampler);
+    MaterialInstance write(DescriptorAllocator &allocator,
+                           VkSampler sampler = VK_NULL_HANDLE);
 };
 
 }

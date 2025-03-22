@@ -1,7 +1,7 @@
 #ifndef HK_INPUT_H
 #define HK_INPUT_H
 
-#include "defines.h"
+#include "hkcommon.h"
 #include "events.h"
 
 namespace hk::input {

@@ -1,9 +1,10 @@
 #ifndef HK_ENTITY_H
 #define HK_ENTITY_H
 
-#include "defines.h"
-
 #include "resources/AssetManager.h"
+#include "core/events.h"
+
+#include "hkstl/numerics/hkbitset.h"
 
 #include "Light.h"
 
@@ -29,15 +30,16 @@ struct Entity {
     {
         hndlMaterial = handle;
 
-        hk::MaterialAsset &asset = hk::assets()->getMaterial(handle);
+        // FIX: material event should be subscribed by handle
+        // otherwise entity receives events from all materials
+        hk::event::subscribe(hk::event::EVENT_MATERIAL_MODIFIED,
+            [&](const hk::event::EventContext &context, void *listener) {
+                (void)listener;
 
-        // FIX: temp, should be material callback, not shaders
-        hk::assets()->attachCallback(asset.data.vertex_shader, [&](){
-            dirty.flip(1);
-        });
-        hk::assets()->attachCallback(asset.data.pixel_shader, [&](){
-            dirty.flip(1);
-        });
+                u32 handle = context.u32[0];
+                if (handle == hndlMaterial) { dirty.flip(1); }
+            },
+        this);
 
         dirty.flip(1);
     }

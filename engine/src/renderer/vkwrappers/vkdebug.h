@@ -1,14 +1,23 @@
 #ifndef HK_VKDEBUG_H
 #define HK_VKDEBUG_H
 
-#include <vendor/vulkan/vulkan.h>
+#include "vendor/vulkan/vulkan.h"
 
 #include "math/vec4f.h"
-#include "utils/containers/hkvector.h"
+
+#include "hkstl/containers/hkvector.h"
+#include "hkstl/utility/hkassert.h"
+
+#define CHECK_DEVICE_LIMIT(op, value, limit)              \
+    if (!((value) op (limit))) {                          \
+        DEV_PANIC("Hikai Vulkan Limit Failure",           \
+                  "Exceeded `", #limit, "` value\n",      \
+                  "allowed:", limit, "provided:", value); \
+    }
 
 namespace hk::debug {
 
-// Validation
+/* ===== Validation ===== */
 void init(VkInstance instance);
 void deinit(VkInstance instance);
 VkDebugUtilsMessengerCreateInfoEXT& info();
@@ -22,7 +31,7 @@ void insert(VkCommandBuffer cmd, const std::string &name, const hkm::vec4f &colo
 
 } // namespace label
 
-// Object naming and tagging
+/* ===== Object naming and tagging ===== */
 void setDevice(VkDevice dev);
 
 void setName(VkInstance            instance,    const std::string &name);

@@ -1,7 +1,8 @@
 #ifndef HK_MODEL_LOADER_H
 #define HK_MODEL_LOADER_H
 
-#include "defines.h"
+#include "hkcommon.h"
+#include "hkstl/utility/hktypes.h"
 
 #include <string>
 

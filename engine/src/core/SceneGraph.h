@@ -42,11 +42,15 @@ struct SceneNode {
     u32 handle = 0;
 
     u32 idxObject = 0;
+
+    b8 debug_draw = false;
+    b8 visible = true;
 };
 
 class SceneGraph {
 public:
     void init();
+    void deinit();
 
     void update();
 

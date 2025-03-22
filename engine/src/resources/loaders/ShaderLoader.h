@@ -1,20 +1,23 @@
 #ifndef HK_SHADER_LOADER_H
 #define HK_SHADER_LOADER_H
 
-#include "defines.h"
-#include "utils/containers/hkvector.h"
+#include "hkstl/containers/hkvector.h"
 
 #include <string>
 
 // TODO: I don't like them being in global space
 enum class ShaderType : u8 {
-    Vertex = 0,
+    None = 0,
+
+    Vertex,
     Hull,
     Domain,
     Geometry,
     Pixel,
 
     Compute,
+
+    Max
 };
 
 enum class ShaderModel : u8 {

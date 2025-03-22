@@ -1,7 +1,6 @@
 #ifndef HK_ARGS_H
 #define HK_ARGS_H
 
-#include "defines.h"
 #include "platform.h"
 
 #ifdef HKWINDOWS

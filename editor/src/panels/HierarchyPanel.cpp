@@ -1,7 +1,5 @@
 #include "HierarchyPanel.h"
 
-#include "renderer/ui/imguiwrapper.h"
-
 #include <algorithm>
 
 void HierarchyPanel::init(hk::SceneGraph *scene)

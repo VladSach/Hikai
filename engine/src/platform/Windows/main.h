@@ -1,7 +1,7 @@
 #ifndef HK_WINMAIN_H
 #define HK_WINMAIN_H
 
-#include "utils/Logger.h"
+#include "hkstl/Logger.h"
 #include "core/Application.h"
 #include "platform/args.h"
 #include "platform/platform.h"

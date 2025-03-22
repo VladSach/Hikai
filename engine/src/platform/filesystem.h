@@ -1,10 +1,10 @@
 #ifndef HK_FILESYSTEM_H
 #define HK_FILESYSTEM_H
 
-#include "defines.h"
-#include "utils/containers/hkvector.h"
-
+#include "hkcommon.h"
 #include "Windows/win.h"
+
+#include "hkstl/containers/hkvector.h"
 
 namespace hk::filesystem {
 

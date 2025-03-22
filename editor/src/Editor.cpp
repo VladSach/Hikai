@@ -2,8 +2,9 @@
 
 #include "renderer/ui/imguiwrapper.h"
 
-#include "utils/Filewatch.h"
 #include "utils/thumbnails.h"
+
+#include "hkstl/Filewatch.h"
 
 void Editor::init()
 {
@@ -31,6 +32,7 @@ void Editor::init()
 
     hkm::quaternion rot = hkm::fromAxisAngle({0.f, 1.f, 0.f}, 0.f * hkm::degree2rad);
 
+    // FIX: temp
     u32 handle = 0;
     handle = hk::assets()->load("Rei Plush.fbx");
     scene_.addModel(handle, { 0.f, .001f, rot });
@@ -51,16 +53,17 @@ void Editor::init()
     light.type = hk::Light::Type::POINT_LIGHT;
     light.color = {0.823f, 0.760f, 0.635f, 1.f};
     light.intensity = 1.f;
+    light.range = .2f;
     scene_.addLight(light, {{0.1f, 0.8f, 0.3f}, 1.f, rot});
 
     light.type = hk::Light::Type::SPOT_LIGHT;
-    light.color = {0.0f, 0.0, 1.0, 1.f};
-    light.inner_cutoff = 6.f;
-    light.outer_cutoff = 9.f;
+    light.color = {0.0f, 0.0f, 1.0f, 1.f};
+    light.inner_cutoff = 0.6f;
+    light.outer_cutoff = 0.9f;
     scene_.addLight(light, {{0.1f, 0.8f, 0.3f}, 1.f, rot});
 
     light.type = hk::Light::Type::DIRECTIONAL_LIGHT;
-    light.color = {1.0f, 0.0, 0.0, 1.f};
+    light.color = {1.0f, 0.0f, 0.0f, 1.f};
     scene_.addLight(light, {{0.1f, 0.8f, 0.3f}, 1.f, rot});
 }
 

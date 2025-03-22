@@ -1,8 +1,7 @@
 #ifndef HK_ASSET_H
 #define HK_ASSET_H
 
-#include "defines.h"
-#include "utils/containers/hkvector.h"
+#include "hkstl/containers/hkvector.h"
 
 #include "vendor/vulkan/vulkan.h"
 #include "renderer/vkwrappers/vkdebug.h"
@@ -94,15 +93,18 @@ struct MeshAsset : public Asset {
 
     u32 cntInstances = 1;
 
+    // TODO: move that to model asset
     hk::vector<MeshAsset*> children;
     hk::vector<hkm::mat4f> instances;
     hk::vector<hkm::mat4f> instancesInv;
 
+    // That too
     hk::vector<u32> hndlTextures; // Materials?
 };
 
 struct ModelAsset : public Asset {
     u32 hndlRootMesh;
+    // TODO: also add hndls to Textures?
 };
 
 }

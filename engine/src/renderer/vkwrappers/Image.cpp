@@ -2,6 +2,7 @@
 
 #include "renderer/VulkanContext.h"
 #include "renderer/vkwrappers/Buffer.h"
+#include "renderer/vkwrappers/vkdebug.h"
 
 namespace hk {
 
@@ -40,11 +41,11 @@ void Image::init(const ImageDesc &desc)
 
     allocateImage(imageDesc);
 
-    transitionLayout(desc.layout);
+    hk::debug::setName(image_,  "Image - "        + desc.name);
+    hk::debug::setName(view_,   "Image View - "   + desc.name);
+    hk::debug::setName(memory_, "Image Memory - " + desc.name);
 
-    hk::debug::setName(image_,  "Image: "        + desc.name);
-    hk::debug::setName(view_,   "Image View: "   + desc.name);
-    hk::debug::setName(memory_, "Image Memory: " + desc.name);
+    transitionLayout(desc.layout);
 }
 
 void Image::deinit()
@@ -119,7 +120,7 @@ void Image::write(const void *pixels)
 
     transitionLayout(old_layout);
 
-    stagingBuffer.deinit();
+    // stagingBuffer.deinit();
 }
 
 void Image::copy(Image &src)
@@ -165,7 +166,6 @@ void Image::allocateImage(const VulkanImageDesc &desc)
     VkResult err;
 
     VkDevice device = hk::context()->device();
-    VkPhysicalDevice physical = hk::context()->physical();
 
     VkImageCreateInfo imageInfo = {};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -188,8 +188,7 @@ void Image::allocateImage(const VulkanImageDesc &desc)
     VkMemoryRequirements mem_requirements;
     vkGetImageMemoryRequirements(device, image_, &mem_requirements);
 
-    VkPhysicalDeviceMemoryProperties mem_properties;
-    vkGetPhysicalDeviceMemoryProperties(physical, &mem_properties);
+    auto mem_properties = hk::context()->physicalInfo().memProperties;
 
     u32 mem_index = 0;
     for (; mem_index < mem_properties.memoryTypeCount; ++mem_index) {
@@ -234,6 +233,8 @@ void Image::allocateImage(const VulkanImageDesc &desc)
 
 void Image::transitionLayout(VkImageLayout target)
 {
+    if (layout_ == target) { return; }
+
     VkImageMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = layout_;
@@ -288,30 +289,33 @@ VkPipelineStageFlags Image::getPipelineStageFlags(VkImageLayout layout, b8 src)
     switch (layout) {
     case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL: {
         out = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    }
+    } break;
     case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL: {
         out = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    }
+    } break;
     case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL: {
         out =
             VK_PIPELINE_STAGE_VERTEX_SHADER_BIT   |
             VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-    }
+    } break;
     case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: {
         out = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    }
+    } break;
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL: {
         out =
             VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
             VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    }
+    } break;
+    // case VK_IMAGE_LAYOUT_INPUT_ATTACHMENT_BIT: {
+    //     out = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    // }
     case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR: {
         out = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-    }
+    } break;
     case VK_IMAGE_LAYOUT_GENERAL: {
         out = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-    }
+    } break;
     default: {
         if (src) {
             out = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;  // src
@@ -331,31 +335,31 @@ VkAccessFlags Image::getAccessFlags(VkImageLayout layout, b8 src)
     switch (layout) {
     case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL: {
         out = VK_ACCESS_TRANSFER_READ_BIT;
-    }
+    } break;
     case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL: {
         out = VK_ACCESS_TRANSFER_WRITE_BIT;
-    }
+    } break;
     case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL: {
         out = VK_ACCESS_SHADER_READ_BIT;
-    }
+    } break;
     case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL: {
         out = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
         if (!src) {
             out |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT; // dst
         }
-    }
+    } break;
     case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL: {
         out = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
         if (!src) {
             out |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT; // dst
         }
-    }
+    } break;
     case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR: {
         out = VK_ACCESS_MEMORY_READ_BIT;
-    }
+    } break;
     case VK_IMAGE_LAYOUT_GENERAL: {
         out = VK_ACCESS_HOST_READ_BIT | VK_ACCESS_HOST_WRITE_BIT;
-    }
+    } break;
     default: {
         out = 0;
     }

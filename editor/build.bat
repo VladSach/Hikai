@@ -5,7 +5,10 @@ set SOURCE_DIR=src
 set BUILD_DIR=build
 set OUT_DIR=bin
 
-set INCLUDE_DIRS=/Isrc /I"../engine/src" /I"../engine/src/vendor"
+set INCLUDE_DIRS=/Isrc ^
+                 /I"../engine/src" ^
+                 /I"../engine/src/vendor" ^
+                 /I"../engine/src/hkstl"
 set LIBS=/LIBPATH:"../engine/bin" hikai.lib
 set DEFINES=/D HKDEBUG
 

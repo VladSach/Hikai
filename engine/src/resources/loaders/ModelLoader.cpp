@@ -1,11 +1,12 @@
 #include "ModelLoader.h"
 
-#include "utils/containers/hkvector.h"
 #include "resources/AssetManager.h"
 
 #include "vendor/assimp/Importer.hpp"
 #include "vendor/assimp/scene.h"
 #include "vendor/assimp/postprocess.h"
+
+#include "hkstl/containers/hkvector.h"
 
 // TODO: replace with Hikai implementation
 #include <unordered_map>

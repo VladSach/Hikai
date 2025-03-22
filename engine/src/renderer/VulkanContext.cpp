@@ -8,7 +8,7 @@
 
 #include "renderer/vkwrappers/vkdebug.h"
 
-#include "utils/containers/hkvector.h"
+#include "hkstl/containers/hkvector.h"
 
 // TODO: change with hikai implementation
 #include <set>
@@ -101,7 +101,7 @@ void VulkanContext::getInstanceInfo()
     hk::vector<VkExtensionProperties> extensions(extCount);
     vkEnumerateInstanceExtensionProperties(nullptr, &extCount, extensions.data());
 
-    // instanceInfo_.extensions.resize(extCount);
+    instanceInfo_.extensions.reserve(extCount);
     for (const auto &ext : extensions) {
         instanceInfo_.extensions.push_back({ false, ext });
     }
@@ -111,7 +111,7 @@ void VulkanContext::getInstanceInfo()
     hk::vector<VkLayerProperties> layers(lCount);
     vkEnumerateInstanceLayerProperties(&lCount, layers.data());
 
-    // instanceInfo_.layers.resize(lCount);
+    instanceInfo_.layers.reserve(lCount);
     for (const auto &layer : layers) {
         instanceInfo_.layers.push_back({ false, layer });
     }
@@ -129,6 +129,7 @@ void VulkanContext::getInstanceInfo()
 #ifdef HKDEBUG
         instanceInfo_.isDebug = true;
         requiredExts.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        requiredExts.push_back(VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
 #endif
 
     for (auto &ext : instanceInfo_.extensions) {
@@ -300,9 +301,13 @@ void VulkanContext::createLogicalDevice()
     VkPhysicalDeviceFeatures supportedFeatures =
         physicalDevicesInfo_[physicalDeviceIndex_].features;
 
+    // FIX: shoud be configurable
     VkPhysicalDeviceFeatures requiredFeatures = {};
     if (supportedFeatures.samplerAnisotropy) {
         requiredFeatures.samplerAnisotropy = VK_TRUE;
+        requiredFeatures.wideLines = VK_TRUE;
+        requiredFeatures.largePoints = VK_TRUE;
+        requiredFeatures.independentBlend = VK_TRUE;
     }
 
     VkDeviceCreateInfo deviceInfo = {};
@@ -313,15 +318,31 @@ void VulkanContext::createLogicalDevice()
     deviceInfo.enabledExtensionCount = extensionsLogic.size();
     deviceInfo.pEnabledFeatures = &requiredFeatures;
 
+    // HACK: just to shut up the validation layer,
+    // since vulkan 1.3 OpDemoteToHelperInvocation is core feature and not ext
+    VkPhysicalDeviceShaderDemoteToHelperInvocationFeatures demote_feature = {};
+    demote_feature.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES_EXT;
+    demote_feature.shaderDemoteToHelperInvocation = VK_TRUE;
+    deviceInfo.pNext = &demote_feature;
+
     err = vkCreateDevice(physical(), &deviceInfo, 0, &device_);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Logical Device");
 
     hk::debug::setDevice(device_);
 
+    hk::debug::setName(instance_, "Instance");
+    hk::debug::setName(physical(), "Physical Device");
+    hk::debug::setName(device_, "Logical Device");
+
     // Get queue handles
     graphics_.init(device_, deviceInfo_.graphicsFamily);
     compute_.init(device_, deviceInfo_.computeFamily);
     transfer_.init(device_, deviceInfo_.transferFamily);
+
+    hk::debug::setName(graphics_.handle(), "Queue - Graphics");
+    hk::debug::setName(graphics_.handle(), "Queue - Computer");
+    hk::debug::setName(graphics_.handle(), "Queue - Transfer");
 }
 
 }

@@ -4,9 +4,10 @@
 #include "vendor/vulkan/vulkan.h"
 
 #include "platform/platform.h"
-#include "utils/containers/hkvector.h"
 #include "renderer/vkwrappers/Queue.h"
 #include "renderer/vkwrappers/Image.h"
+
+#include "hkstl/containers/hkvector.h"
 
 namespace hk {
 

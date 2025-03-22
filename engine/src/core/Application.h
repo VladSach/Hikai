@@ -1,14 +1,15 @@
 #ifndef HK_APPLICATION_H
 #define HK_APPLICATION_H
 
-#include "defines.h"
+#include "hkcommon.h"
 #include "events.h"
 #include "Clock.h"
 #include "SceneGraph.h"
-#include "utils/Logger.h"
 #include "platform/platform.h"
 #include "renderer/Renderer.h"
 #include "renderer/object/Camera.h"
+
+#include "hkstl/Logger.h"
 
 #include <string>
 

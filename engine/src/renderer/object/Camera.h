@@ -1,7 +1,9 @@
 #ifndef HK_CAMERA_H
 #define HK_CAMERA_H
 
-#include "math/hkmath.h"
+#include "hkcommon.h"
+
+#include "hkstl/math/hkmath.h"
 
 class Camera {
 public:

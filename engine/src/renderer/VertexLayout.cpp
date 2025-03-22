@@ -2,6 +2,9 @@
 
 #include "math/hkmath.h"
 
+#include "renderer/VulkanContext.h"
+#include "renderer/vkwrappers/vkdebug.h"
+
 #include <utility>
 
 namespace hk {
@@ -10,19 +13,20 @@ enum class AllFormats : u16;
 constexpr VkFormat getVkFormat(AllFormats value);
 
 hk::vector<VkVertexInputAttributeDescription>
-createVertexLayout(const hk::vector<hk::bitflag<Format>> &formats)
+createVertexLayout(const VertexLayout &formats, u32 binding)
 {
     u32 offset = 0;
     u32 bits = 0;
     u32 vec = 0;
-    hk::vector<VkVertexInputAttributeDescription> attributeDescs;
+
+    hk::vector<VkVertexInputAttributeDescription> out;
 
     for (u32 i = 0; i < formats.size(); i++) {
         hk::bitflag<Format> format = formats[i];
 
-        attributeDescs.push_back(
+        out.push_back(
             {
-                i, 0,
+                i, binding,
                 getVkFormat(static_cast<AllFormats>(format.value())),
                 offset
             }
@@ -39,9 +43,18 @@ createVertexLayout(const hk::vector<hk::bitflag<Format>> &formats)
         else if (format & Format::VEC4) vec = 4;
 
         offset += (vec * bits) / 8;
+
     }
 
-    return attributeDescs;
+    auto limits = hk::context()->physicalInfo().properties.limits;
+
+    // VUID-VkVertexInputAttributeDescription-location-00620 through 00622
+    CHECK_DEVICE_LIMIT(<, formats.size(), limits.maxVertexInputAttributes);
+    CHECK_DEVICE_LIMIT(<, binding, limits.maxVertexInputBindings);
+    // No reson to check all of them, if last one fails => all fail
+    CHECK_DEVICE_LIMIT(<=, offset, limits.maxVertexInputAttributeOffset);
+
+    return out;
 }
 
 enum class AllFormats : u16 {

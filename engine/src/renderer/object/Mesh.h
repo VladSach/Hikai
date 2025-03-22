@@ -2,7 +2,7 @@
 #define HK_MESH_H
 
 #include "Vertex.h"
-#include "utils/containers/hkvector.h"
+#include "hkstl/containers/hkvector.h"
 
 namespace hk {
 

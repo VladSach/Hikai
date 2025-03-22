@@ -16,6 +16,11 @@ struct VertexOutput {
     float3 tangent : TANGENT;
 };
 
+[[vk::push_constant]]
+struct ModelToWorld {
+    float4x4 mat;
+} modelToWorld;
+
 VertexOutput main(VertexInput input) {
     VertexOutput output;
 

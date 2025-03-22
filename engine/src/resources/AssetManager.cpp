@@ -4,9 +4,10 @@
 #include "loaders/ModelLoader.h"
 
 #include "core/events.h"
-#include "utils/Filewatch.h"
 #include "platform/platform.h"
 #include "platform/filesystem.h"
+
+#include "hkstl/Filewatch.h"
 
 #include <algorithm>
 
@@ -45,43 +46,26 @@ void AssetManager::init(const std::string &folder)
             }
         }
     );
-
-    // Create fallback textures for color map and non-color maps
-    hndl_fallback_color = load("PNG\\Purple\\texture_08.png");
-
-    TextureAsset *asset = new TextureAsset();
-    assets_.push_back(asset);
-    asset->handle = index_++;
-
-    asset->name = "Fallback Transparent Texture";
-    asset->type = Asset::Type::TEXTURE;
-
-    Image *image = new Image();
-    image->init({
-        asset->name,
-        hk::Image::Usage::TRANSFER_DST | hk::Image::Usage::SAMPLED,
-        VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        1, 1, 4
-    });
-    u8 *data = new u8[4];
-    data[0] = 0;
-    data[1] = 0;
-    data[2] = 0;
-    data[3] = 0;
-    image->write(data);
-    delete[] data;
-
-    asset->texture = image;
-
-    hndl_fallback_noncolor = asset->handle;
 }
 
 void AssetManager::deinit()
 {
     folder_ = "assets\\";
     index_ = 0;
+
+    for (auto &asset : assets_) {
+        switch(asset->type) {
+        case Asset::Type::TEXTURE: {
+            reinterpret_cast<TextureAsset*>(asset)->texture->deinit();
+        } break;
+        case Asset::Type::SHADER: {
+            reinterpret_cast<ShaderAsset*>(asset)->deinit();
+        } break;
+
+        default: break;
+        }
+    }
+
     assets_.clear();
     callbacks_.clear();
 }
@@ -263,8 +247,8 @@ void AssetManager::reload(u32 handle)
 
 void AssetManager::attachCallback(u32 handle, std::function<void()> callback)
 {
-    if (callbacks_.size() < index_) {
-        callbacks_.resize(index_);
+    if (callbacks_.size() <= index_) {
+        callbacks_.resize(index_ + 1);
     }
 
     callbacks_.at(getIndex(handle)).push_back(callback);
@@ -333,6 +317,8 @@ u32 AssetManager::createMaterial(void *data)
 
     asset->type = Asset::Type::MATERIAL;
 
+    createFallbackTextures();
+
     if (!asset->data.map_handles[Material::BASECOLOR]) {
         asset->data.map_handles[Material::BASECOLOR] = hndl_fallback_color;
     }
@@ -345,6 +331,17 @@ u32 AssetManager::createMaterial(void *data)
     const std::string path = "..\\engine\\assets\\shaders\\";
     asset->data.vertex_shader = hk::assets()->load(path + "Default.vert.hlsl");
     asset->data.pixel_shader = hk::assets()->load(path + "Deferred.frag.hlsl");
+
+    hk::assets()->attachCallback(asset->data.vertex_shader, [&](){
+        hk::event::EventContext context;
+        context.u32[0] = asset->handle;
+        hk::event::fire(event::EVENT_MATERIAL_MODIFIED, context);
+    });
+    hk::assets()->attachCallback(asset->data.pixel_shader, [&](){
+        hk::event::EventContext context;
+        context.u32[0] = asset->handle;
+        hk::event::fire(event::EVENT_MATERIAL_MODIFIED, context);
+    });
 
     return asset->handle;
 }
@@ -361,6 +358,42 @@ u32 AssetManager::createMesh(void *data)
     }
 
     return asset->handle;
+}
+
+void AssetManager::createFallbackTextures()
+{
+    if (hndl_fallback_color) { return; }
+
+    // Create fallback textures for color map and non-color maps
+    hndl_fallback_color = load("PNG\\Purple\\texture_08.png");
+
+    TextureAsset *asset = new TextureAsset();
+    assets_.push_back(asset);
+    asset->handle = index_++;
+
+    asset->name = "Fallback Transparent Texture";
+    asset->type = Asset::Type::TEXTURE;
+
+    Image *image = new Image();
+    image->init({
+        asset->name,
+        hk::Image::Usage::TRANSFER_DST | hk::Image::Usage::SAMPLED,
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        1, 1, 4
+    });
+    u8 *data = new u8[4];
+    data[0] = 0;
+    data[1] = 0;
+    data[2] = 0;
+    data[3] = 0;
+    image->write(data);
+    delete[] data;
+
+    asset->texture = image;
+
+    hndl_fallback_noncolor = asset->handle;
 }
 
 }

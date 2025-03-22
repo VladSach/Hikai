@@ -12,14 +12,16 @@ struct Light {
         DIRECTIONAL_LIGHT
     } type;
 
+    // FIX: change to vec3f
     hkm::vec4f color;
     f32 intensity; // intensity can be color.w
 
-    // Pointlight only
     f32 range;
 
     // Spotlight only
     // hkm::vec3f dir;
+    //
+    // change to f32 penumbra? (also removes need to check if outer < inner)
     f32 inner_cutoff;
     f32 outer_cutoff;
 

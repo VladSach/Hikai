@@ -3,10 +3,10 @@
 
 #include "vendor/vulkan/vulkan.h"
 
-#include "defines.h"
+#include "hkcommon.h"
 
 #include "renderer/vkwrappers/Queue.h"
-#include "utils/containers/hkvector.h"
+#include "hkstl/containers/hkvector.h"
 
 #include <functional>
 
@@ -59,7 +59,7 @@ public:
     struct PhysicalDeviceInfo {
         VkPhysicalDevice device;
         VkPhysicalDeviceFeatures features;
-        VkPhysicalDeviceProperties properties;
+        VkPhysicalDeviceProperties  properties;
         VkPhysicalDeviceMemoryProperties memProperties;
 
         hk::vector<VkQueueFamilyProperties> families;

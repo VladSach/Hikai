@@ -2,29 +2,24 @@
 #define HK_RENDER_DEVICE_H
 
 #include "platform/platform.h"
-#include "vendor/vulkan/vulkan.h"
 
-#include "renderer/VulkanContext.h"
+#include "hkvulkan.h"
+
 #include "renderer/DrawContext.h"
-
-#include "renderer/vkwrappers/Image.h"
-#include "renderer/vkwrappers/Pipeline.h"
-#include "renderer/vkwrappers/Swapchain.h"
-#include "renderer/vkwrappers/Descriptors.h"
 
 #include "renderer/renderpass/UIPass.h"
 #include "renderer/renderpass/PresentPass.h"
 #include "renderer/renderpass/OffscreenPass.h"
 #include "renderer/renderpass/PostProcessPass.h"
 
-#include "math/hkmath.h"
-
 #include "core/events.h"
-#include "utils/containers/hkvector.h"
+
+#include "hkstl/math/hkmath.h"
+#include "hkstl/containers/hkvector.h"
 
 // FIX: temp
-struct ModelToWorld {
-    hkm::mat4f transform;
+struct InstanceData {
+    hkm::mat4f model_to_world; // transform
 };
 
 // FIX: temp
@@ -98,6 +93,16 @@ public:
 
     hk::Swapchain swapchain_;
 
+    // Passes
+    // TODO:
+    // Shadow pass
+    // gbuffer pass
+    // light pass
+    // ? separate blur pass
+    // post process
+    // ui pass
+    // present pass
+
     b8 resized = false;
 
     b8 use_ui_ = true;
@@ -106,7 +111,7 @@ public:
 
     // TODO: move to offscreen
     // Scene Data
-    VkDescriptorSetLayout global_desc_layout; // per frame
+    hk::DescriptorLayout global_desc_layout; // per frame
     SceneData frame_data;
     hk::Buffer frame_data_buffer;
     LightSources lights;
@@ -131,21 +136,37 @@ public:
     hk::OffscreenPass offscreen_;
     hk::PostProcessPass post_process_;
 
-    VkSampler samplerLinear;
-    VkSampler samplerNearest;
+    // Global Samplers
+    struct Samplers {
+        struct Linear {
+            VkSampler repeat;
+            VkSampler mirror;
+            VkSampler clamp;
+            VkSampler border;
+        } linear;
+        struct Nearest {
+            VkSampler repeat;
+            VkSampler mirror;
+            VkSampler clamp;
+            VkSampler border;
+        } nearest;
+        struct Anisotopic {
+            VkSampler repeat;
+            VkSampler mirror;
+            VkSampler clamp;
+            VkSampler border;
+        } anisotropic;
+    } samplers_;
+    // VkSampler samplers_[12];
 
     u32 hndlDefaultVS;
     u32 hndlDefaultPS;
     u32 hndlNormalsPS;
-    u32 hndlTexturePS;
     u32 hndlPBR;
 
     hk::Pipeline gridPipeline;
     u32 hndlGridVS;
     u32 hndlGridPS;
-
-    u32 curShaderVS;
-    u32 curShaderPS;
 
     // Convenience
     VkDevice device_;

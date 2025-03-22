@@ -1,9 +1,10 @@
 #ifndef HK_INFO_H
 #define HK_INFO_H
 
-#include "defines.h"
 #include "platform.h"
-#include "utils/containers/hkvector.h"
+
+#include "utility/hktypes.h"
+#include "containers/hkvector.h"
 
 namespace hk::platform {
 

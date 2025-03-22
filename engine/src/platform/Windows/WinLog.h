@@ -2,8 +2,8 @@
 #define HK_WINLOG_H
 
 #include "win.h"
-#include "defines.h"
-#include "utils/Logger.h"
+#include "hkcommon.h"
+#include "hkstl/Logger.h"
 
 #define HR_ERR_MSG(hr) getErrorMessage(hr)
 

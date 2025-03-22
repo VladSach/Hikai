@@ -3,6 +3,8 @@
 
 #include "Asset.h"
 
+#include "hkcommon.h"
+
 #include <functional>
 
 namespace hk {
@@ -37,6 +39,19 @@ public:
     {
         return assets_.at(getIndex(handle));
     }
+
+    // template<typename Type>
+    // auto get(u32 handle) const
+    // {
+    //     switch(assets_.at(getIndex(handle))->type) {
+    //         case Asset::Type::TEXTURE: {
+    //             return *static_cast<hk::TextureAsset*>(assets_.at(getIndex(handle)));
+    //         } break;
+    //         case Asset::Type::SHADER: {
+    //             return *static_cast<hk::ShaderAsset*>(assets_.at(getIndex(handle)));
+    //         } break;
+    //     }
+    // }
 
     // FIX: temp
     hk::ShaderAsset& getShader(u32 handle) const
@@ -77,6 +92,8 @@ private:
 
     u32 createMaterial(void *data);
     u32 createMesh(void *data);
+
+    void createFallbackTextures();
 
 private:
     std::string folder_ = "assets\\";
