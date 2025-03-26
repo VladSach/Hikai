@@ -10,14 +10,6 @@
 
 namespace hk::event {
 
-// INFO: Codes from 0 to 100 reserved by Hikai
-enum EventCode : u32;
-HKAPI const char* getEventStr(EventCode code);
-
-// INFO: Codes from 0 to 100 reserved by Hikai
-enum ErrorCode : u64;
-HKAPI const char* getErrorCodeStr(ErrorCode error);
-
 struct EventContext {
     union {
         u16 u16[4];
@@ -60,6 +52,7 @@ void init();
 void deinit();
 void dispatch();
 
+// INFO: Codes from 0 to 100 reserved by Hikai
 enum EventCode : u32 {
     EVENT_EMPTY = 0,
 
@@ -98,6 +91,7 @@ enum EventCode : u32 {
     MAX_EVENT_CODES
 };
 
+// INFO: Codes from 0 to 100 reserved by Hikai
 enum ErrorCode : u64 {
     ERROR_UNKNOWN = 0,
 

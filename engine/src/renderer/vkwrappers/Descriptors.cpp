@@ -44,7 +44,7 @@ void DescriptorLayout::init(const hk::vector<VkDescriptorSetLayoutBinding> &bind
     // info.pNext = nullptr;
     // info.flags = 0;
 
-    VkDevice device = hk::context()->device();
+    VkDevice device = hk::vkc::device();
     err = vkCreateDescriptorSetLayout(device, &info, nullptr, &handle_);
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Descriptor Set Layout");
 }
@@ -52,7 +52,7 @@ void DescriptorLayout::init(const hk::vector<VkDescriptorSetLayoutBinding> &bind
 void DescriptorLayout::deinit()
 {
     if (handle_) {
-        VkDevice device = hk::context()->device();
+        VkDevice device = hk::vkc::device();
         vkDestroyDescriptorSetLayout(device, handle_, nullptr);
         handle_ = VK_NULL_HANDLE;
     }
@@ -78,7 +78,7 @@ void DescriptorAllocator::init(
 
 void DescriptorAllocator::deinit()
 {
-    VkDevice device = hk::context()->device();
+    VkDevice device = hk::vkc::device();
     for (auto pool : readyPools) {
         vkDestroyDescriptorPool(device, pool, nullptr);
     }
@@ -92,7 +92,7 @@ void DescriptorAllocator::deinit()
 
 void DescriptorAllocator::clear()
 {
-    VkDevice device = hk::context()->device();
+    VkDevice device = hk::vkc::device();
 
     for (auto pool : readyPools) {
         vkResetDescriptorPool(device, pool, 0);
@@ -112,7 +112,7 @@ VkDescriptorSet DescriptorAllocator::allocate(
 {
     VkResult err;
 
-    VkDevice device = hk::context()->device();
+    VkDevice device = hk::vkc::device();
 
     // Get or create a pool to allocate from
     VkDescriptorPool poolToUse = getPool();
@@ -165,7 +165,7 @@ VkDescriptorPool DescriptorAllocator::createPool(
     u32 maxSets,
     const hk::vector<TypeSize> &sizes)
 {
-    VkDevice device = hk::context()->device();
+    VkDevice device = hk::vkc::device();
 
     hk::vector<VkDescriptorPoolSize> poolSizes;
     for (const TypeSize &size : sizes) {
@@ -250,7 +250,7 @@ void DescriptorWriter::updateSet(VkDescriptorSet set)
         write.dstSet = set;
     }
 
-    VkDevice device = hk::context()->device();
+    VkDevice device = hk::vkc::device();
     vkUpdateDescriptorSets(device, writes.size(), writes.data(), 0, nullptr);
 }
 

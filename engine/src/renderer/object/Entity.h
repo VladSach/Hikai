@@ -7,6 +7,7 @@
 #include "hkstl/numerics/hkbitset.h"
 
 #include "Light.h"
+#include "Camera.h"
 
 namespace hk {
 
@@ -18,6 +19,7 @@ struct Entity {
     u32 hndlMesh = 0;
     u32 hndlMaterial = 0;
     Light *light = nullptr;
+    Camera *camera = nullptr;
 
     // TODO: entity-component
     void attachMesh(u32 handle)
@@ -47,12 +49,22 @@ struct Entity {
     void attachLight(const Light &l)
     {
         // FIX: why would light be a pointer?
-        if (!light) delete light;
+        // if (light) { delete light; }
 
         light = new Light();
         *light = l;
 
         dirty.flip(2);
+    }
+
+    void attachCamera(const Camera &c)
+    {
+        // if (camera) { delete camera; }
+
+        camera = new Camera();
+        *camera = c;
+
+        dirty.flip(3);
     }
 };
 

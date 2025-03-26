@@ -2,10 +2,14 @@
 #define HK_PIPELINE_H
 
 #include "vendor/vulkan/vulkan.h"
-#include "renderer/VertexLayout.h"
+
+#include "renderer/resources.h"
+
 #include "hkstl/containers/hkvector.h"
 
 namespace hk {
+
+using VertexLayout = hk::vector<hk::Format>;
 
 enum class BlendState {
     NONE = 0,

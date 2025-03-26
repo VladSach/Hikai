@@ -3,7 +3,7 @@
 
 #include "vendor/vulkan/vulkan.h"
 
-#include "renderer/VulkanContext.h"
+#include "renderer/vkwrappers/vkcontext.h"
 
 #include "hkstl/containers/hkvector.h"
 

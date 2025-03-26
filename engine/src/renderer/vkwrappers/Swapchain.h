@@ -5,7 +5,6 @@
 
 #include "platform/platform.h"
 #include "renderer/vkwrappers/Queue.h"
-#include "renderer/vkwrappers/Image.h"
 
 #include "hkstl/containers/hkvector.h"
 

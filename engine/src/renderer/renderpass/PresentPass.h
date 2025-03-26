@@ -16,7 +16,7 @@ public:
     void init(hk::Swapchain *swapchain = nullptr);
     void deinit();
 
-    void render(const hk::Image &source,
+    void render(const hk::ImageHandle &source,
                 VkCommandBuffer cmd, u32 idx,
                 hk::DescriptorAllocator *alloc);
 
@@ -27,9 +27,9 @@ private:
     void createRenderPass();
     void createPipeline();
 
-    void blit(const hk::Image &source, VkCommandBuffer cmd, u32 idx);
-    void copy(const hk::Image &source, VkCommandBuffer cmd, u32 idx);
-    void pass(const hk::Image &source, VkCommandBuffer cmd, u32 idx,
+    void blit(const hk::ImageHandle &source, VkCommandBuffer cmd, u32 idx);
+    void copy(const hk::ImageHandle &source, VkCommandBuffer cmd, u32 idx);
+    void pass(const hk::ImageHandle &source, VkCommandBuffer cmd, u32 idx,
               hk::DescriptorAllocator *alloc);
 
 private:

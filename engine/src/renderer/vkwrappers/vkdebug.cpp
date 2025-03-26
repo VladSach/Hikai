@@ -282,7 +282,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL validation_callback(
     // Strip and save spec reference
     u64 spec_pos = message.find("The Vulkan spec states:");
     if (spec_pos != std::string::npos) {
-        msg.vk_spec = message.substr(spec_pos);
+        msg.vk_spec = message.substr(spec_pos + 24);
         msg.vk_spec += '.';
         message = message.substr(0, spec_pos);
         message.pop_back(); // remove '\n'

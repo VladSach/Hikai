@@ -1,6 +1,6 @@
 #include "OffscreenPass.h"
 
-#include "renderer/VulkanContext.h"
+#include "renderer/vkwrappers/vkcontext.h"
 #include "resources/AssetManager.h"
 
 namespace hk {
@@ -9,7 +9,7 @@ void OffscreenPass::init(hk::Swapchain *swapchain, VkDescriptorSetLayout layout)
 {
     LOG_TRACE("Creating Deferred RenderPass");
 
-    device_ = hk::context()->device();
+    device_ = hk::vkc::device();
     swapchain_ = swapchain;
 
     // color_format_ = swapchain_->format();
@@ -30,12 +30,12 @@ void OffscreenPass::deinit()
     vkDestroyFramebuffer(device_, framebuffer_, nullptr);
     framebuffer_ = VK_NULL_HANDLE;
 
-    position_.deinit();
-    normal_.deinit();
-    albedo_.deinit();
-    material_.deinit();
-    depth_.deinit();
-    color_.deinit();
+    hk::bkr::destroy_image(position_);
+    hk::bkr::destroy_image(normal_);
+    hk::bkr::destroy_image(albedo_);
+    hk::bkr::destroy_image(material_);
+    hk::bkr::destroy_image(depth_);
+    hk::bkr::destroy_image(color_);
 
     geometry_pipeline_.deinit();
     pipeline_.deinit();
@@ -87,85 +87,50 @@ void OffscreenPass::createFramebuffers()
     // NOTE: Layouts are undefined, subpasses handle transitions by themselfs
     // TODO: better image system, so it would work with subpasses and swapchain
 
-    position_.init({
-        "Deferred Position attachment",
-        hk::Image::Usage::SAMPLED          |
-        hk::Image::Usage::COLOR_ATTACHMENT |
-        hk::Image::Usage::INPUT_ATTACHMENT,
-        VK_FORMAT_R32G32B32A32_SFLOAT,
-        // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        size_.width, size_.height, 1,
-    });
+    position_ = hk::bkr::create_image({
+        // hk::Image::Usage::SAMPLED
+        ImageType::RENDER_TARGET,
+        hk::Format::R32G32B32A32_SFLOAT,
+        size_.width, size_.height, 4,
+    }, "Deferred Position attachment");
 
-    normal_.init({
-        "Deferred Normal attachment",
-        hk::Image::Usage::SAMPLED          |
-        hk::Image::Usage::COLOR_ATTACHMENT |
-        hk::Image::Usage::INPUT_ATTACHMENT,
-        VK_FORMAT_R16G16B16A16_SFLOAT,
-        // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        size_.width, size_.height, 1,
-    });
+    normal_ = hk::bkr::create_image({
+        ImageType::RENDER_TARGET,
+        hk::Format::R16G16B16A16_SFLOAT,
+        size_.width, size_.height, 4,
+    }, "Deferred Normal attachment");
 
-    albedo_.init({
-        "Deferred Albedo attachment",
-        hk::Image::Usage::SAMPLED          |
-        hk::Image::Usage::COLOR_ATTACHMENT |
-        hk::Image::Usage::INPUT_ATTACHMENT,
-        VK_FORMAT_R8G8B8A8_UNORM,
-        // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        size_.width, size_.height, 1,
-    });
+    albedo_ = hk::bkr::create_image({
+        ImageType::RENDER_TARGET,
+        hk::Format::R8G8B8A8_UNORM,
+        size_.width, size_.height, 4,
+    }, "Deferred Albedo attachment");
 
-    material_.init({
-        "Deferred Material attachment",
-        hk::Image::Usage::SAMPLED          |
-        hk::Image::Usage::COLOR_ATTACHMENT |
-        hk::Image::Usage::INPUT_ATTACHMENT,
-        VK_FORMAT_R8G8B8A8_UNORM,
-        // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        size_.width, size_.height, 1,
-    });
+    material_ = hk::bkr::create_image({
+        ImageType::RENDER_TARGET,
+        hk::Format::R8G8B8A8_UNORM,
+        size_.width, size_.height, 4,
+    }, "Deferred Material attachment");
 
-    depth_.init({
-        "Deferred Depth attachment",
-        hk::Image::Usage::DEPTH_STENCIL_ATTACHMENT |
-        hk::Image::Usage::INPUT_ATTACHMENT,
-        depth_format_,
-        // VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_ASPECT_DEPTH_BIT,
+    depth_ = hk::bkr::create_image({
+        ImageType::DEPTH_BUFFER,
+        hk::Format::D32_SFLOAT, // FIX: depth_format_
         size_.width, size_.height, 1,
-    });
+    }, "Deferred Depth attachment");
 
-    color_.init({
-        "Deferred Final Color attachment",
-        hk::Image::Usage::SAMPLED      |
-        hk::Image::Usage::TRANSFER_SRC |
-        hk::Image::Usage::TRANSFER_DST |
-        hk::Image::Usage::COLOR_ATTACHMENT,
-        color_format_,
-        // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        size_.width, size_.height, 1,
-    });
+    color_ = hk::bkr::create_image({
+        ImageType::RENDER_TARGET,
+        hk::Format::R16G16B16A16_SFLOAT, // FIX: color_format_
+        size_.width, size_.height, 4,
+    }, "Deferred Final Color attachment");
 
     VkImageView attachments[] = {
-        position_.view(),
-        normal_.view(),
-        albedo_.view(),
-        material_.view(),
-        depth_.view(),
-        color_.view()
+        hk::bkr::view(position_),
+        hk::bkr::view(normal_),
+        hk::bkr::view(albedo_),
+        hk::bkr::view(material_),
+        hk::bkr::view(depth_),
+        hk::bkr::view(color_),
     };
 
     VkFramebufferCreateInfo info = {};

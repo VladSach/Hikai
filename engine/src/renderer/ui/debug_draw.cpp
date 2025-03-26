@@ -14,7 +14,7 @@ struct DebugShape {
     ShapeDesc info;
 
     b8 point_array = false;
-    // PERF: change to vertecies + indicies if memory will become a problem
+    // PERF: change to vertecies + indices if memory will become a problem
     hk::vector<hkm::vec3f> points = {};
 
     // FIX: temp
@@ -24,7 +24,7 @@ struct DebugShape {
 static struct DebugContext {
     hk::vector<DebugShape> shapes = {};
 
-    Buffer buf; // contains points from all shapes
+    BufferHandle buf; // contains points from all shapes
 
     // Config
     b8 wide_lines;
@@ -45,22 +45,22 @@ void init(VkDescriptorSetLayout global_set_layout,
           VkRenderPass pass)
 {
     /* ===== Get Config ===== */
-    auto &info = hk::context()->physicalInfo();
+    auto &info = hk::vkc::adapter_info();
 
-    ctx.wide_lines = info.features.wideLines;
-    ctx.large_points = info.features.largePoints;
+    ctx.wide_lines = info.features.core.wideLines;
+    ctx.large_points = info.features.core.largePoints;
 
     ctx.line_range = info.properties.limits.lineWidthRange;
     ctx.point_range = info.properties.limits.pointSizeRange;
 
     /* ===== Create Vertex Buffer ===== */
-    Buffer::BufferDesc buffer_desc = {};
-    buffer_desc.type = Buffer::Type::VERTEX_BUFFER;
-    buffer_desc.usage = Buffer::Usage::TRANSFER_DST;
-    buffer_desc.property = Buffer::Property::GPU_LOCAL;
+    BufferDesc buffer_desc = {};
+    buffer_desc.type = BufferType::VERTEX_BUFFER;
+    // buffer_desc.access = MemoryType::GPU_LOCAL;
+    buffer_desc.access = MemoryType::CPU_UPLOAD;
     buffer_desc.size = 16;
     buffer_desc.stride = sizeof(hkm::vec4f);
-    ctx.buf.init(buffer_desc);
+    ctx.buf = bkr::create_buffer(buffer_desc, "Draw Debug Data");
 
     /* ===== Init Renderer Resources ===== */
     hk::PipelineBuilder builder;
@@ -88,10 +88,9 @@ void init(VkDescriptorSetLayout global_set_layout,
     builder.setShader(ctx.hndl_vertex);
     builder.setShader(ctx.hndl_pixel);
 
-    hk::vector<hk::bitflag<Format>> vert_layout = {
+    hk::vector<Format> vert_layout = {
         // position
-        hk::Format::SIGNED | hk::Format::FLOAT |
-        hk::Format::VEC3 | hk::Format::B32,
+        hk::Format::R32G32B32_SFLOAT,
     };
     builder.setVertexLayout(sizeof(hkm::vec3f), vert_layout);
 
@@ -136,7 +135,7 @@ void init(VkDescriptorSetLayout global_set_layout,
 
 void deinit()
 {
-    ctx.buf.deinit();
+    bkr::destroy_buffer(ctx.buf);
     ctx.shapes.clear();
 
     ctx.line_pipeline.deinit();
@@ -178,9 +177,8 @@ void draw(VkCommandBuffer cmd)
     }
 
     for (auto &shape : line_shapes) {
-        for (u32 i = 0; i < shape.points.size() - 1; i += 2) {
+        for (u32 i = 0; i < shape.points.size(); ++i) {
             points.push_back(shape.points[i]);
-            points.push_back(shape.points[i+1]);
         }
 
         shape.info.thickness = ctx.wide_lines ?
@@ -190,15 +188,15 @@ void draw(VkCommandBuffer cmd)
     }
 
     // Resize buffer if needed
-    if (ctx.buf.size() <= points.size()) {
-        ctx.buf.resize(points.size());
+    if (bkr::desc(ctx.buf).size <= points.size()) {
+        bkr::resize_buffer(ctx.buf, points.size());
     }
 
-    ctx.buf.update(points.data());
+    bkr::update_buffer(ctx.buf, points.data());
 
     // Draw
     u32 offset = 0;
-    ctx.buf.bind(cmd);
+    bkr::bind_buffer(ctx.buf, cmd);
 
     // Draw point shapes
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, ctx.point_pipeline.handle());
@@ -260,6 +258,26 @@ constexpr void line(DebugShape &out,
     out.point_array = false;
     out.points.push_back(from);
     out.points.push_back(to);
+}
+
+inline void rect(DebugShape &out,
+                 const hkm::vec3f &p1, const hkm::vec3f &p2,
+                 const hkm::vec3f &p3, const hkm::vec3f &p4,
+                 const hkm::vec3f &normal)
+{
+    hkm::vec3f ab = p2 - p1;
+    hkm::vec3f ac = p3 - p1;
+    hkm::vec3f ad = p4 - p1;
+
+    // ALWAYS_ASSERT(!dot(ad, cross(ab, ac)), "Points are not coplanar");
+
+    // Cross product between edges should align with normal for clockwise order
+    // ALWAYS_ASSERT(dot(normal, cross(ab, ac)) < 0.f, "Points are not clockwise");
+
+    line(out, p1, p2);
+    line(out, p2, p3);
+    line(out, p3, p4);
+    line(out, p4, p1);
 }
 
 /* With small sectors values also draws
@@ -374,6 +392,19 @@ void line(const ShapeDesc &desc, const hkm::vec3f &from, const hkm::vec3f &to)
     ctx.shapes.push_back({ desc, false, { from, to }});
 }
 
+void rect(const ShapeDesc &desc,
+          const hkm::vec3f &p1, const hkm::vec3f &p2,
+          const hkm::vec3f &p3, const hkm::vec3f &p4,
+          const hkm::vec3f &normal)
+{
+    DebugShape rect;
+    rect.info = desc;
+
+    hk::dd::rect(rect, p1, p2, p3, p4, normal);
+
+    ctx.shapes.push_back(rect);
+}
+
 void circle(const ShapeDesc &desc,
             const hkm::vec3f &center, f32 radius,
             const hkm::vec3f &normal)
@@ -394,6 +425,42 @@ void sphere(const ShapeDesc &desc, const hkm::vec3f &center, f32 radius)
     hk::dd::sphere(sphere, center, radius);
 
     ctx.shapes.push_back(sphere);
+}
+
+void view_frustum(const ShapeDesc &desc, const hkm::mat4f view_proj_inv)
+{
+    DebugShape frustum;
+    frustum.info = desc;
+
+    hkm::vec3f planes[8] = {
+        // near
+        {-1,  1, 0}, // Top-left
+        { 1,  1, 0}, // Top-right
+        { 1, -1, 0}, // Bottom-right
+        {-1, -1, 0}, // Bottom-left
+
+        // far
+        {-1,  1, 1},
+        { 1,  1, 1},
+        { 1, -1, 1},
+        {-1, -1, 1},
+    };
+
+    hkm::vec3f out[8];
+    for (u32 i = 0; i < 8; ++i) {
+        out[i] = hkm::transformPoint(view_proj_inv, planes[i]);
+    }
+
+    hkm::vec3f normal = hkm::transformVec(view_proj_inv, {0, 0, 1});
+    rect(frustum, out[0], out[1], out[2], out[3], normal);
+    rect(frustum, out[4], out[5], out[6], out[7], normal);
+
+    line(frustum, out[0], out[4]);
+    line(frustum, out[1], out[5]);
+    line(frustum, out[2], out[6]);
+    line(frustum, out[3], out[7]);
+
+    ctx.shapes.push_back(frustum);
 }
 
 void conical_frustum(const ShapeDesc &desc,
@@ -418,7 +485,7 @@ void conical_frustum(const ShapeDesc &desc,
     modifier = hkm::clamp(modifier, 1u, n * 2u);
 
     // FIX: (test) multiple by two only if NOT point array
-    for (u32 i = 0; i < n * 2; i+=modifier * 2) {
+    for (u32 i = 0; i < n * 2; i += modifier * 2) {
         // fan
         // line(frustum, frustum.points.at(i), frustum.points.at(i + n));
 

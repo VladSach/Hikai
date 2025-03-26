@@ -1,8 +1,9 @@
 #ifndef HK_BIT_H
 #define HK_BIT_H
 
-#include "platform/info.h"
 #include "utility/hktypes.h"
+
+#include "utils/spec.h"
 
 namespace hk {
 
@@ -15,8 +16,8 @@ constexpr b8 is_constant_evaluated() noexcept {
 #if defined(_MSC_VER)
     // https://stackoverflow.com/a/76271410
     struct C {};
-    struct M : C { int a; };
-    struct N : C { int a; };
+    struct M : C { i32 a; };
+    struct N : C { i32 a; };
     return &M::a != static_cast<int C::*>(&N::a);
 #elif defined(__GNUC__)
     return __builtin_constant_p(42);
@@ -42,11 +43,12 @@ constexpr u32 popcount(T v)
         return count;
     }
 
-    if (hk::platform::getCpuInfo().feature.popcnt) {
+    // TEST: do i really need to check specs for this?
+    if (hk::spec::cpu().feature.popcnt) {
         return static_cast<u32>(__popcnt64(v));
     }
 
-    // FIX: dosn't work for T = u64
+    // FIX: doesn't work for T = u64
 
     // SOURCE:
     // https://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetParallel

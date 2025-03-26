@@ -89,7 +89,7 @@ hk::vector<u32> loadShader(const ShaderDesc &desc)
     if(!initialized) { init(); }
 
     hk::vector<u8> shader;
-    if (!hk::filesystem::readFile(desc.path, shader)) {
+    if (!hk::filesystem::read_file(desc.path, shader)) {
         LOG_ERROR("Failed to read from file:", desc.path);
     }
 

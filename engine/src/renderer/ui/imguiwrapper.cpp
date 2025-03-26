@@ -11,34 +11,49 @@
 #include "vendor/imgui/imgui_impl_win32.h"
 #endif
 
-#include "renderer/VulkanContext.h"
+#include "renderer/vkwrappers/vkcontext.h"
 #include "renderer/vkwrappers/vkdebug.h"
 
 #include <vector>
 
-// FIX: tmp
+// FIX: tmp (should be set by usercode)
 #include "../assets/fonts/Inter/InterVariable.h"
-#include "platform/info.h"
+#include "utils/spec.h"
+#include <queue>
 
 namespace hk::imgui {
 
 static std::vector<std::function<void()>> callbacks;
 static VkDescriptorPool imgui_pool;
 
+static std::queue<VkDescriptorSet> deletion_queue;
+
 void push(const std::function<void()> &callback)
 {
     callbacks.push_back(callback);
 }
 
-void* addTexture(VkImageView view, VkSampler sampler)
+void* addTexture(ImageHandle image, VkSampler sampler)
 {
-    return ImGui_ImplVulkan_AddTexture(
-        sampler, view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    VkDescriptorSet out = ImGui_ImplVulkan_AddTexture(
+        sampler, hk::bkr::view(image), hk::bkr::desc(image).layout_history.back());
+
+    return out;
 }
 
 void removeTexture(void *texture)
 {
-    ImGui_ImplVulkan_RemoveTexture(reinterpret_cast<VkDescriptorSet>(texture));
+    deletion_queue.push(reinterpret_cast<VkDescriptorSet>(texture));
+}
+
+void Image(ImageHandle image, VkSampler sampler,
+           const ImVec2& image_size,
+           const ImVec2& uv0, const ImVec2& uv1,
+           const ImVec4& tint_col, const ImVec4& border_col)
+{
+    void *tmp = hk::imgui::addTexture(image, sampler);
+    ImGui::Image(tmp, image_size, uv0, uv1, tint_col, border_col);
+    hk::imgui::removeTexture(tmp);
 }
 
 // Vulkan Backend
@@ -70,13 +85,15 @@ void init(const Window *window, VkRenderPass pass)
     font.FontDataOwnedByAtlas = false;
     strcpy_s(font.Name, "InterVariable, 16px");
 
+    f32 scale = hk::spec::system().monitors.at(0).scale;
+
     // ImFont *inter = io.Fonts->AddFontFromMemoryTTF(
     io.Fonts->AddFontFromMemoryTTF(
         hk::fonts::inter::variable::data,
         hk::fonts::inter::variable::size,
-        std::round(16.f * hk::platform::getMonitorInfo().scale), &font);
+        std::round(16.f * scale), &font);
 
-    ImGui::GetStyle().ScaleAllSizes(hk::platform::getMonitorInfo().scale);
+    ImGui::GetStyle().ScaleAllSizes(scale);
 
     // Setup Platform/Renderer backends
     ImGui_ImplWin32_Init(window->hwnd());
@@ -92,7 +109,7 @@ void deinit()
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
-    vkDestroyDescriptorPool(hk::context()->device(), imgui_pool, nullptr);
+    vkDestroyDescriptorPool(hk::vkc::device(), imgui_pool, nullptr);
 }
 
 void draw(VkCommandBuffer cmd)
@@ -115,10 +132,17 @@ void draw(VkCommandBuffer cmd)
     ImGui::RenderPlatformWindowsDefault();
 }
 
+void flush()
+{
+    while (!deletion_queue.empty()) {
+        ImGui_ImplVulkan_RemoveTexture(deletion_queue.back());
+        deletion_queue.pop();
+    }
+}
+
+
 void createVulkanBackend(VkRenderPass pass)
 {
-    hk::VulkanContext &context = *hk::context();
-
     // Create descriptor pool
     VkDescriptorPoolSize pool_sizes[] =
     {
@@ -142,14 +166,14 @@ void createVulkanBackend(VkRenderPass pass)
     pool_info.poolSizeCount = sizeof(pool_sizes)/sizeof(pool_sizes[0]);
     pool_info.pPoolSizes = pool_sizes;
 
-    vkCreateDescriptorPool(context.device(), &pool_info, nullptr, &imgui_pool);
+    vkCreateDescriptorPool(hk::vkc::device(), &pool_info, nullptr, &imgui_pool);
     hk::debug::setName(imgui_pool, "ImGui Descriptor Pool");
 
     ImGui_ImplVulkan_InitInfo init_info = {};
-    init_info.Instance = context.instance();
-    init_info.PhysicalDevice = context.physical();
-    init_info.Device = context.device();
-    init_info.Queue = context.graphics().handle();
+    init_info.Instance = hk::vkc::instance();
+    init_info.PhysicalDevice = hk::vkc::adapter();
+    init_info.Device = hk::vkc::device();
+    init_info.Queue = hk::vkc::graphics().handle();
     init_info.DescriptorPool = imgui_pool;
     init_info.Subpass = 0;
     init_info.MinImageCount = 2;

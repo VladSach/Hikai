@@ -58,7 +58,7 @@ PixelOutput main(PixelInput input)
     metallic = metallic_value  == .0f ? metalness : metalness * metallic_value;
     rough    = roughness_value == .0f ? roughness : roughness * roughness_value;
 
-    ao = ao_value == .0f ? 1 : ao_value;
+    ao = ao_value == .0f ? 1.f : ao_value;
 
     if (any(normal != input.normal)) {
         float3 B = cross(input.normal, input.tangent);

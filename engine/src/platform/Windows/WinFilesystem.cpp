@@ -11,7 +11,7 @@
 
 namespace hk::filesystem {
 
-b8 readFile(const std::string &path, hk::vector<u8> &out)
+b8 read_file(const std::string &path, hk::vector<u8> &out)
 {
     std::ifstream file(path, std::ios::binary | std::ios::in | std::ios::ate);
     // ALWAYS_ASSERT(file.is_open(), "Failed to open a file:", path);
@@ -26,7 +26,7 @@ b8 readFile(const std::string &path, hk::vector<u8> &out)
     return true;
 }
 
-b8 findFile(const std::string &root, const std::string &target,
+b8 find_file(const std::string &root, const std::string &target,
             std::string *out)
 {
     std::string searchPath(root);
@@ -68,7 +68,7 @@ b8 findFile(const std::string &root, const std::string &target,
             std::string subDir(searchPath.substr(0, searchPath.size() - 1));
             subDir += data.cFileName;
 
-            if (findFile(subDir, target, out)) { return true; }
+            if (find_file(subDir, target, out)) { return true; }
         }
 
     } while (FindNextFile(hFind, &data));

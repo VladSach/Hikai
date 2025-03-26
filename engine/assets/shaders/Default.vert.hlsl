@@ -17,17 +17,17 @@ struct VertexOutput {
 };
 
 [[vk::push_constant]]
-struct ModelToWorld {
-    float4x4 mat;
-} modelToWorld;
+struct InstanceData {
+    float4x4 model_to_world;
+} instance;
 
 VertexOutput main(VertexInput input) {
     VertexOutput output;
 
-    float4 world_pos = mul(modelToWorld.mat, float4(input.pos, 1.f));
-    output.position = mul(viewProj, world_pos);
+    float4 world_pos = mul(instance.model_to_world, float4(input.pos, 1.f));
+    output.position = mul(camera.view_proj, world_pos);
 
-    float4x4 inverse_model = transpose(inverse(modelToWorld.mat));
+    float4x4 inverse_model = transpose(inverse(instance.model_to_world));
     float3 tangent = normalize(mul(inverse_model, float4(input.tangent, 0.f)).xyz);
 
     output.normal = normalize(mul(inverse_model, float4(input.normal, 0.f)).xyz);

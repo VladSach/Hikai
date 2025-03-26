@@ -4,7 +4,7 @@
 #include "vendor/vulkan/vulkan_win32.h"
 #endif
 
-#include "renderer/VulkanContext.h"
+#include "renderer/vkwrappers/vkcontext.h"
 #include "renderer/vkwrappers/vkdebug.h"
 
 #include "math/utils.h"
@@ -13,9 +13,9 @@ namespace hk {
 
 void Swapchain::init(const Window *window)
 {
-    instance_ = hk::context()->instance();
-    device_   = hk::context()->device();
-    physical_ = hk::context()->physical();
+    instance_ = hk::vkc::instance();
+    device_   = hk::vkc::device();
+    physical_ = hk::vkc::adapter();
 
     surface_format_ = {};
     present_mode_ = VK_PRESENT_MODE_MAX_ENUM_KHR;
@@ -36,7 +36,7 @@ void Swapchain::deinit()
     }
 
     if (surface_) {
-        vkDestroySurfaceKHR(context()->instance(), surface_, nullptr);
+        vkDestroySurfaceKHR(instance_, surface_, nullptr);
     }
 
     handle_ = VK_NULL_HANDLE;
@@ -152,8 +152,7 @@ void Swapchain::recreate(const VkExtent2D &size,
         ALWAYS_ASSERT(!err, "Failed to create Vulkan Image View");
 
         hk::debug::setName(images_[i], "Swapchain Image #" + std::to_string(i));
-        hk::debug::setName(views_[i],
-                           "Swapchain Image View #" + std::to_string(i));
+        hk::debug::setName(views_[i], "Swapchain Image View #" + std::to_string(i));
     }
 }
 
@@ -250,7 +249,7 @@ void Swapchain::createSurface(const Window *window)
     // graphics queue also supports present and there is no present only queue.
     // This also means that the swapchain sharing mode is exclusive.
     // Whether this impacts performance require further profiling
-    present_ = hk::context()->graphics();
+    present_ = hk::vkc::graphics();
 
 }
 

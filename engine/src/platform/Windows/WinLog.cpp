@@ -1,5 +1,7 @@
 #include "WinLog.h"
 
+#include "utils/to_string.h"
+
 #include <fstream>
 #include <iomanip>
 
@@ -133,7 +135,7 @@ void logWinConsole(const hk::log::Log &log)
     wss << "\033[1;90m" << log.time.c_str() << "\033[0;10m" << ' ';
 
     wss << "\033[" << lookup_color[static_cast<u32>(log.level)]
-        << std::setw(8) << hk::log::levelToString(log.level).c_str()
+        << std::setw(8) << to_string(log.level)
         << "\033[0;10m" << ' ';
 
     std::string caller = log.caller;
@@ -196,7 +198,7 @@ void logWinFile(const hk::log::Log &log)
     std::wstringstream wss;
     wss << std::left;
     wss << log.time.c_str() << ' ';
-    wss << std::setw(8) << hk::log::levelToString(log.level).c_str() << ' ';
+    wss << std::setw(8) << to_string(log.level) << ' ';
     std::string caller = log.caller;
     if (caller.size() > MaxFuncNameLength) {
         caller.erase(MaxFuncNameLength - 3, std::string::npos);

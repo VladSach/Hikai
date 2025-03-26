@@ -36,23 +36,6 @@ void deinit();
 HKAPI void watch(const std::string &path, onStateChange callback);
 HKAPI void unwatch(const std::string &path);
 
-constexpr const char* stringFileState(State state)
-{
-    constexpr const char *lookup_file_state[] = {
-        "NONE",
-
-        "ADDED",
-        "REMOVED",
-        "MODIFIED",
-        "RENAMED_OLD",
-        "RENAMED_NEW",
-
-        "MAX_FILE_STATE"
-    };
-
-    return lookup_file_state[static_cast<u32>(state)];
-}
-
 }
 
 #endif // HK_FILEWATCH_H

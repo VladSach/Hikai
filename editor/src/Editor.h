@@ -11,6 +11,8 @@
 #include "panels/LogPanel.h"
 #include "panels/MetricsPanel.h"
 #include "panels/SettingsPanel.h"
+#include "panels/ResourcesPanel.h"
+#include "panels/SpecsPanel.h"
 
 class Editor final : public Application {
 public:
@@ -48,6 +50,8 @@ private:
     LogPanel log;
     MetricsPanel metrics;
     SettingsPanel settings;
+    ResourcesPanel resources;
+    SpecsPanel specs;
 
     b8 showImGuiDemo = false;
 

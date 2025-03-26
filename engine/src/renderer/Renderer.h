@@ -25,11 +25,13 @@ struct InstanceData {
 // FIX: temp
 // https://maraneshi.github.io/HLSL-ConstantBufferLayoutVisualizer
 struct SceneData {
+    // Camera
+    hkm::vec4f pos; // used only .xyz
+    hkm::mat4f view_proj;
+
+    // Frame
     hkm::vec2f resolution;
-    u64 pad;
-    hkm::vec3f cameraPosition;
     f32 time;
-    hkm::mat4f viewProjection;
 };
 
 struct LightSources {
@@ -37,7 +39,7 @@ struct LightSources {
         hkm::vec4f color;
         f32 intensity;
         hkm::vec3f pos;
-    } pointlights[3];
+    };
 
     struct SpotLight {
         hkm::vec4f color;
@@ -47,19 +49,22 @@ struct LightSources {
         f32 outer_cutoff;
 
         hkm::vec3f pos;
-    } spotlights[3];
+    };
 
     struct DirectionalLight {
         hkm::vec4f color;
         hkm::vec3f dir;
 
         f32 pad;
-    } directional;
+    };
 
-    u32 spotlightsSize = 0;
-    u32 pointlightsSize = 0;
+    SpotLight spot_lights[3];
+    PointLight point_lights[3];
+    DirectionalLight directional_lights[3];
 
-    u64 pad;
+    u32 spot_count = 0;
+    u32 point_count = 0;
+    u32 directinal_count = 0;
 };
 
 class Renderer {
@@ -78,12 +83,12 @@ public:
     inline void updateFrameData(const SceneData &ubo)
     {
         frame_data = ubo;
-        frame_data_buffer.update(&frame_data);
+        hk::bkr::update_buffer(frame_data_buffer, &frame_data);
     }
     inline void updateLights(const LightSources &ubo)
     {
         lights = ubo;
-        lights_buffer.update(&lights);
+        hk::bkr::update_buffer(lights_buffer, &lights);
     }
 
 // FIX: temp public
@@ -113,9 +118,9 @@ public:
     // Scene Data
     hk::DescriptorLayout global_desc_layout; // per frame
     SceneData frame_data;
-    hk::Buffer frame_data_buffer;
+    hk::BufferHandle frame_data_buffer;
     LightSources lights;
-    hk::Buffer lights_buffer;
+    hk::BufferHandle lights_buffer;
 
     struct FrameData {
         VkCommandBuffer cmd = VK_NULL_HANDLE;

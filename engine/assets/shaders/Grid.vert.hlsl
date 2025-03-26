@@ -20,10 +20,10 @@ VertexOutput main(uint id : SV_VertexID) {
     pos.xyz *= grid_size;
     //pos.xz += cameraPos.xz;
 
-    float4 world_pos = mul(viewProj, pos);
+    float4 world_pos = mul(camera.view_proj, pos);
 
     float div = max(2.0, round(grid_size));
-    float3 camera_offset = floor(cameraPos / div) * div;
+    float3 camera_offset = floor(camera.pos / div) * div;
 
     output.tc = pos.xz;
     output.position = world_pos;

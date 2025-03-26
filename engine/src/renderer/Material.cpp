@@ -9,7 +9,8 @@ namespace hk {
 void hk::RenderMaterial::build(VkRenderPass renderpass, u32 pushConstSize,
                          VkDescriptorSetLayout sceneDescriptorLayout,
                          VkDescriptorSetLayout passDescriptorLayout,
-                         hk::vector<VkFormat> formats, VkFormat depthFormat)
+                         hk::vector<VkFormat> formats, VkFormat depthFormat,
+                         const std::string &name)
 {
     // TODO: Make this dynamic
     hk::DescriptorLayout::Builder l_builder;
@@ -27,22 +28,21 @@ void hk::RenderMaterial::build(VkRenderPass renderpass, u32 pushConstSize,
     builder.setShader(material->vertex_shader);
     builder.setShader(material->pixel_shader);
 
-    hk::vector<hk::bitflag<Format>> vert_layout = {
+    hk::vector<Format> vert_layout = {
         // position
-        hk::Format::SIGNED | hk::Format::FLOAT |
-        hk::Format::VEC3 | hk::Format::B32,
+        hk::Format::R32G32B32_SFLOAT,
 
         // normal
-        hk::Format::SIGNED | hk::Format::FLOAT |
-        hk::Format::VEC3 | hk::Format::B32,
+        hk::Format::R32G32B32_SFLOAT,
 
         // texture coordinates
-        hk::Format::SIGNED | hk::Format::FLOAT |
-        hk::Format::VEC2 | hk::Format::B32,
+        hk::Format::R32G32_SFLOAT,
 
         // tangent
-        hk::Format::SIGNED | hk::Format::FLOAT |
-        hk::Format::VEC3 | hk::Format::B32,
+        hk::Format::R32G32B32_SFLOAT,
+
+        // hk::Format::SIGNED | hk::Format::FLOAT |
+        // hk::Format::VEC3 | hk::Format::B32,
     };
     builder.setVertexLayout(sizeof(Vertex), vert_layout);
 
@@ -83,14 +83,13 @@ void hk::RenderMaterial::build(VkRenderPass renderpass, u32 pushConstSize,
     // hk::debug::setName(pipeline.handle(), "Material Pipeline");
     // hk::debug::setName(pipeline.layout(), "Material Pipeline Layout");
 
-    Buffer::BufferDesc uniformDisc;
-    uniformDisc.type = Buffer::Type::UNIFORM_BUFFER;
-    uniformDisc.usage = Buffer::Usage::NONE;
-    uniformDisc.property = Buffer::Property::CPU_ACESSIBLE;
-    uniformDisc.size = 1; // FIX: temp, make depend on framebuffers size
-    uniformDisc.stride = sizeof(Material::constants);
+    BufferDesc uniform_desc;
+    uniform_desc.type = BufferType::UNIFORM_BUFFER;
+    uniform_desc.access = MemoryType::CPU_UPLOAD;
+    uniform_desc.size = 1; // FIX: temp, make depend on framebuffers size
+    uniform_desc.stride = sizeof(Material::constants);
 
-    buf.init(uniformDisc);
+    buf = bkr::create_buffer(uniform_desc, name);
 }
 
 MaterialInstance RenderMaterial::write(DescriptorAllocator &allocator, VkSampler sampler)
@@ -105,17 +104,18 @@ MaterialInstance RenderMaterial::write(DescriptorAllocator &allocator, VkSampler
 
     writer.clear();
 
-    buf.update(&material->constants);
-    writer.writeBuffer(0, buf.buffer(),
+    bkr::update_buffer(buf, &material->constants);
+    writer.writeBuffer(0, bkr::handle(buf),
                        sizeof(Material::constants), 0,
                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 
-    hk::Image *map;
+    hk::ImageHandle map;
     for (u32 i = 0; i < Material::MAX_TEXTURE_TYPE; ++i) {
         u32 handle = material->map_handles[i];
 
-        map = hk::assets()->getTexture(handle).texture;
-        writer.writeImage(i + 1, map->view(), sampler, map->layout(),
+        map = hk::assets()->getTexture(handle).image;
+        writer.writeImage(i + 1, hk::bkr::view(map), sampler,
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                           // TODO: If sampler != nullptr -> use combined image
                           VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE);
     }
@@ -127,7 +127,7 @@ MaterialInstance RenderMaterial::write(DescriptorAllocator &allocator, VkSampler
 
 void RenderMaterial::clear()
 {
-    buf.deinit();
+    bkr::destroy_buffer(buf);
     pipeline.deinit();
     layout.deinit();
     material = nullptr;

@@ -1,37 +1,29 @@
-#ifndef HK_INFO_H
-#define HK_INFO_H
+#ifndef HK_SPEC_H
+#define HK_SPEC_H
 
-#include "platform.h"
+#include "spec_types.h"
 
-#include "utility/hktypes.h"
-#include "containers/hkvector.h"
+#include "hkcommon.h"
+#include "hkstl/utility/hktypes.h"
+#include "hkstl/strings/hkstring.h"
 
-namespace hk::platform {
+namespace hk::spec {
 
-struct MonitorInfo {
-    std::string name;
+struct ProcessorSpec;
+struct AdapterSpec;
+struct SystemSpec;
 
-    // Resolution
-    u32 width = 0;
-    u32 height = 0;
+HKAPI const ProcessorSpec& cpu();
+HKAPI const SystemSpec& system();
+HKAPI const AdapterSpec& adapter(u32 idx = 0);
 
-    f32 scale = 1.f;
+void update_cpu_specs();
+void update_system_specs();
+void update_adapter_specs();
 
-    // Refresh Rate
-    u32 hz = 0;
-
-    // Color Depth
-    u32 depth = 0;
-};
-
-HKAPI void updateMonitorInfo();
-HKAPI MonitorInfo getMonitorInfo();
-HKAPI hk::vector<MonitorInfo> &getAllMonitorInfos();
-
-// Should be fine
 #pragma warning(disable : 4201)
-struct CpuInfo {
-    std::string brand;
+struct ProcessorSpec {
+    hk::string brand;
 
     u32 cores;
     u32 threads; // Logical Processors
@@ -81,7 +73,7 @@ struct CpuInfo {
             u8 avx2   : 1;
             u8 avx512 : 1; // only foundation
         };
-        u32 flags;
+        u16 flags;
     } simd;
 
     union Features {
@@ -104,13 +96,13 @@ struct CpuInfo {
             u8 tbm        : 1; // Trailing Bit Manipulation
             u8 lm         : 1; // Long mode
         };
-        u64 features;
+        u16 features;
     } feature;
 
     u32 numa_nodes;
     u32 physical_packages;
 
-    std::string vendor;
+    hk::string vendor;
 
     struct VersionInfo {
         u32 stepping = 0;
@@ -128,9 +120,42 @@ struct CpuInfo {
 };
 #pragma warning(default : 4201)
 
-HKAPI void updateCpuInfo();
-HKAPI CpuInfo getCpuInfo();
+struct AdapterSpec {
+    hk::string name;
+
+    AdapterType type;
+    AdapterVendor vendor;
+
+    struct API {
+        BackendType type;
+        hk::string version;
+
+        hk::string driver_version;
+    } api;
+};
+
+struct MonitorSpec {
+    hk::string name;
+
+    // Resolution
+    u32 width = 0;
+    u32 height = 0;
+
+    f32 scale = 1.f;
+
+    // Refresh Rate
+    u32 hz = 0;
+
+    // Color Depth
+    u32 depth = 0;
+};
+
+struct SystemSpec {
+    SystemType type;
+
+    hk::vector<MonitorSpec> monitors;
+};
 
 }
 
-#endif // HK_INFO_H
+#endif // HK_SPEC_H

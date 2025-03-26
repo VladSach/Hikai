@@ -5,10 +5,10 @@
 
 #include "hkstl/containers/hkvector.h"
 
-#include "renderer/vkwrappers/Buffer.h"
-#include "renderer/vkwrappers/Image.h"
 #include "renderer/vkwrappers/Pipeline.h"
 #include "renderer/vkwrappers/Descriptors.h"
+
+#include "renderer/resources.h"
 
 namespace hk {
 
@@ -59,13 +59,14 @@ struct RenderMaterial {
     hk::DescriptorWriter writer;
     hk::DescriptorLayout layout;
 
-    Buffer buf;
+    hk::BufferHandle buf;
     Material *material;
 
     void build(VkRenderPass renderpass, u32 pushConstSize,
                VkDescriptorSetLayout sceneDescriptorLayout,
                VkDescriptorSetLayout passDescriptorLayout,
-               hk::vector<VkFormat> formats, VkFormat depthFormat);
+               hk::vector<VkFormat> formats, VkFormat depthFormat,
+               const std::string &name);
 
     void clear();
 

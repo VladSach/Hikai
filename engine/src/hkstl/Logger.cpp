@@ -117,19 +117,4 @@ const DebugInfo& getDebugInfo()
     return debug_info;
 }
 
-inline std::string levelToString(const Level &level)
-{
-    constexpr char const *lookup_level[] =
-    {
-        "[FATAL]:",
-        "[ERROR]:",
-        "[WARN]:",
-        "[INFO]:",
-        "[DEBUG]:",
-        "[TRACE]:"
-    };
-
-    return lookup_level[static_cast<u32>(level)];
-}
-
 }

@@ -7,6 +7,8 @@
 #include "renderer/vkwrappers/Swapchain.h"
 #include "renderer/vkwrappers/Descriptors.h"
 
+#include "renderer/resources.h"
+
 #include "hkstl/containers/hkvector.h"
 
 namespace hk {
@@ -16,7 +18,7 @@ public:
     void init(hk::Swapchain *swapchain);
     void deinit();
 
-    void render(const hk::Image &source, VkCommandBuffer cmd, u32 idx,
+    void render(const hk::ImageHandle &source, VkCommandBuffer cmd, u32 idx,
                 hk::DescriptorAllocator *alloc);
 
 private:
@@ -31,7 +33,7 @@ public:
     VkRenderPass render_pass_ = VK_NULL_HANDLE;
     VkFramebuffer framebuffer_ = VK_NULL_HANDLE;
 
-    hk::Image color_;
+    hk::ImageHandle color_;
 
     hk::DescriptorLayout set_layout_;
 

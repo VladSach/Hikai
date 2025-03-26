@@ -19,5 +19,8 @@
 #include "hkstl/hkstl.h"
 #include "hkstl/math/hkmath.h"
 
+#include "utils/spec.h"
+#include "utils/to_string.h"
+
 
 #endif // HIKAI_H

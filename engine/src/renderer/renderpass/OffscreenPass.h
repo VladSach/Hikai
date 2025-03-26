@@ -3,10 +3,10 @@
 
 #include "vendor/vulkan/vulkan.h"
 
-#include "renderer/vkwrappers/Buffer.h"
 #include "renderer/vkwrappers/Pipeline.h"
 #include "renderer/vkwrappers/Swapchain.h"
 #include "renderer/vkwrappers/Descriptors.h"
+#include "renderer/resources.h"
 
 #include "hkstl/containers/hkvector.h"
 
@@ -34,14 +34,13 @@ public:
     VkRenderPass render_pass_ = VK_NULL_HANDLE;
 
     // Gbuffer
-    hk::Image position_;
-    hk::Image normal_;
-    hk::Image albedo_;
-    hk::Image material_; // Material Properties i.e metallic, roughness
+    hk::ImageHandle position_;
+    hk::ImageHandle normal_;
+    hk::ImageHandle albedo_;
+    hk::ImageHandle material_; // Material Properties i.e metallic, roughness
 
-    hk::Image depth_;
+    hk::ImageHandle depth_;
     VkFramebuffer framebuffer_ = VK_NULL_HANDLE;
-
 
     // TODO:
     // albedo   3d [0, 1]    r8g8b8unorm
@@ -58,7 +57,7 @@ public:
     hk::Pipeline geometry_pipeline_;
 
     // Light pass
-    hk::Image color_;
+    hk::ImageHandle color_;
     hk::Pipeline pipeline_;
     hk::DescriptorLayout set_layout_;
 

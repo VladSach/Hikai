@@ -1,11 +1,15 @@
 #include "Viewport.h"
 
-void Viewport::init(Renderer *renderer, Camera *camera, b8 viewport)
+void Viewport::init(Renderer *renderer, hk::Camera *camera, b8 viewport)
 {
     camera_ = camera;
     renderer_ = renderer;
 
     is_viewport_ = viewport;
+
+    ImGuizmo::GetStyle().Colors[ImGuizmo::DIRECTION_X] = ImVec4(0.000f, 0.000f, 0.666f, 1.000f);
+    ImGuizmo::GetStyle().Colors[ImGuizmo::DIRECTION_Y] = ImVec4(0.666f, 0.000f, 0.000f, 1.000f);
+    ImGuizmo::GetStyle().Colors[ImGuizmo::DIRECTION_Z] = ImVec4(0.000f, 0.666f, 0.000f, 1.000f);
 }
 
 void Viewport::deinit()

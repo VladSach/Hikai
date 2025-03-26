@@ -13,6 +13,7 @@ struct vec2f {
     constexpr vec2f(f32 w) : x(w), y(w) {}
     constexpr vec2f(f32 x, f32 y) : x(x), y(y) {}
     constexpr vec2f(f32 arr[2]) : x(arr[0]), y(arr[1]) {}
+    constexpr vec2f(const f32 arr[2]) : x(arr[0]), y(arr[1]) {}
 
     constexpr f32& operator [](u32 i) { return ((&x)[i]); }
     constexpr const f32& operator [](u32 i) const { return ((&x)[i]); }

@@ -84,8 +84,6 @@ using LoggerCallback = std::function<void(const hk::log::Log &log)>;
 HKAPI u32 addMessageHandler(LoggerCallback callback);
 HKAPI void removeMessageHandler(u32 handle);
 
-HKAPI inline std::string levelToString(const Level &level);
-
 // ===== HIKAI INTERNAL USE =====
 void dispatch();
 

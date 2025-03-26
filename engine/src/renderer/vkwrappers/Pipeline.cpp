@@ -1,11 +1,19 @@
 #include "Pipeline.h"
 
-#include "renderer/VulkanContext.h"
+#include "renderer/vkwrappers/vkcontext.h"
 #include "renderer/vkwrappers/vkdebug.h"
 
 #include "resources/AssetManager.h"
 
+#include "hkstl/math/hkmath.h"
+#include "hkstl/numerics/hkbitflag.h"
+
+#include <utility>
+
 namespace hk {
+
+hk::vector<VkVertexInputAttributeDescription>
+createVertexLayout(const VertexLayout &formats, u32 binding = 0);
 
 /* ================================ Pipeline ================================ */
 void Pipeline::init(VkPipeline pipeline, VkPipelineLayout layout)
@@ -16,7 +24,7 @@ void Pipeline::init(VkPipeline pipeline, VkPipelineLayout layout)
 
 void Pipeline::deinit()
 {
-    VkDevice device = hk::context()->device();
+    VkDevice device = hk::vkc::device();
 
     vkDestroyPipeline(device, handle_, nullptr);
     vkDestroyPipelineLayout(device, layout_, nullptr);
@@ -370,9 +378,92 @@ void PipelineBuilder::clear()
     out_ = hk::Pipeline();
 
     // Convenience
-    device = hk::context()->device();
-    limits = hk::context()->physicalInfo().properties.limits;
-    features = hk::context()->physicalInfo().features;
+    device   = hk::vkc::device();
+    limits   = hk::vkc::adapter_info().properties.limits;
+    features = hk::vkc::adapter_info().features.core;
 }
+
+enum class FormatBits : u16 {
+    NONE       = 0,
+
+    // EMPTY   = 1 << 0,
+
+    SIGNED     = 1 << 1,
+    UNSIGNED   = 1 << 2,
+
+    // EMPTY   = 1 << 3,
+
+    INT        = 1 << 4,
+    FLOAT      = 1 << 5,
+    NORMALIZED = 1 << 6,
+    RGB        = 1 << 7,
+
+    B8         = 1 << 8,
+    B16        = 1 << 9,
+    B32        = 1 << 10,
+    B64        = 1 << 11,
+
+    VEC1       = 1 << 12,
+    VEC2       = 1 << 13,
+    VEC3       = 1 << 14,
+    VEC4       = 1 << 15,
+};
+
+REGISTER_ENUM(FormatBits);
+
+constexpr Format compile_format(const hk::bitflag<FormatBits> &bits)
+{
+    return static_cast<Format>(bits.value());
+}
+
+constexpr hk::bitflag<FormatBits> decompile_format(Format format)
+{
+    return { static_cast<u32>(format) };
+}
+
+hk::vector<VkVertexInputAttributeDescription>
+createVertexLayout(const VertexLayout &formats, u32 binding)
+{
+    u32 offset = 0;
+    u32 bits = 0;
+    u32 vec = 0;
+
+    hk::vector<VkVertexInputAttributeDescription> out;
+
+    for (u32 i = 0; i < formats.size(); i++) {
+        hk::bitflag<FormatBits> format = decompile_format(formats[i]);
+
+        out.push_back(
+            {
+                i, binding,
+                to_vulkan(compile_format(format)),
+                offset
+            }
+        );
+
+        if      (format & FormatBits::B8)  bits = 8;
+        else if (format & FormatBits::B16) bits = 16;
+        else if (format & FormatBits::B32) bits = 32;
+        else if (format & FormatBits::B64) bits = 64;
+
+        if      (format & FormatBits::VEC1) vec = 1;
+        else if (format & FormatBits::VEC2) vec = 2;
+        else if (format & FormatBits::VEC3) vec = 3;
+        else if (format & FormatBits::VEC4) vec = 4;
+
+        offset += (vec * bits) / 8;
+    }
+
+    auto limits = hk::vkc::adapter_info().properties.limits;
+
+    // VUID-VkVertexInputAttributeDescription-location-00620 through 00622
+    CHECK_DEVICE_LIMIT(<, formats.size(), limits.maxVertexInputAttributes);
+    CHECK_DEVICE_LIMIT(<, binding, limits.maxVertexInputBindings);
+    // No reson to check all of them, if last one fails => all fail
+    CHECK_DEVICE_LIMIT(<=, offset, limits.maxVertexInputAttributeOffset);
+
+    return out;
+}
+
 
 }

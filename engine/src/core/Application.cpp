@@ -5,6 +5,9 @@
 #include "resources/AssetManager.h"
 #include "platform/filesystem.h"
 
+#include "utils/spec.h"
+#include "utils/to_string.h"
+
 #include <thread>
 
 b8 Application::running = false;
@@ -13,6 +16,9 @@ Application::Application(const AppDesc &desc)
     : desc_(desc)
 {
     clock_.record();
+
+    hk::spec::update_cpu_specs();
+    hk::spec::update_system_specs();
 
     hk::event::init();
     hk::event::subscribe(hk::event::EVENT_APP_SHUTDOWN, shutdown, this);
@@ -28,6 +34,8 @@ Application::Application(const AppDesc &desc)
 
     renderer_ = new Renderer();
     renderer_->init(window_);
+
+    hk::spec::update_adapter_specs();
 
     scene_.init();
 
@@ -61,17 +69,15 @@ void Application::run()
             dt += static_cast<f32>(clock_.update());
         }
 
-        hkm::mat4f mat = camera_.viewProjection();
         renderer_->updateFrameData(
         {
+            camera_.position(),
+            camera_.viewProjection(),
             {
                 static_cast<f32>(window_->width()),
                 static_cast<f32>(window_->height())
             },
-            0,
-            camera_.position(),
-            time_since_start_,
-            mat,
+            time_since_start_
         });
 
         time_since_start_ += dt;
@@ -114,7 +120,7 @@ void Application::shutdown(hk::event::EventContext ctx, void* listener)
 
     if (ctx.u64) {
         hk::event::ErrorCode err = static_cast<hk::event::ErrorCode>(ctx.u64);
-        ALWAYS_ASSERT(0, "Error:", err, "-", hk::event::getErrorCodeStr(err));
+        ALWAYS_ASSERT(0, "Error:", err, "-", hk::event::to_string(err));
     }
 
     // TODO: not the best way to quit application immediately

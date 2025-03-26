@@ -11,13 +11,15 @@
 
 #include "math/hkmath.h"
 
+#include "renderer/resources.h"
+
 #include <functional>
 
 namespace hk::imgui {
 
 HKAPI void push(const std::function<void()> &callback);
 
-HKAPI void* addTexture(VkImageView view, VkSampler sampler);
+HKAPI void* addTexture(ImageHandle image, VkSampler sampler);
 HKAPI void removeTexture(void *texture);
 
 void init(const Window *window, VkRenderPass pass);
@@ -25,10 +27,21 @@ void deinit();
 
 void draw(VkCommandBuffer cmd);
 
-namespace utils {
+// FIX: temp
+void flush();
+
+HKAPI void Image(ImageHandle image, VkSampler sampler,
+           const ImVec2& image_size,
+           const ImVec2& uv0 = ImVec2(0, 0),
+           const ImVec2& uv1 = ImVec2(1, 1),
+           const ImVec4& tint_col = ImVec4(1, 1, 1, 1),
+           const ImVec4& border_col = ImVec4(0, 0, 0, 0));
 
 // TODO: wrappers
 // void Combo(const char *name, const char *items[], std::function if_selected);
+
+namespace utils {
+
 
 inline void drawMatrix4x4(const hkm::mat4f &matrix)
 {

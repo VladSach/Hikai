@@ -22,6 +22,11 @@ struct vec3f {
         return hkm::sqrt(x*x + y*y + z*z);
     }
 
+    constexpr f32 lengthsq() const
+    {
+        return (x*x + y*y + z*z);
+    }
+
     constexpr vec3f operator-() const
     {
         return vec3f(-x, -y, -z);

@@ -165,7 +165,7 @@ void LogPanel::addLogsPanel()
 
                 ImGui::TableSetColumnIndex(0);
                 ImGui::TextColored(lookup_color[static_cast<u32>(log.level)],
-                                    "%s", levelToString(log.level).c_str());
+                                    "%s", to_string(log.level));
 
                 ImGui::TableNextColumn();
                 ImGui::Text("%s", log.caller.c_str());

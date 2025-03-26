@@ -39,13 +39,9 @@ void InspectorPanel::display(hk::SceneNode *node)
                         addMeshInfo(mesh);
                     }
 
-                    if (node->entity->hndlMaterial) {
-                        addMaterialInfo(node);
-                    }
-
-                    if (node->entity->light) {
-                        addLightInfo(node);
-                    }
+                    if (node->entity->hndlMaterial) { addMaterialInfo(node); }
+                    if (node->entity->light)        { addLightInfo(node); }
+                    if (node->entity->camera)       { addCameraInfo(node); }
                 }
             }
 
@@ -66,6 +62,8 @@ void InspectorPanel::addBasicAssetProperties(hk::SceneNode *node)
     ImGui::Text("Children: %d", node->children.size());
     ImGui::Text("Index: %d", node->idx);
     ImGui::Checkbox("Object", &node->object);
+    ImGui::Checkbox("Visible", &node->visible);
+    ImGui::Checkbox("Debug", &node->debug_draw);
 }
 
 void InspectorPanel::addMeshInfo(const hk::MeshAsset &mesh)
@@ -89,8 +87,8 @@ void InspectorPanel::addTransform(hk::SceneNode *node)
 
         ImGuiTableFlags flags = ImGuiTableFlags_None;
         if (ImGui::BeginTable("##Transform", 2, flags)) {
-            // ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthStretch, 1.f);
-            // ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch, 1.f);
+            ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_None);
+            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_None);
 
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
@@ -304,5 +302,29 @@ void InspectorPanel::addLightInfo(hk::SceneNode *node)
             ImGui::DragFloat("Inner", &light.inner_cutoff, 0.5f, 0, 45);
             ImGui::DragFloat("Outer", &light.outer_cutoff, 0.5f, 0, 45);
         }
+    }
+}
+
+void InspectorPanel::addCameraInfo(hk::SceneNode *node)
+{
+    hk::Camera &camera = *node->entity->camera;
+
+    b8 changed = false;
+
+    f32 fov = camera.fov();
+    f32 aspect = camera.aspect();
+    f32 far = camera.far();
+    f32 near = camera.near();
+
+    if (ImGui::CollapsingHeader("Camera", ImGuiTreeNodeFlags_DefaultOpen)) {
+        changed |= ImGui::DragFloat("FOV", &fov, 1.f, 0.f, 90.f);
+        changed |= ImGui::DragFloat("Aspect", &aspect, .1f, 0.1f, 10.f);
+        changed |= ImGui::DragFloat("Far", &far, 0.5f, 0.f, 100.f);
+        changed |= ImGui::DragFloat("Near", &near, .1f, 0.f, 10.f);
+    }
+
+    if (changed) {
+        camera.setPerspective(fov, aspect, near, far);
+        node->entity->attachCamera(camera);
     }
 }

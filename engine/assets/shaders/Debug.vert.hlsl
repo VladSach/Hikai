@@ -17,7 +17,7 @@ struct VertexOutput {
 VertexOutput main(float3 pos : POSITION)
 {
     VertexOutput output;
-    output.pos = mul(viewProj, float4(pos, 1.f));
+    output.pos = mul(camera.view_proj, float4(pos, 1.f));
     output.psize = desc.psize;
     return output;
 }

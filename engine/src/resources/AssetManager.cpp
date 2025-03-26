@@ -8,6 +8,7 @@
 #include "platform/filesystem.h"
 
 #include "hkstl/Filewatch.h"
+#include "utils/to_string.h"
 
 #include <algorithm>
 
@@ -37,7 +38,7 @@ void AssetManager::init(const std::string &folder)
              * on delete -> ask what to do with the asset, delete or keep/resave
              */
 
-            LOG_INFO("Asset changed:", folder_ + path, stringFileState(state));
+            LOG_INFO("Asset changed:", folder_ + path, to_string(state));
 
             reload(paths_[folder_ + path]);
 
@@ -56,7 +57,8 @@ void AssetManager::deinit()
     for (auto &asset : assets_) {
         switch(asset->type) {
         case Asset::Type::TEXTURE: {
-            reinterpret_cast<TextureAsset*>(asset)->texture->deinit();
+            TextureAsset *texture = reinterpret_cast<TextureAsset*>(asset);
+            hk::bkr::destroy_image(texture->image);
         } break;
         case Asset::Type::SHADER: {
             reinterpret_cast<ShaderAsset*>(asset)->deinit();
@@ -98,7 +100,7 @@ u32 AssetManager::load(const std::string &path, void *data)
 {
     std::string out;
 
-    if (hk::filesystem::findFile(folder_, path, &out)) {
+    if (hk::filesystem::find_file(folder_, path, &out)) {
         // Path inside folder_
     } else {
         // Path outside folder_
@@ -107,7 +109,7 @@ u32 AssetManager::load(const std::string &path, void *data)
         if (!hk::filesystem::exists(path)) {
             // Try to locate file by name inside folder_
             std::string name = path.substr(path.find_last_of("/\\") + 1);
-            if (hk::filesystem::findFile(folder_, name, &out)) {
+            if (hk::filesystem::find_file(folder_, name, &out)) {
                 // found
             } else if (false) { // Not inside folder_ or has other name
                 // TODO: add other possible ways to find file
@@ -137,7 +139,7 @@ u32 AssetManager::load(const std::string &path, void *data)
                 {
                     if (state != hk::filewatch::State::MODIFIED) { return; }
 
-                    LOG_INFO("Asset changed:", file_path + path, stringFileState(state));
+                    LOG_INFO("Asset changed:", file_path + path, to_string(state));
 
                     reload(paths_[file_path + path]);
 
@@ -230,7 +232,20 @@ void AssetManager::reload(u32 handle)
     } break;
     case Asset::Type::TEXTURE: {
         TextureAsset *texture = reinterpret_cast<TextureAsset*>(asset);
-        texture->texture = hk::loader::loadImage(texture->path);
+        // not create -> reload
+        hk::bkr::destroy_image(texture->image);
+
+        loader::ImageInfo info = hk::loader::load_image(texture->path);
+
+        ImageDesc desc = {};
+        desc.type = ImageType::TEXTURE,
+        desc.format = hk::Format::R8G8B8A8_SRGB;
+        desc.width = info.width;
+        desc.height = info.height;
+        desc.channels = info.channels;
+
+        texture->image = hk::bkr::create_image(desc, asset->name);
+        hk::bkr::write_image(texture->image, info.pixels);
     } break;
     case Asset::Type::MATERIAL: {
         // TODO: do
@@ -264,7 +279,17 @@ u32 AssetManager::loadTexture(const std::string &path)
     asset->path = path;
     asset->type = Asset::Type::TEXTURE;
 
-    asset->texture = hk::loader::loadImage(path);
+    loader::ImageInfo info = hk::loader::load_image(path);
+
+    ImageDesc desc = {};
+    desc.type = ImageType::TEXTURE,
+    desc.format = hk::Format::R8G8B8A8_SRGB;
+    desc.width = info.width;
+    desc.height = info.height;
+    desc.channels = info.channels;
+
+    asset->image = hk::bkr::create_image(desc, asset->name);
+    hk::bkr::write_image(asset->image, info.pixels);
 
     return asset->handle;
 }
@@ -374,24 +399,21 @@ void AssetManager::createFallbackTextures()
     asset->name = "Fallback Transparent Texture";
     asset->type = Asset::Type::TEXTURE;
 
-    Image *image = new Image();
-    image->init({
-        asset->name,
-        hk::Image::Usage::TRANSFER_DST | hk::Image::Usage::SAMPLED,
-        VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_IMAGE_ASPECT_COLOR_BIT,
+    hk::ImageHandle image = hk::bkr::create_image({
+        ImageType::TEXTURE,
+        hk::Format::R8G8B8A8_SRGB,
         1, 1, 4
-    });
+    }, asset->name);
+
     u8 *data = new u8[4];
     data[0] = 0;
     data[1] = 0;
     data[2] = 0;
     data[3] = 0;
-    image->write(data);
+    hk::bkr::write_image(image, data);
     delete[] data;
 
-    asset->texture = image;
+    asset->image = image;
 
     hndl_fallback_noncolor = asset->handle;
 }

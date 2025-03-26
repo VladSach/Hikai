@@ -258,7 +258,7 @@ private:
         return ~(~1ULL << ((N - 1) % (64)));
     }
 
-    // Number of array indicies
+    // Number of array indices
     constexpr u64 elems() const
     {
         return (N + sizeof(T) * 8 - 1) / (sizeof(T) * 8);

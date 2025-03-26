@@ -52,7 +52,7 @@ protected:
     AppDesc desc_;
     const f32 desired_frame_rate_ = 60.f;
 
-    Camera camera_;
+    hk::Camera camera_;
 
 private:
     b8 is_initialized_ = false;

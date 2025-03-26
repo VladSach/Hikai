@@ -1,6 +1,7 @@
 #ifndef HK_MATH_H
 #define HK_MATH_H
 
+#include "defines.h"
 #include "constants.h"
 #include "utils.h"
 

@@ -3,10 +3,9 @@
 
 #include "hkstl/containers/hkvector.h"
 
-#include "vendor/vulkan/vulkan.h"
-#include "renderer/vkwrappers/vkdebug.h"
-#include "renderer/VulkanContext.h"
 #include "loaders/ShaderLoader.h"
+
+#include "renderer/hkvulkan.h"
 
 #include "resources/loaders/ImageLoader.h"
 
@@ -60,7 +59,7 @@ struct ShaderAsset : public Asset {
     void createShaderModule()
     {
         VkResult err;
-        VkDevice device = hk::context()->device();
+        VkDevice device = hk::vkc::device();
 
         VkShaderModuleCreateInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -76,12 +75,14 @@ struct ShaderAsset : public Asset {
     void deinit()
     {
         code.clear();
-        vkDestroyShaderModule(hk::context()->device(), module, nullptr);
+        vkDestroyShaderModule(hk::vkc::device(), module, nullptr);
     }
 };
 
 struct TextureAsset : public Asset {
-    hk::Image *texture;
+    ImageHandle image;
+    // lenses (VkViews)
+    // other modifiers
 };
 
 struct MaterialAsset : public Asset {

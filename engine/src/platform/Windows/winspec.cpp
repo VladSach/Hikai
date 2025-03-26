@@ -1,46 +1,44 @@
-#include "platform/info.h"
+#include "utils/spec.h"
 
 #include <intrin.h>
 
-namespace hk::platform {
+#include "platform/platform.h"
 
-static hk::vector<MonitorInfo> infos;
-static CpuInfo cpu_info;
+namespace hk::spec {
 
-HKAPI BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor,
-                                    HDC hdcMonitor,
-                                    LPRECT lprcMonitor, LPARAM dwData);
+static ProcessorSpec cpu_specs;
+static SystemSpec sys_specs;
 
-void updateMonitorInfo()
+HKAPI const ProcessorSpec& cpu() { return cpu_specs; }
+HKAPI const SystemSpec& system() { return sys_specs; }
+
+
+BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor,
+                              HDC hdcMonitor,
+                              LPRECT lprcMonitor, LPARAM dwData);
+
+void update_monitor_info()
 {
-    infos.clear();
+    sys_specs.monitors.clear();
 
     EnumDisplayMonitors(NULL, NULL, MonitorEnumProc, 0);
 
+    // FIX: main monitor should always be available at the index 0
+
     DISPLAY_DEVICE dd;
     dd.cb = sizeof(dd);
-    u32 deviceIndex = 0;
-    while (EnumDisplayDevices(0, deviceIndex, &dd, 0)) {
-        u32 monitorIndex = 0;
-        while (EnumDisplayDevices(dd.DeviceName, monitorIndex, &dd, 0)) {
-            infos[monitorIndex].name = dd.DeviceName;
-            infos[monitorIndex].name += ", ";
-            infos[monitorIndex].name += dd.DeviceString;
-            ++monitorIndex;
+    u32 device_idx = 0;
+    while (EnumDisplayDevicesA(0, device_idx, &dd, 0)) {
+        hk::string name = dd.DeviceName;
+        u32 monitor_idx = 0;
+        while (EnumDisplayDevicesA(name.c_str(), monitor_idx, &dd, 0)) {
+            // sys_specs.monitors.at(monitor_idx).name = dd.DeviceName;
+            // sys_specs.monitors.at(monitor_idx).name += ", ";
+            sys_specs.monitors.at(monitor_idx).name = dd.DeviceString;
+            ++monitor_idx;
         }
-        ++deviceIndex;
+        ++device_idx;
     }
-}
-
-MonitorInfo getMonitorInfo()
-{
-    // FIX: determine which monitor is main
-    return infos.at(0);
-}
-
-hk::vector<MonitorInfo> &getAllMonitorInfos()
-{
-    return infos;
 }
 
 BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdcMonitor,
@@ -48,12 +46,9 @@ BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdcMonitor,
 {
     (void)hdcMonitor, (void)lprcMonitor, (void)dwData;
 
-    hk::platform::MonitorInfo out;
+    MonitorSpec out;
 
-    /* Source:
-     * https://stackoverflow.com/questions/70976583/
-     * get-real-screen-resolution-using-win32-api
-     */
+    // https://stackoverflow.com/questions/70976583/get-real-screen-resolution-using-win32-api
 
     MONITORINFOEX info = { sizeof(MONITORINFOEX) };
     GetMonitorInfo(hMonitor, &info);
@@ -80,8 +75,16 @@ BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdcMonitor,
     out.hz = devmode.dmDisplayFrequency;
     out.depth = devmode.dmBitsPerPel;
 
-    infos.push_back(out);
+    sys_specs.monitors.push_back(out);
+
     return TRUE;
+}
+
+void update_system_specs()
+{
+    sys_specs.type = SystemType::WINDOWS;
+
+    update_monitor_info();
 }
 
 // TODO: Return to cpu info one day
@@ -118,14 +121,14 @@ struct CPUID {
 };
 #pragma warning(default : 4201)
 
-void updateCpuInfo()
+void update_cpu_specs()
 {
     /* ==== WinAPI ==== */
 
     SYSTEM_INFO sysinfo;
     GetSystemInfo(&sysinfo);
 
-    cpu_info.page_size = sysinfo.dwPageSize;
+    cpu_specs.page_size = sysinfo.dwPageSize;
 
     // https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getlogicalprocessorinformation
 
@@ -163,11 +166,11 @@ void updateCpuInfo()
         switch (ptr->Relationship) {
         case RelationNumaNode: {
             // Non-NUMA systems report a single record of this type
-            cpu_info.numa_nodes++;
+            cpu_specs.numa_nodes++;
         } break;
 
         case RelationProcessorCore: {
-            cpu_info.cores++;
+            cpu_specs.cores++;
         } break;
 
         case RelationCache: {
@@ -183,7 +186,7 @@ void updateCpuInfo()
 
         case RelationProcessorPackage: {
             // Logical processors share a physical package
-            cpu_info.physical_packages++;
+            cpu_specs.physical_packages++;
         } break;
 
         default:
@@ -225,11 +228,11 @@ void updateCpuInfo()
     vendor += std::string(reinterpret_cast<const char*>(&cpuid.edx), 4);
     vendor += std::string(reinterpret_cast<const char*>(&cpuid.ecx), 4);
 
-    cpu_info.vendor = vendor;
+    cpu_specs.vendor = vendor;
 
-    if (cpu_info.vendor == "GenuineIntel") {
+    if (cpu_specs.vendor == "GenuineIntel") {
         is_intel = true;
-    } else if (cpu_info.vendor != "AuthenticAMD") {
+    } else if (cpu_specs.vendor != "AuthenticAMD") {
         ALWAYS_ASSERT(0, "Only Intel and AMD CPUs are supported");
     }
 
@@ -243,19 +246,19 @@ void updateCpuInfo()
     cpuid.call(1);
 
     // Processor Info
-    cpu_info.version.stepping       = (cpuid.eax >> 0)  & 0xf;
-    cpu_info.version.model          = (cpuid.eax >> 4)  & 0xf;
-    cpu_info.version.family         = (cpuid.eax >> 8)  & 0xf;
-    cpu_info.version.processor_type = (cpuid.eax >> 12) & 0x3;
+    cpu_specs.version.stepping       = (cpuid.eax >> 0)  & 0xf;
+    cpu_specs.version.model          = (cpuid.eax >> 4)  & 0xf;
+    cpu_specs.version.family         = (cpuid.eax >> 8)  & 0xf;
+    cpu_specs.version.processor_type = (cpuid.eax >> 12) & 0x3;
     u32 extended_model              = (cpuid.eax >> 16) & 0xf;
     u32 extended_family             = (cpuid.eax >> 20) & 0xff;
 
-    if (cpu_info.version.family == 6 || cpu_info.version.family == 15) {
-        cpu_info.version.model += (extended_model << 4);
+    if (cpu_specs.version.family == 6 || cpu_specs.version.family == 15) {
+        cpu_specs.version.model += (extended_model << 4);
     }
 
-    if (cpu_info.version.family == 15) {
-        cpu_info.version.family += extended_family;
+    if (cpu_specs.version.family == 15) {
+        cpu_specs.version.family += extended_family;
     }
 
     // https://www.os2museum.com/wp/htt-means-hyper-threading-right/
@@ -263,45 +266,45 @@ void updateCpuInfo()
     b8 htt    = cpuid.edx >> 28 & 0x01;
 
     // u32 brand_id          =          (cpuid.ebx  >> 0)  & 0xff;
-    cpu_info.CLFLUSH_size = cflush ? ((cpuid.ebx >> 8)  & 0xff) * 8 : 0;
-    cpu_info.threads      = htt    ? (cpuid.ebx  >> 16) & 0xff : 0;
-    cpu_info.APIC_id      =          (cpuid.ebx  >> 24) & 0xff;
+    cpu_specs.CLFLUSH_size = cflush ? ((cpuid.ebx >> 8)  & 0xff) * 8 : 0;
+    cpu_specs.threads      = htt    ? (cpuid.ebx  >> 16) & 0xff : 0;
+    cpu_specs.APIC_id      =          (cpuid.ebx  >> 24) & 0xff;
 
     // Features Bits
-    cpu_info.simd.sse3          = cpuid.ecx >> 0  & 0x01;
-    cpu_info.feature.vmx        = cpuid.ecx >> 5  & 0x01;
-    cpu_info.simd.ssse3         = cpuid.ecx >> 9  & 0x01;
-    cpu_info.simd.fma3          = cpuid.ecx >> 12 & 0x01;
-    cpu_info.feature.pcid       = cpuid.ecx >> 17 & 0x01;
-    cpu_info.simd.sse4_1        = cpuid.ecx >> 19 & 0x01;
-    cpu_info.simd.sse4_2        = cpuid.ecx >> 20 & 0x01;
-    cpu_info.feature.popcnt     = cpuid.ecx >> 23 & 0x01;
-    cpu_info.feature.aes        = cpuid.ecx >> 25 & 0x01;
-    cpu_info.simd.avx           = cpuid.ecx >> 28 & 0x01;
-    cpu_info.feature.hypervisor = cpuid.ecx >> 31 & 0x01;
+    cpu_specs.simd.sse3          = cpuid.ecx >> 0  & 0x01;
+    cpu_specs.feature.vmx        = cpuid.ecx >> 5  & 0x01;
+    cpu_specs.simd.ssse3         = cpuid.ecx >> 9  & 0x01;
+    cpu_specs.simd.fma3          = cpuid.ecx >> 12 & 0x01;
+    cpu_specs.feature.pcid       = cpuid.ecx >> 17 & 0x01;
+    cpu_specs.simd.sse4_1        = cpuid.ecx >> 19 & 0x01;
+    cpu_specs.simd.sse4_2        = cpuid.ecx >> 20 & 0x01;
+    cpu_specs.feature.popcnt     = cpuid.ecx >> 23 & 0x01;
+    cpu_specs.feature.aes        = cpuid.ecx >> 25 & 0x01;
+    cpu_specs.simd.avx           = cpuid.ecx >> 28 & 0x01;
+    cpu_specs.feature.hypervisor = cpuid.ecx >> 31 & 0x01;
 
-    cpu_info.feature.vme = cpuid.edx >> 1  & 0x01;
-    cpu_info.feature.pse = cpuid.edx >> 3  & 0x01;
-    cpu_info.feature.pae = cpuid.edx >> 6  & 0x01;
-    cpu_info.feature.mce = cpuid.edx >> 7  & 0x01;
-    cpu_info.feature.mca = cpuid.edx >> 14 & 0x01;
-    cpu_info.simd.mmx    = cpuid.edx >> 23 & 0x01;
-    cpu_info.simd.sse    = cpuid.edx >> 25 & 0x01;
-    cpu_info.simd.sse2   = cpuid.edx >> 26 & 0x01;
+    cpu_specs.feature.vme = cpuid.edx >> 1  & 0x01;
+    cpu_specs.feature.pse = cpuid.edx >> 3  & 0x01;
+    cpu_specs.feature.pae = cpuid.edx >> 6  & 0x01;
+    cpu_specs.feature.mce = cpuid.edx >> 7  & 0x01;
+    cpu_specs.feature.mca = cpuid.edx >> 14 & 0x01;
+    cpu_specs.simd.mmx    = cpuid.edx >> 23 & 0x01;
+    cpu_specs.simd.sse    = cpuid.edx >> 25 & 0x01;
+    cpu_specs.simd.sse2   = cpuid.edx >> 26 & 0x01;
 
     /* ====== EAX=7, ECX=0: Extended Features ====== */
 
     cpuid.call(7, 0);
 
-    cpu_info.simd.avx2   = cpuid.ebx >> 5  & 0x01;
-    cpu_info.simd.avx512 = cpuid.ebx >> 16 & 0x01;
-    cpu_info.feature.sha = cpuid.ebx >> 29 & 0x01;
+    cpu_specs.simd.avx2   = cpuid.ebx >> 5  & 0x01;
+    cpu_specs.simd.avx512 = cpuid.ebx >> 16 & 0x01;
+    cpu_specs.feature.sha = cpuid.ebx >> 29 & 0x01;
 
     /* ====== EAX=7, ECX=1: Extended Features ====== */
 
     cpuid.call(7, 1);
 
-    cpu_info.feature.sha512 = cpuid.eax >> 0 & 0x01;
+    cpu_specs.feature.sha512 = cpuid.eax >> 0 & 0x01;
 
     /* ====== EAX=16h: CPU and Bus Clock Frequencies ====== */
 
@@ -329,11 +332,11 @@ void updateCpuInfo()
 
     cpuid.call(0x8000'0001);
 
-    cpu_info.simd.sse4a  = cpuid.ecx >> 6  & 0x01;
-    cpu_info.feature.tce = cpuid.ecx >> 17 & 0x01;
-    cpu_info.feature.tbm = cpuid.ecx >> 21 & 0x01;
+    cpu_specs.simd.sse4a  = cpuid.ecx >> 6  & 0x01;
+    cpu_specs.feature.tce = cpuid.ecx >> 17 & 0x01;
+    cpu_specs.feature.tbm = cpuid.ecx >> 21 & 0x01;
 
-    cpu_info.feature.lm  = cpuid.edx >> 29 & 0x01;
+    cpu_specs.feature.lm  = cpuid.edx >> 29 & 0x01;
 
     /* === EAX=8000'0002h,8000'0003h,8000'0004h: Processor Brand String === */
 
@@ -353,7 +356,7 @@ void updateCpuInfo()
     cpuid.call(0x8000'0004);
     brand += std::string(reinterpret_cast<const char*>(&cpuid.registers), 16);
 
-    cpu_info.brand = brand;
+    cpu_specs.brand = brand;
 
     /* ====== EAX=8000'0008h: Virtual and Physical Address Sizes ====== */
 
@@ -361,10 +364,10 @@ void updateCpuInfo()
 
     cpuid.call(0x8000'0008);
 
-    cpu_info.physical_address = (cpuid.eax >> 0) & 0xff;
-    cpu_info.virtual_address  = (cpuid.eax >> 8) & 0xff;
+    cpu_specs.physical_address = (cpuid.eax >> 0) & 0xff;
+    cpu_specs.virtual_address  = (cpuid.eax >> 8) & 0xff;
 
-    cpu_info.physical_threads = ((cpuid.ecx >> 0) & 0xff) + 1;
+    cpu_specs.physical_threads = ((cpuid.ecx >> 0) & 0xff) + 1;
 
     /* ====== EAX=8000'001Eh: Processor Topology Information ====== */
 
@@ -400,7 +403,7 @@ void updateCpuInfo()
 
         u32 level;
 
-        CpuInfo::Cache::CacheInfo info;
+        ProcessorSpec::Cache::CacheInfo info;
     };
     hk::vector<CacheTopology> caches;
 
@@ -436,14 +439,14 @@ void updateCpuInfo()
     for (auto c : caches) {
         if (c.level == 1) {
             if (c.type == 1) {
-                cpu_info.cache.L1.data = c.info;
+                cpu_specs.cache.L1.data = c.info;
             } else {
-                cpu_info.cache.L1.instr = c.info;
+                cpu_specs.cache.L1.instr = c.info;
             }
         } else if (c.level == 2) {
-            cpu_info.cache.L2 = c.info;
+            cpu_specs.cache.L2 = c.info;
         } else if (c.level == 3) {
-            cpu_info.cache.L3 = c.info;
+            cpu_specs.cache.L3 = c.info;
         }
     }
 
@@ -472,15 +475,10 @@ void updateCpuInfo()
     // cpu_info.cache.L2.associativity = (cpuid.ecx >> 12) & 0xf;
     // cpu_info.cache.L2.cache_size    = (cpuid.ecx >> 16) & 0xffff;
 
-    cpu_info.cache.L1.data.count  = processorL1CacheCount / 2;
-    cpu_info.cache.L1.instr.count = processorL1CacheCount / 2;
-    cpu_info.cache.L2.count = processorL2CacheCount;
-    cpu_info.cache.L3.count = processorL3CacheCount;
-}
-
-CpuInfo getCpuInfo()
-{
-    return cpu_info;
+    cpu_specs.cache.L1.data.count  = processorL1CacheCount / 2;
+    cpu_specs.cache.L1.instr.count = processorL1CacheCount / 2;
+    cpu_specs.cache.L2.count = processorL2CacheCount;
+    cpu_specs.cache.L3.count = processorL3CacheCount;
 }
 
 }

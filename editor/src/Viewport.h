@@ -7,7 +7,7 @@
 
 class Viewport {
 public:
-    void init(Renderer *renderer, Camera *camera, b8 viewport);
+    void init(Renderer *renderer, hk::Camera *camera, b8 viewport);
     void deinit();
 
     void display(hk::SceneNode *selected, void *image);
@@ -22,7 +22,7 @@ public:
     constexpr b8 isMouseOverViewport() const { return is_mouse_over_viewport_; }
 
 private:
-    Camera *camera_;
+    hk::Camera *camera_;
     Renderer *renderer_;
 
     b8 is_mouse_over_viewport_ = false;

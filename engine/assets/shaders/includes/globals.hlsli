@@ -4,19 +4,10 @@
 // Defines
 static const float PI = 3.14159265358979323846f;
 
-// Global Descriptor Set
-cbuffer PerFrame : register(b0, space0) {
-    float2 resolution;
-    float3 cameraPos;
-    float time;
-    float4x4 viewProj;
-};
-
-/*
 // Per-Frame data
 cbuffer GlobalData : register(b0, space0) {
     struct CameraData {
-        float3 pos;
+        float3 pos; // In world space
         float4x4 view_proj;
     } camera;
 
@@ -25,9 +16,8 @@ cbuffer GlobalData : register(b0, space0) {
         float time;
     } frame;
 };
-*/
 
-cbuffer Lights : register(b1) {
+cbuffer LightsData : register(b1, space0) {
     struct PointLight {
         float4 color;
         float intensity;
@@ -51,12 +41,15 @@ cbuffer Lights : register(b1) {
         float pad;
     };
 
-    PointLight pointlights[3];
-    SpotLight spotlights[3];
-    DirectionalLight directional;
+    struct Lights {
+        SpotLight spots[3];
+        PointLight points[3];
+        DirectionalLight directionals[3];
 
-    uint spotLightsNum;
-    uint pointLightsNum;
+        uint spot_count;
+        uint point_count;
+        uint directional_count;
+    } lights;
 }
 
 /* ===== Samplers ===== */

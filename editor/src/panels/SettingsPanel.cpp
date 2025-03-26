@@ -16,11 +16,11 @@ void SettingsPanel::init(Renderer *renderer)
         [&](const hk::event::EventContext &context, void *listener) {
             (void)context; (void)listener;
 
-            // if (viewport_image_) {
-            //     hk::imgui::removeTexture(viewport_image_);
-            // }
+            if (viewport_image_) {
+                hk::imgui::removeTexture(viewport_image_);
+            }
 
-            viewport_image_ = hk::imgui::addTexture(renderer_->post_process_.color_.view(),
+            viewport_image_ = hk::imgui::addTexture(renderer_->post_process_.color_,
                                                     renderer_->samplers_.linear.repeat);
     }, this);
 }
@@ -53,18 +53,21 @@ void SettingsPanel::display()
 void SettingsPanel::addInstanceSettings()
 {
     if (ImGui::TreeNode("Instance")) {
-        hk::VulkanContext::InstanceInfo &info = hk::context()->instanceInfo();
-        ImGui::Text("API Version: %s",
-                    hk::vkApiToString(info.apiVersion).c_str());
+        auto &info = hk::vkc::instance_info();
+        auto &adapter = hk::spec::adapter();
+
+        ImGui::Text("API Version: %s", adapter.api.version.c_str());
 
         ImGui::Separator();
 
         if (ImGui::TreeNode("Extensions")) {
-            for (u32 i = 0; i < info.extensions.size(); ++i) {
-                auto &ext = info.extensions.at(i);
+            for (u32 i = 0; i < info.exts.size(); ++i) {
+                auto &ext = info.exts.at(i);
+
+                b8 is_requested = ext.first;
 
                 ImGui::PushID(i);
-                if (ImGui::Checkbox("", &ext.first)) {
+                if (ImGui::Checkbox("", &is_requested)) {
                     // hk::context()->deinit();
                     // hk::context()->init();
                 }
@@ -84,14 +87,16 @@ void SettingsPanel::addInstanceSettings()
             for (u32 i = 0; i < info.layers.size(); ++i) {
                 auto &layer = info.layers.at(i);
 
+                b8 is_requested = layer.first;
+
                 ImGui::PushID(i);
-                ImGui::Checkbox("", &layer.first);
+                ImGui::Checkbox("", &is_requested);
                 ImGui::SameLine();
 
                 if (ImGui::TreeNode(layer.second.layerName)) {
                     ImGui::Text("Desc: %s", layer.second.description);
-                    ImGui::Text("Spec Version: %s",
-                                hk::vkApiToString(layer.second.specVersion).c_str());
+                    // ImGui::Text("Spec Version: %s",
+                    //             hk::vkApiToString(layer.second.specVersion).c_str());
                     ImGui::Text("Implementation Version: %d",
                                 layer.second.implementationVersion);
 
@@ -263,12 +268,12 @@ void SettingsPanel::addShaderSettings()
                     curr = i;
 
                     // FIX: temp
-                    if      (i == 0) viewport_image_ = hk::imgui::addTexture(renderer_->post_process_.color_.view(), renderer_->samplers_.linear.repeat);
-                    else if (i == 1) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.position_.view(), renderer_->samplers_.linear.repeat);
-                    else if (i == 2) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.normal_.view(),   renderer_->samplers_.linear.repeat);
-                    else if (i == 3) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.albedo_.view(),   renderer_->samplers_.linear.repeat);
-                    else if (i == 4) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.material_.view(), renderer_->samplers_.linear.repeat);
-                    else if (i == 5) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.depth_.view(),    renderer_->samplers_.linear.repeat);
+                    if      (i == 0) viewport_image_ = hk::imgui::addTexture(renderer_->post_process_.color_, renderer_->samplers_.linear.repeat);
+                    else if (i == 1) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.position_, renderer_->samplers_.linear.repeat);
+                    else if (i == 2) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.normal_,   renderer_->samplers_.linear.repeat);
+                    else if (i == 3) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.albedo_,   renderer_->samplers_.linear.repeat);
+                    else if (i == 4) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.material_, renderer_->samplers_.linear.repeat);
+                    else if (i == 5) viewport_image_ = hk::imgui::addTexture(renderer_->offscreen_.depth_,    renderer_->samplers_.linear.repeat);
                 }
 
                 if (selected) { ImGui::SetItemDefaultFocus(); }
@@ -296,8 +301,8 @@ void SettingsPanel::addShaderSettings()
             // context.u32[1] = renderer_->window_->height();
             // hk::event::fire(hk::event::EVENT_WINDOW_RESIZE, context);
             viewport_image_ = enable_post_process_ ?
-                hk::imgui::addTexture(renderer_->post_process_.color_.view(), renderer_->samplers_.linear.repeat) :
-                hk::imgui::addTexture(renderer_->offscreen_.color_.view(), renderer_->samplers_.linear.repeat);
+                hk::imgui::addTexture(renderer_->post_process_.color_, renderer_->samplers_.linear.repeat) :
+                hk::imgui::addTexture(renderer_->offscreen_.color_, renderer_->samplers_.linear.repeat);
         }
 
         // ImGui::InputFloat("Exposure", ev100);

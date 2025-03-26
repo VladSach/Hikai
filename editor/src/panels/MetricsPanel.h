@@ -12,9 +12,6 @@ public:
 
 private:
     void addLogMetrics();
-    void addMonitorInfo();
-    void addCPUInfo();
-    void addGPUInfo();
 
 public:
     b8 is_open_;

@@ -5,12 +5,13 @@
 
 #include "platform/platform.h"
 #include "platform/args.h"
-#include "platform/info.h"
 
 #include "core/events.h"
 
 #include "hkstl/Logger.h"
 #include "hkstl/containers/hkvector.h"
+
+#include "utils/spec.h"
 
 #include <winuser.h>
 #include <hidusage.h>
@@ -31,8 +32,7 @@ void Window::init(std::string title, u32 width, u32 height)
 
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
 
-    hk::platform::updateMonitorInfo();
-    hk::platform::MonitorInfo info = hk::platform::getMonitorInfo();
+    hk::spec::MonitorSpec info = hk::spec::system().monitors.at(0);
 
     hinstance_ = hk::platform::args::hInstance;
 

@@ -1,6 +1,6 @@
 #include "UIPass.h"
 
-#include "renderer/VulkanContext.h"
+#include "renderer/vkwrappers/vkcontext.h"
 #include "renderer/ui/imguiwrapper.h"
 
 #include "resources/AssetManager.h"
@@ -11,7 +11,7 @@ void UIPass::init(const Window *window, hk::Swapchain *swapchain)
 {
     LOG_TRACE("Creating UI RenderPass");
 
-    device_ = hk::context()->device();
+    device_ = hk::vkc::device();
     swapchain_ = swapchain;
 
     color_format_ = swapchain_->format();

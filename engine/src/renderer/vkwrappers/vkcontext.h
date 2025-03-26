@@ -9,60 +9,58 @@
 #include "hkstl/containers/hkvector.h"
 
 #include <functional>
+#include <unordered_set>
 
-namespace hk {
-
-struct InstanceInfo {
-    u32 api; // version
-    b8 is_debug = false;
-    // TODO: change to just vector of turned on ext, or layers
-    // To dynamically requiest new ext/layer add separate function
-    hk::vector<std::pair<b8, VkExtensionProperties>> extensions;
-    hk::vector<std::pair<b8, VkLayerProperties>> layers;
-};
-
-struct PhysicalDeviceInfo {
-    VkPhysicalDevice device;
-    VkPhysicalDeviceFeatures features;
-    VkPhysicalDeviceProperties  properties;
-    VkPhysicalDeviceMemoryProperties memProperties;
-
-    hk::vector<VkQueueFamilyProperties> families;
-    hk::vector<VkExtensionProperties> extensions;
-};
-
-struct LogicalDeviceInfo {
-    hk::QueueFamily graphicsFamily;
-    hk::QueueFamily computeFamily;
-    hk::QueueFamily transferFamily;
-};
+namespace hk::vkc {
 
 void init();
 void deinit();
 
+// FIX: temp
 void submitImmCmd(const std::function<void(VkCommandBuffer cmd)> &&func);
+VkInstance       instance();
+VkPhysicalDevice adapter();
+VkDevice         device();
+Queue& graphics();
+Queue& compute();
+Queue& transfer();
 
-constexpr VkInstance       instance();
-constexpr VkPhysicalDevice physical();
-constexpr VkDevice         device();
+struct InstanceInfo {
+    u32 api; // version
 
-constexpr InstanceInfo& instanceInfo();
-constexpr LogicalDeviceInfo& deviceInfo();
-constexpr PhysicalDeviceInfo& physicalInfo();
-constexpr hk::vector<PhysicalDeviceInfo>& allPhysicalInfos();
+    hk::vector<std::pair<b8, VkExtensionProperties>> exts;
+    hk::vector<std::pair<b8, VkLayerProperties>> layers;
+};
 
-constexpr Queue& graphics();
-constexpr Queue& compute();
-constexpr Queue& transfer();
+struct AdapterInfo {
+    VkPhysicalDevice adapter;
 
-void getInstanceInfo();
-void getPhysicalDeviceInfo();
-void getLogicalDeviceInfo();
+    struct Features {
+        VkPhysicalDeviceFeatures core;
+        VkPhysicalDeviceVulkan11Features v11;
+        VkPhysicalDeviceVulkan12Features v12;
+        VkPhysicalDeviceVulkan13Features v13;
+    } features;
+    VkPhysicalDeviceFeatures2 all_features;
 
-void createInstance();
-// More like pickPhysicalDevice?
-void createPhysicalDevice();
-void createLogicalDevice();
+    VkPhysicalDeviceProperties properties;
+    VkPhysicalDeviceMemoryProperties memory_properties;
+
+    hk::vector<VkQueueFamilyProperties> families;
+    hk::vector<VkExtensionProperties> exts;
+};
+
+struct DeviceInfo {
+    // TODO: This can be moved to Adapter info
+    hk::QueueFamily graphics_family;
+    hk::QueueFamily transfer_family;
+    hk::QueueFamily compute_family;
+};
+
+HKAPI const InstanceInfo& instance_info();
+HKAPI const AdapterInfo&  adapter_info(u32 idx = 0);
+HKAPI const DeviceInfo&   device_info();
+HKAPI const u32 adapter_count();
 
 }
 

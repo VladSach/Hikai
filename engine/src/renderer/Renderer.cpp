@@ -3,7 +3,6 @@
 #include "platform/platform.h"
 #include "resources/AssetManager.h"
 
-#include "renderer/VertexLayout.h"
 #include "renderer/ui/debug_draw.h"
 
 // FIX: temp
@@ -18,15 +17,17 @@ void Renderer::init(const Window *window)
 
     window_ = window;
 
-    hk::context()->init();
+    hk::vkc::init();
 
-    device_ = hk::context()->device();
-    physical_ = hk::context()->physical();
+    hk::bkr::init();
+
+    device_ = hk::vkc::device();
+    physical_ = hk::vkc::adapter();
 
     swapchain_.init(window_);
     swapchain_.recreate(
         { window_->width(), window_->height() },
-        { VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
+        { VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
         VK_PRESENT_MODE_MAILBOX_KHR);
 
     hk::vector<hk::DescriptorAllocator::TypeSize> sizes =
@@ -73,23 +74,18 @@ void Renderer::init(const Window *window)
 
     createFrameResources();
 
-    // FIX: temp
-    STATIC_ASSERT(sizeof(SceneData) % 16 == 0,
-                  "Uniform Buffer padding is incorrect");
-
-    hk::Buffer::BufferDesc desc;
-    desc.type = hk::Buffer::Type::UNIFORM_BUFFER;
-    desc.usage = hk::Buffer::Usage::NONE;
-    desc.property = hk::Buffer::Property::CPU_ACESSIBLE;
+    hk::BufferDesc desc;
+    desc.type = hk::BufferType::UNIFORM_BUFFER;
+    desc.access = hk::MemoryType::CPU_UPLOAD;
     desc.size = 1; // FIX: temp, make depend on framebuffers size
     desc.stride = sizeof(SceneData);
-    frame_data_buffer.init(desc);
+    frame_data_buffer = hk::bkr::create_buffer(desc, "Scene Data");
 
     desc.stride = sizeof(LightSources);
-    lights_buffer.init(desc);
+    lights_buffer = hk::bkr::create_buffer(desc, "Light Data");
 
-    hk::debug::setName(frame_data_buffer.buffer(), "Uniform Buffer - Global");
-    hk::debug::setName(lights_buffer.buffer(), "Uniform Buffer - Lights");
+    // hk::debug::setName(frame_data_buffer.buffer(), "Uniform Buffer - Global");
+    // hk::debug::setName(lights_buffer.buffer(), "Uniform Buffer - Lights");
     // end ubo
 
     use_ui_ = true;
@@ -140,8 +136,8 @@ void Renderer::deinit()
     global_desc_alloc.deinit();
 
     // FIX: temp
-    frame_data_buffer.deinit();
-    lights_buffer.deinit();
+    hk::bkr::destroy_buffer(frame_data_buffer);
+    hk::bkr::destroy_buffer(lights_buffer);
 
     for (auto frame : frames_) {
         vkDestroySemaphore(device_, frame.acquire_semaphore, nullptr);
@@ -152,7 +148,9 @@ void Renderer::deinit()
 
     swapchain_.deinit();
 
-    hk::context()->deinit();
+    hk::bkr::deinit();
+
+    hk::vkc::deinit();
 }
 
 void Renderer::draw(hk::DrawContext &ctx)
@@ -219,10 +217,10 @@ void Renderer::draw(hk::DrawContext &ctx)
      */
 
     offscreen_.begin(frame.cmd, image_idx);
-        writer.writeBuffer(0, frame_data_buffer.buffer(),
+        writer.writeBuffer(0, hk::bkr::handle(frame_data_buffer),
                            sizeof(SceneData), 0,
                            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        writer.writeBuffer(1, lights_buffer.buffer(),
+        writer.writeBuffer(1, hk::bkr::handle(lights_buffer),
                            sizeof(LightSources), 0,
                            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         writer.updateSet(global_desc_set);
@@ -258,7 +256,7 @@ void Renderer::draw(hk::DrawContext &ctx)
                                    VK_SHADER_STAGE_ALL_GRAPHICS, 0,
                                    sizeof(instance_data), &instance_data);
 
-                vkCmdDrawIndexed(frame.cmd, object.indexBuffer.size(),
+                vkCmdDrawIndexed(frame.cmd, hk::bkr::desc(object.index).size,
                                  instance_count, 0, 0, mesh_idx);
             }
 
@@ -278,23 +276,23 @@ void Renderer::draw(hk::DrawContext &ctx)
         // per-pass descriptor (1)
         VkDescriptorSet light_set = global_desc_alloc.allocate(offscreen_.set_layout_.handle());
         writer.clear();
-        writer.writeImage(0, offscreen_.position_.view(), VK_NULL_HANDLE,
+        writer.writeImage(0, hk::bkr::view(offscreen_.position_), VK_NULL_HANDLE,
                           // offscreen_.position_.layout(),
                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                           VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
-        writer.writeImage(1, offscreen_.normal_.view(), VK_NULL_HANDLE,
+        writer.writeImage(1, hk::bkr::view(offscreen_.normal_), VK_NULL_HANDLE,
                           // offscreen_.normal_.layout(),
                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                           VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
-        writer.writeImage(2, offscreen_.albedo_.view(), VK_NULL_HANDLE,
+        writer.writeImage(2, hk::bkr::view(offscreen_.albedo_), VK_NULL_HANDLE,
                           // offscreen_.albedo_.layout(),
                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                           VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
-        writer.writeImage(3, offscreen_.material_.view(), VK_NULL_HANDLE,
+        writer.writeImage(3, hk::bkr::view(offscreen_.material_), VK_NULL_HANDLE,
                           // offscreen_.material_.layout(),
                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                           VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
-        writer.writeImage(4, offscreen_.depth_.view(), VK_NULL_HANDLE,
+        writer.writeImage(4, hk::bkr::view(offscreen_.depth_), VK_NULL_HANDLE,
                           // offscreen_.depth_.layout(),
                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                           VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
@@ -357,12 +355,14 @@ void Renderer::draw(hk::DrawContext &ctx)
                          frame.cmd, image_idx,
                          &frame.descriptor_alloc);
 
+    // hk::imman().transition_image_layout(post_process_.color_, );
+
     bar.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     bar.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     bar.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     bar.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     bar.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-    bar.image = post_process_.color_.image();
+    bar.image = hk::bkr::image(post_process_.color_);
     bar.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     bar.subresourceRange.baseMipLevel = 0;
     bar.subresourceRange.levelCount = 1;
@@ -397,7 +397,7 @@ void Renderer::draw(hk::DrawContext &ctx)
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitDstStageMask = &waitStage;
 
-    VkQueue graphicsQueue = hk::context()->graphics().handle();
+    VkQueue graphicsQueue = hk::vkc::graphics().handle();
     err = vkQueueSubmit(graphicsQueue, 1, &submitInfo, frame.in_flight_fence);
     ALWAYS_ASSERT(!err, "Failed to submit Vulkan draw Command Buffer");
 
@@ -439,7 +439,7 @@ void Renderer::createFrameResources()
     for (u32 i = 0; i < max_frames_; ++i) {
         std::string idx = std::to_string(i);
 
-        frames_[i].cmd = hk::context()->graphics().createCommandBuffer();
+        frames_[i].cmd = hk::vkc::graphics().createCommandBuffer();
         hk::debug::setName(frames_[i].cmd, "Command Buffer Frame #" + idx);
 
         err = vkCreateSemaphore(device_, &semaphore_info, nullptr, &frames_[i].acquire_semaphore);
@@ -478,7 +478,7 @@ void Renderer::createGridPipeline()
     };
     builder.setDescriptors(descriptorSetsLayouts);
 
-    builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL, offscreen_.depth_.format());
+    builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL, offscreen_.depth_format_);
     builder.setColors({{ swapchain_.format(), hk::BlendState::DEFAULT }});
 
     hk::vector<VkDynamicState> dynamic_states = {
@@ -555,7 +555,7 @@ void Renderer::createSamplers()
     auto createSampler = [&](FilterType filter, VkSamplerAddressMode mode, std::string name) {
         VkResult err;
         VkSampler out;
-        const auto physical_info = hk::context()->physicalInfo();
+        const auto physical_info = hk::vkc::adapter_info();
 
         VkSamplerCreateInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;

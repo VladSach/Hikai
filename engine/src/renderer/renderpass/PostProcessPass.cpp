@@ -1,6 +1,6 @@
 #include "PostProcessPass.h"
 
-#include "renderer/VulkanContext.h"
+#include "renderer/vkwrappers/vkcontext.h"
 #include "resources/AssetManager.h"
 
 namespace hk {
@@ -9,7 +9,7 @@ void PostProcessPass::init(hk::Swapchain *swapchain)
 {
     LOG_TRACE("Creating Post Process RenderPass");
 
-    device_ = hk::context()->device();
+    device_ = hk::vkc::device();
     swapchain_ = swapchain;
 
     color_format_ = swapchain_->format();
@@ -31,7 +31,7 @@ void PostProcessPass::deinit()
 
     pipeline_.deinit();
 
-    color_.deinit();
+    hk::bkr::destroy_image(color_);
 
     vkDestroyRenderPass(device_, render_pass_, nullptr);
     render_pass_ = VK_NULL_HANDLE;
@@ -50,7 +50,7 @@ void PostProcessPass::deinit()
     size_ = {};
 }
 
-void PostProcessPass::render(const hk::Image &source,
+void PostProcessPass::render(const hk::ImageHandle &source,
                              VkCommandBuffer cmd, u32 idx,
                              hk::DescriptorAllocator *alloc)
 {
@@ -72,7 +72,7 @@ void PostProcessPass::render(const hk::Image &source,
 
     VkDescriptorSet present_set = alloc->allocate(set_layout_.handle());
 
-    writer.writeImage(2, source.view(), sampler_,
+    writer.writeImage(2, hk::bkr::view(source), sampler_,
                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
@@ -125,7 +125,7 @@ void PostProcessPass::createSampler()
     samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
-    const auto info = hk::context()->physicalInfo();
+    const auto info = hk::vkc::adapter_info();
 
     samplerInfo.anisotropyEnable = VK_TRUE;
     samplerInfo.maxAnisotropy = info.properties.limits.maxSamplerAnisotropy;
@@ -146,21 +146,15 @@ void PostProcessPass::createFramebuffers()
 {
     VkResult err;
 
-    color_.init({
-        "Post Process Color Attachment",
-        hk::Image::Usage::SAMPLED      |
-        hk::Image::Usage::TRANSFER_SRC |
-        hk::Image::Usage::TRANSFER_DST |
-        hk::Image::Usage::COLOR_ATTACHMENT,
-        color_format_,
-        // VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        VK_IMAGE_ASPECT_COLOR_BIT,
-        size_.width, size_.height, 1,
-    });
+    color_ = hk::bkr::create_image({
+        ImageType::RENDER_TARGET,
+        hk::Format::R8G8B8A8_UNORM, // FIX: color_format_
+        size_.width, size_.height, 4,
+    }, "Post Process Color Attachment");
+    hk::bkr::transition_image_layout(color_, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     VkImageView attachments[] = {
-        color_.view(),
+        hk::bkr::view(color_)
     };
 
     VkFramebufferCreateInfo info = {};

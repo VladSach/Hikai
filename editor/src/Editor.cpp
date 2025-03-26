@@ -29,8 +29,11 @@ void Editor::init()
     log.init();
     metrics.init();
     settings.init(renderer_);
+    resources.init(renderer_);
+    specs.init();
 
-    hkm::quaternion rot = hkm::fromAxisAngle({0.f, 1.f, 0.f}, 0.f * hkm::degree2rad);
+    hkm::quaternion rot =
+        hkm::fromAxisAngle({0.f, 1.f, 0.f}, 0.f * hkm::degree2rad);
 
     // FIX: temp
     u32 handle = 0;
@@ -54,21 +57,36 @@ void Editor::init()
     light.color = {0.823f, 0.760f, 0.635f, 1.f};
     light.intensity = 1.f;
     light.range = .2f;
-    scene_.addLight(light, {{0.1f, 0.8f, 0.3f}, 1.f, rot});
+    scene_.addLight(light, {{0.1f, 0.8f, 0.3f}, 1.f});
 
     light.type = hk::Light::Type::SPOT_LIGHT;
     light.color = {0.0f, 0.0f, 1.0f, 1.f};
     light.inner_cutoff = 0.6f;
     light.outer_cutoff = 0.9f;
-    scene_.addLight(light, {{0.1f, 0.8f, 0.3f}, 1.f, rot});
+    scene_.addLight(light, {{0.1f, 1.8f, 0.3f}, 1.f});
 
-    light.type = hk::Light::Type::DIRECTIONAL_LIGHT;
-    light.color = {1.0f, 0.0f, 0.0f, 1.f};
-    scene_.addLight(light, {{0.1f, 0.8f, 0.3f}, 1.f, rot});
+    // light.type = hk::Light::Type::DIRECTIONAL_LIGHT;
+    // light.color = {1.0f, 0.0f, 0.0f, 1.f};
+    // scene_.addLight(light, {{1.1f, 0.8f, 0.3f}, 1.f});
+
+    hk::Camera cam;
+    cam.setPerspective(60.f, aspect, .1f, 1.5f);
+    cam.setWorldOffset({ 0.f, 0.5f, -1.5f });
+    cam.update();
+    hk::Entity *entity = new hk::Entity();
+    entity->attachCamera(cam);
+    hk::SceneNode camera_node;
+    camera_node.name = "Camera";
+    camera_node.object = true;
+    camera_node.loaded = Transform(cam.viewInv());
+    camera_node.entity = entity;
+    camera_node.debug_draw = true;
+    scene_.addNode(camera_node);
 }
 
 void Editor::deinit()
 {
+    // resources.deinit();
     // settings.deinit();
     // metrics.deinit();
     // log.deinit();
@@ -76,6 +94,7 @@ void Editor::deinit()
     // inspector.deinit();
     // assets.deinit();
     // viewport.deinit();
+    // specs.deinit();
 }
 
 void Editor::update(f32 dt)
@@ -103,6 +122,8 @@ void Editor::render()
     log.display();
     metrics.display();
     settings.display();
+    resources.display();
+    specs.display();
 
     if (showImGuiDemo) {
         hk::imgui::push([&](){
@@ -135,6 +156,8 @@ void Editor::showMenuBar()
                 ImGui::MenuItem("Log",           NULL, &log.is_open_);
                 ImGui::MenuItem("Metrics",       NULL, &metrics.is_open_);
                 ImGui::MenuItem("Settings",      NULL, &settings.is_open_);
+                ImGui::MenuItem("Resources",     NULL, &resources.is_open_);
+                ImGui::MenuItem("Specs",         NULL, &specs.is_open_);
 
                 if (ImGui::MenuItem("RestoreLayout")) {
                     // FIX: doesn't work
@@ -166,6 +189,7 @@ void Editor::restoreLayout()
         left  = ImGui::DockBuilderSplitNode(upper, ImGuiDir_Left,  0.20f, nullptr, &upper);
 
         ImGui::DockBuilderDockWindow("Viewport",  upper);
+        ImGui::DockBuilderDockWindow("Resources", upper);
         ImGui::DockBuilderDockWindow("Assets",    lower);
         ImGui::DockBuilderDockWindow("Log",       lower);
         ImGui::DockBuilderDockWindow("Scene",     left);
@@ -259,8 +283,8 @@ void Editor::processInput(f32 dt)
     constexpr f32 rotationSpeed = 75.f;
     hkm::vec3f zrot = {0.f, 0.f, angles.z};
     hkm::vec2f bottomrot = {angles.x, angles.y};
-    camera_.addRelativeAngles(zrot * dt * rotationSpeed);
     camera_.fixedBottomRotation(bottomrot * dt * rotationSpeed);
+    camera_.addRelativeAngles(zrot * dt * rotationSpeed);
     camera_.addRelativeOffset(offset * dt);
     camera_.update();
 }

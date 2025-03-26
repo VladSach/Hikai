@@ -18,6 +18,8 @@ using f64 = double;
 
 #define STATIC_ASSERT static_assert
 
+STATIC_ASSERT(sizeof(b8)  == 1, "Type error: b8 should be 1 byte");
+
 STATIC_ASSERT(sizeof(u8)  == 1, "Type error: u8 should be 1 byte");
 STATIC_ASSERT(sizeof(u16) == 2, "Type error: u16 should be 2 bytes");
 STATIC_ASSERT(sizeof(u32) == 4, "Type error: u32 should be 4 bytes");
@@ -31,6 +33,7 @@ STATIC_ASSERT(sizeof(i64) == 8, "Type error: i64 should be 8 bytes");
 STATIC_ASSERT(sizeof(f32) == 4, "Type error: i32 should be 4 bytes");
 STATIC_ASSERT(sizeof(f64) == 8, "Type error: i64 should be 8 bytes");
 
+// FIX: move this
 // Placing types in namespace would defeat their purpose
 
 namespace hk {

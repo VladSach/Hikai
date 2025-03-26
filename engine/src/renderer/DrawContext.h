@@ -3,7 +3,8 @@
 
 #include "object/Light.h"
 #include "renderer/Material.h"
-#include "renderer/vkwrappers/Buffer.h"
+
+#include "resources.h"
 
 #include "renderer/object/Mesh.h"
 #include "renderer/object/Transform.h"
@@ -12,8 +13,8 @@ namespace hk {
 
 struct RenderObject {
     // Mesh
-    Buffer vertexBuffer;
-    Buffer indexBuffer;
+    BufferHandle vertex;
+    BufferHandle index;
 
     // Mesh instances || Mesh 1 <=> * Mesh Instances
     hk::vector<hkm::mat4f> instances;
@@ -24,43 +25,39 @@ struct RenderObject {
     RenderMaterial rm;
     MaterialInstance material;
 
-    ~RenderObject() { deinit(); }
+    // ~RenderObject() { deinit(); }
 
     void deinit()
     {
         rm.clear();
-        indexBuffer.deinit();
-        vertexBuffer.deinit();
+        bkr::destroy_buffer(vertex);
+        bkr::destroy_buffer(index);
     }
 
-    void create(const hk::Mesh &mesh)
+    void create(const hk::Mesh &mesh, const std::string &name)
     {
-        if (vertexBuffer.buffer() || indexBuffer.buffer()) { return; }
+        BufferDesc vertex_desc = {};
+        vertex_desc.type = BufferType::VERTEX_BUFFER;
+        vertex_desc.access = MemoryType::GPU_LOCAL;
+        vertex_desc.size = mesh.vertices.size();
+        vertex_desc.stride = sizeof(Vertex);
+        vertex = bkr::create_buffer(vertex_desc, name);
 
-        Buffer::BufferDesc vertexDesc = {};
-        vertexDesc.type = Buffer::Type::VERTEX_BUFFER;
-        vertexDesc.usage = Buffer::Usage::TRANSFER_DST;
-        vertexDesc.property = Buffer::Property::GPU_LOCAL;
-        vertexDesc.size = mesh.vertices.size();
-        vertexDesc.stride = sizeof(Vertex);
-        vertexBuffer.init(vertexDesc);
+        BufferDesc index_desc = {};
+        index_desc.type = BufferType::INDEX_BUFFER;
+        index_desc.access = MemoryType::GPU_LOCAL;
+        index_desc.size = mesh.indices.size();
+        index_desc.stride = sizeof(mesh.indices.at(0));
+        index = bkr::create_buffer(index_desc, name);
 
-        Buffer::BufferDesc indexDesc = {};
-        indexDesc.type = Buffer::Type::INDEX_BUFFER;
-        indexDesc.usage = Buffer::Usage::TRANSFER_DST;
-        indexDesc.property = Buffer::Property::GPU_LOCAL;
-        indexDesc.size = mesh.indices.size();
-        indexDesc.stride = sizeof(mesh.indices.at(0));
-        indexBuffer.init(indexDesc);
-
-        vertexBuffer.update(mesh.vertices.data());
-        indexBuffer.update(mesh.indices.data());
+        bkr::update_buffer(vertex, mesh.vertices.data());
+        bkr::update_buffer(index, mesh.indices.data());
     }
 
     void bind(VkCommandBuffer cmd)
     {
-        vertexBuffer.bind(cmd);
-        indexBuffer.bind(cmd);
+        bkr::bind_buffer(vertex, cmd);
+        bkr::bind_buffer(index, cmd);
     }
 };
 

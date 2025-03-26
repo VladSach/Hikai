@@ -30,6 +30,8 @@ void SceneGraph::update()
             // should be parent->world * node->local
             node->world = node->local * tr;
 
+            node->visible = node->parent->visible;
+
             node->dirty = false;
             propagate = true;
 
@@ -37,40 +39,53 @@ void SceneGraph::update()
         }
 
         // FIX: probably temp (or not)
-        else if (node->object) {
-            if (node->entity) {
-                if (node->entity->dirty.any()) {
-                    dirty_.push(node);
-                }
+        if (node->object && node->visible && node->entity) {
+            if (node->entity->dirty.any()) {
+                dirty_.push(node);
             }
         }
 
         // Draw debug sphere around lights
-        if (node->object && node->entity && node->entity->light && node->debug_draw) {
+        if (node->object && node->debug_draw && node->entity && node->entity->light) {
             hk::Light &light = *node->entity->light;
-            // FIX: temp
-            hkm::vec4f c = node->entity->light->color;
 
-            hkm::vec3f normal = normalize(hkm::toEulerAngles(node->world.rotation));
+            hkm::vec4f color = node->entity->light->color;
+            hk::dd::ShapeDesc desc = {};
+            desc.color = {color.x, color.y, color.z};
+            desc.thickness = 6.f;
+
+            hkm::vec3f normal = hkm::vec3f(0, 0, 1) * node->world.rotation;
 
             switch(node->entity->light->type) {
             case Light::Type::POINT_LIGHT: {
-                hk::dd::sphere({{c.x, c.y, c.z}, 3}, node->world.pos, light.range);
+                desc.thickness = 3.f;
+                hk::dd::sphere(desc, node->world.pos, light.range);
             } break;
             case Light::Type::SPOT_LIGHT: {
                 // hk::dd::circle({{c.x, c.y, c.z}, 3}, node->world.pos, .5f, normal);
+                hk::dd::line(desc, node->world.pos, node->world.pos + normal * .2f);
+                desc.thickness = 3.f;
                 hk::dd::conical_frustum(
-                        {{c.x, c.y, c.z}, 3},
+                        desc,
                         node->world.pos, light.inner_cutoff,
                         node->world.pos + normal * light.range, light.outer_cutoff);
-                hk::dd::line({{c.x, c.y, c.z}, 6}, node->world.pos, node->world.pos + normal * .2f);
             } break;
             case Light::Type::DIRECTIONAL_LIGHT: {
-                hk::dd::line({{c.x, c.y, c.z}, 6}, node->world.pos, node->world.pos + normal * .2f);
+                hk::dd::line(desc, node->world.pos, node->world.pos + normal * .2f);
             } break;
 
             default: break;
             }
+        }
+
+        if (node->object && node->debug_draw && node->entity && node->entity->camera) {
+            hk::Camera &camera = *node->entity->camera;
+
+            // hk::dd::line({{1, 0, 0}, 5, false}, camera.position(), camera.position() + camera.top());
+            // hk::dd::line({{0, 0, 1}, 5, false}, camera.position(), camera.position() + camera.right());
+            // hk::dd::line({{0, 1, 0}, 5, false}, camera.position(), camera.position() + camera.forward());
+
+            hk::dd::view_frustum({{0, 1, 0}, 3, true}, camera.viewProjectionInv());
         }
 
         for (auto child : node->children) {
@@ -93,9 +108,11 @@ void SceneGraph::addNode(const SceneNode &node)
     snode->parent = parent;
     snode->loaded = node.loaded;
     snode->local = node.loaded;
-    // snode->entity = node.entity;
+    snode->entity = node.entity;
+    snode->debug_draw = node.debug_draw;
+    snode->visible = node.visible;
 
-    if (snode->object) {
+    if (snode->object && snode->entity && snode->entity->hndlMesh) {
         ++objects_;
         dirty_.push(snode);
     }
@@ -164,10 +181,20 @@ void SceneGraph::addLight(const Light &light, const Transform &transform)
     node->loaded = transform;
     node->local = node->loaded;
 
-    // FIX: maybe temp? i think lights should have default rotation
     if (hkm::toEulerAngles(transform.rotation).length() < 0.01f) {
-        node->loaded.rotation = hkm::fromEulerAngles({0.f, -90.f, 0.f});
-        node->local.rotation = node->loaded.rotation;
+        switch (light.type) {
+        case Light::Type::SPOT_LIGHT: {
+            node->loaded.rotation =
+                hkm::fromAxisAngle({1, 0, 0}, 90.f * hkm::degree2rad);
+            node->local.rotation = node->loaded.rotation;
+        } break;
+        case Light::Type::DIRECTIONAL_LIGHT: {
+            node->loaded.rotation =
+                hkm::fromAxisAngle({1, 0, 0}, 45.f * hkm::degree2rad);
+            node->local.rotation = node->loaded.rotation;
+        } break;
+        default: break;
+        }
     }
 
     node->debug_draw = true;
@@ -202,7 +229,7 @@ void SceneGraph::updateDrawContext(DrawContext &context, Renderer &renderer)
             // TODO: build only once
             if (node->entity->dirty.test(0)) {
                 hk::MeshAsset mesh = hk::assets()->getMesh(node->entity->hndlMesh);
-                object.create(mesh.mesh);
+                object.create(mesh.mesh, mesh.name);
 
                 node->entity->dirty.flip(0);
             }
@@ -213,8 +240,8 @@ void SceneGraph::updateDrawContext(DrawContext &context, Renderer &renderer)
             object.instances.push_back(node->world.toMat4f());
 
             if (node->entity->dirty.test(1)) {
-                object.rm.material =
-                    &hk::assets()->getMaterial(node->entity->hndlMaterial).data;
+                hk::MaterialAsset asset = hk::assets()->getMaterial(node->entity->hndlMaterial);
+                object.rm.material = &asset.data;
 
                 object.rm.build(
                     renderer.offscreen_.render_pass_,
@@ -222,7 +249,8 @@ void SceneGraph::updateDrawContext(DrawContext &context, Renderer &renderer)
                     renderer.global_desc_layout.handle(),
                     renderer.offscreen_.set_layout_.handle(),
                     renderer.offscreen_.formats_,
-                    renderer.offscreen_.depth_.format());
+                    renderer.offscreen_.depth_format_,
+                    asset.name);
 
                 object.material = object.rm.write(renderer.global_desc_alloc);
 
@@ -238,36 +266,49 @@ void SceneGraph::updateDrawContext(DrawContext &context, Renderer &renderer)
 
                 node->entity->dirty.flip(2);
             }
+        } else if (node->entity->camera) {
+            hk::Camera &camera = *node->entity->camera;
+
+            camera.setWorldOffset(node->world.pos);
+            camera.setWorldRotation(node->world.rotation);
+            camera.update();
+
+            if (node->entity->dirty.test(3)) {
+                node->entity->dirty.flip(3);
+            }
         }
     }
 
     // FIX: temp
-    LightSources lightsAA;
+    LightSources sources;
     for (u32 i = 0; i < context.lights.size(); ++i) {
         auto light = context.lights.at(i);
 
         if (light.light->type == hk::Light::Type::POINT_LIGHT) {
-            lightsAA.pointlights[lightsAA.pointlightsSize].color = light.light->color;
-            lightsAA.pointlights[lightsAA.pointlightsSize].intensity = light.light->intensity;
+            sources.point_lights[sources.point_count].color = light.light->color;
+            sources.point_lights[sources.point_count].intensity = light.light->intensity;
 
-            lightsAA.pointlights[lightsAA.pointlightsSize].pos = light.transform.pos;
+            sources.point_lights[sources.point_count].pos = light.transform.pos;
 
-            ++lightsAA.pointlightsSize;
+            ++sources.point_count;
         } else if (light.light->type == hk::Light::Type::SPOT_LIGHT) {
-            lightsAA.spotlights[lightsAA.spotlightsSize].color = light.light->color;
-            lightsAA.spotlights[lightsAA.spotlightsSize].inner_cutoff = light.light->inner_cutoff;
-            lightsAA.spotlights[lightsAA.spotlightsSize].outer_cutoff = light.light->outer_cutoff;
+            sources.spot_lights[sources.spot_count].color = light.light->color;
+            sources.spot_lights[sources.spot_count].inner_cutoff = light.light->inner_cutoff;
+            sources.spot_lights[sources.spot_count].outer_cutoff = light.light->outer_cutoff;
 
-            lightsAA.spotlights[lightsAA.spotlightsSize].pos = light.transform.pos;
-            lightsAA.spotlights[lightsAA.spotlightsSize].dir = hkm::toEulerAngles(light.transform.rotation);
+            sources.spot_lights[sources.spot_count].pos = light.transform.pos;
+            sources.spot_lights[sources.spot_count].dir = hkm::toEulerAngles(light.transform.rotation);
 
-            ++lightsAA.spotlightsSize;
+            ++sources.spot_count;
         } else if (light.light->type == hk::Light::Type::DIRECTIONAL_LIGHT) {
-            lightsAA.directional.color = light.light->color;
-            lightsAA.directional.dir = hkm::toEulerAngles(light.transform.rotation);
+            sources.directional_lights[sources.directinal_count].color = light.light->color;
+            sources.directional_lights[sources.directinal_count].dir =
+                hkm::toEulerAngles(light.transform.rotation);
+
+            ++sources.directinal_count;
         }
     }
-    renderer.updateLights(lightsAA);
+    renderer.updateLights(sources);
 }
 
 }

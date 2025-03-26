@@ -8,9 +8,9 @@
 
 namespace hk::filesystem {
 
-HKAPI b8 readFile(const std::string &path, hk::vector<u8>& out);
+HKAPI b8 read_file(const std::string &path, hk::vector<u8>& out);
 
-HKAPI b8 findFile(const std::string &root, const std::string &target,
+HKAPI b8 find_file(const std::string &root, const std::string &target,
                   std::string *out = nullptr);
 
 HKAPI b8 exists(const std::string &path);

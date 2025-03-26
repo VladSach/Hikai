@@ -7,9 +7,12 @@
 
 namespace hk {
 
+// FIX: temp
+using string = std::string;
+
 /* ===== Utils ===== */
 
-inline hk::vector<std::string> strtok(const std::string &s, const std::string &delim)
+inline hk::vector<hk::string> strtok(const std::string &s, const std::string &delim)
 {
     hk::vector<std::string> out;
 

@@ -192,15 +192,15 @@ inline quaternion fromAxisAngle(const vec3f &v, f32 angle)
 {
     vec3f N = normalize(v);
 
-    f32 halfAngle = angle * .5f;
-    f32 sinAngle = std::sin(halfAngle);
-    f32 cosAngle = std::cos(halfAngle);
+    f32 half_angle = angle * .5f;
+    f32 sin_angle = std::sin(half_angle);
+    f32 cos_angle = std::cos(half_angle);
 
-    f32 x = N.x * sinAngle;
-    f32 y = N.y * sinAngle;
-    f32 z = N.z * sinAngle;
+    f32 x = N.x * sin_angle;
+    f32 y = N.y * sin_angle;
+    f32 z = N.z * sin_angle;
 
-    return normalize(quaternion(x, y, z, cosAngle));
+    return normalize(quaternion(x, y, z, cos_angle));
 }
 
 // Angles passed in radians

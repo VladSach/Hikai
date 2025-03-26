@@ -41,14 +41,14 @@ float4 main(PixelInput input) : SV_Target0
     if (any(distance_to_cell    < adjusted_cell_line_thickness    * 0.5)) o = cell_colour;
     if (any(distance_to_subcell < adjusted_subcell_line_thickness * 0.5)) o = subcell_colour;
 
-    float fade_distance = abs(cameraPos.y) * height_to_fade_distance_ratio;
+    float fade_distance = abs(camera.pos.y) * height_to_fade_distance_ratio;
     fade_distance = max(fade_distance, min_fade_distance);
     fade_distance = min(fade_distance, max_fade_distance);
 
     // FIX: temp, until I fix the camera
     fade_distance = 25.f;
 
-    float distance_to_camera = length(input.tc - cameraPos.xz);
+    float distance_to_camera = length(input.tc - camera.pos.xz);
     float opacity_falloff = smoothstep(1.0, 0.0, distance_to_camera / fade_distance);
 
     return o * opacity_falloff;

@@ -28,39 +28,108 @@ float4 main(PixelInput input) : SV_Target0
     float metallic = material.x;
     float roughness = material.y;
 
-    float3 V = normalize(cameraPos - world_pos);
+    float3 V = normalize(camera.pos - world_pos);
     float NdotV = max(dot(normal, V), 0.f);
 
     float3 F0 = lerp((.04f).xxx, albedo.rgb, metallic);
 
-    PointLight light = pointlights[0];
+    float3 Lo = 0.f;
 
-    float3 L = normalize(light.position - world_pos);
-    float3 H = normalize(L + V);
-    float NdotH = max(dot(normal, H), 0.f);
-    float NdotL = max(dot(normal, L), 0.f);
-    float VdotH = max(dot(V, H), 0.f);
+    for (uint i = 0; i < lights.point_count; ++i) {
+        PointLight light = lights.points[i];
 
-    float3 F = fresnel(VdotH, F0);
-    float  D = GGX(pow(roughness, 4), NdotH);
-    float  G = smith(pow(roughness, 4), NdotV, NdotL);
+        float3 L = normalize(light.position - world_pos);
+        float3 H = normalize(L + V);
+        float NdotH = max(dot(normal, H), 0.f);
+        float NdotL = max(dot(normal, L), 0.f);
+        float VdotH = max(dot(V, H), 0.f);
 
-    // Cook-Torrance
-    float3 nominator = D * G * F;
-    float denom = 4.f * NdotV * NdotL;
-    float3 specular = nominator / max(denom, .0001f);
+        float3 F = fresnel(VdotH, F0);
+        float  D = GGX(pow(roughness, 4), NdotH);
+        float  G = smith(pow(roughness, 4), NdotV, NdotL);
 
-    float distance = length(light.position - world_pos);
-    float attenuation = 1.f / (distance * distance);
-    float3 radiance = light.color.rgb * attenuation;
+        // Cook-Torrance
+        float3 nominator = D * G * F;
+        float denom = 4.f * NdotV * NdotL;
+        float3 specular = nominator / max(denom, .0001f);
 
-    float3 kS = F;
-    float3 kD = 1.f - kS;
-    kD *= 1.f - metallic;
+        float distance = length(light.position - world_pos);
+        float attenuation = 1.f / (distance * distance);
+        float3 radiance = light.color.rgb * attenuation;
 
-    float3 diffuse = (albedo.xyz * kD / PI + specular) * radiance * NdotL;
+        float3 kS = F;
+        float3 kD = 1.f - kS;
+        kD *= 1.f - metallic;
 
-    return float4(diffuse + albedo.xyz, albedo.w);
+        Lo += (albedo.xyz * kD / PI + specular) * radiance * NdotL;
+    }
+
+    for (uint i = 0; i < lights.spot_count; ++i) {
+        SpotLight light = lights.spots[i];
+
+        float3 L = normalize(light.position - world_pos);
+        float3 H = normalize(L + V);
+        float NdotH = max(dot(normal, H), 0.f);
+        float NdotL = max(dot(normal, L), 0.f);
+        float VdotH = max(dot(V, H), 0.f);
+
+        float3 F = fresnel(VdotH, F0);
+        float  D = GGX(pow(roughness, 4), NdotH);
+        float  G = smith(pow(roughness, 4), NdotV, NdotL);
+
+        // Cook-Torrance
+        float3 nominator = D * G * F;
+        float denom = 4.f * NdotV * NdotL;
+        float3 specular = nominator / max(denom, .0001f);
+
+        float distance = length(light.position - world_pos);
+        float attenuation = 1.f / (distance * distance);
+
+        float theta = dot(L, normalize(-light.direction));
+        float epsilon = light.inner_cutoff - light.outer_cutoff;
+        attenuation *= clamp((theta - light.outer_cutoff)/epsilon, 0.f, 1.f);
+
+        float3 radiance = light.color.rgb * attenuation;
+
+        float3 kS = F;
+        float3 kD = 1.f - kS;
+        kD *= 1.f - metallic;
+
+        Lo += (albedo.xyz * kD / PI + specular) * radiance * NdotL;
+    }
+
+    for (uint i = 0; i < lights.directional_count; ++i) {
+        DirectionalLight light = lights.directionals[i];
+
+        float3 L = normalize(-light.direction);
+        float3 H = normalize(L + V);
+        float NdotH = max(dot(normal, H), 0.f);
+        float NdotL = max(dot(normal, L), 0.f);
+        float VdotH = max(dot(V, H), 0.f);
+
+        float3 F = fresnel(VdotH, F0);
+        float  D = GGX(pow(roughness, 4), NdotH);
+        float  G = smith(pow(roughness, 4), NdotV, NdotL);
+
+        // Cook-Torrance
+        float3 nominator = D * G * F;
+        float denom = 4.f * NdotV * NdotL;
+        float3 specular = nominator / max(denom, .0001f);
+
+        float3 radiance = light.color.rgb;
+
+        float3 kS = F;
+        float3 kD = 1.f - kS;
+        kD *= 1.f - metallic;
+
+        Lo += (albedo.xyz * kD / PI + specular) * radiance * NdotL;
+    }
+
+    float3 ambient = 0.03f * albedo.xyz;
+
+    float3 final = ambient + Lo;
+
+    return float4(final.xyz, 1.f);
     //return float4(normal, 1);
     //return float4(world_pos, 1);
 }

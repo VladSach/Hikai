@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+namespace hk {
+
 void Camera::setPerspective(f32 fov, f32 aspectRatio, f32 nearPlane, f32 farPlane)
 {
     f32 scale = 1 / std::tanf(fov * .5f * hkm::degree2rad);
@@ -14,10 +16,12 @@ void Camera::setPerspective(f32 fov, f32 aspectRatio, f32 nearPlane, f32 farPlan
               0.f,                0.f,    remap_z1,  1.f,
               0.f,                0.f,   -remap_z2,  0.f };
 
-    projInv_ = inverse(proj_);
+    proj_inv_ = inverse(proj_);
 
     fov_ = fov;
-    aspectRatio_ = aspectRatio;
+    aspect_ratio_ = aspectRatio;
+    near_ = nearPlane;
+    far_ = farPlane;
 }
 
 void Camera::lookAt(const hkm::vec3f &dir)
@@ -51,12 +55,12 @@ void Camera::update()
     if(updated) return;
 
     rotation_ = normalize(rotation_);
-    viewInv_.asMat3(rotation_.rotmat());
+    view_inv_.asMat3(rotation_.rotmat());
 
-    view_ = inverse(viewInv_);
+    view_ = inverse(view_inv_);
 
-    viewProj_ = view_ * proj_;
-    viewProjInv_ = viewInv_ * projInv_;
+    view_proj_ = view_ * proj_;
+    view_proj_inv_ = proj_inv_ * view_inv_;
 
     updated = true;
 }
@@ -76,9 +80,7 @@ void Camera::addWorldOffset(const hkm::vec3f &offset)
 void Camera::addRelativeOffset(const hkm::vec3f &offset)
 {
     updated = false;
-    pos() += offset.x * right() +
-             offset.y * top() +
-             offset.z * forward();
+    pos() += offset.x * right() + offset.y * top() + offset.z * forward();
 }
 
 void Camera::setWorldAngles(const hkm::vec3f &angles)
@@ -118,4 +120,20 @@ void Camera::addRelativeAngles(const hkm::vec3f &angles)
     rotation_ = rotation_ * hkm::fromAxisAngle(forward(), rads.z);
 
     rotation_ = normalize(rotation_);
+}
+
+void Camera::setWorldRotation(const hkm::quaternion &rotation)
+{
+    updated = false;
+
+    rotation_ = normalize(rotation);
+}
+
+void Camera::addWorldRotation(const hkm::quaternion &rotation)
+{
+    updated = false;
+
+    rotation_ = normalize(rotation_ * rotation);
+}
+
 }

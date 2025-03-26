@@ -122,7 +122,7 @@ public:
         return *this;
     }
 
-    T value() const
+    constexpr T value() const
     {
         return flags_.to_underlying();
     }

@@ -87,41 +87,4 @@ void dispatch()
     }
 }
 
-const char* getEventStr(EventCode code)
-{
-    constexpr char const *lookup_events[MAX_EVENT_CODES] = {
-        "Empty Event",
-
-        "App Shutdown Event",
-
-        "Key Pressed Event",
-        "Key Released Event",
-
-        "Mouse Pressed Event",
-        "Mouse Released Event",
-
-        "Mouse Moved Event",
-
-        "Raw Mouse Moved Event",
-
-        "Mouse Wheel Event",
-
-        "Window Resized Event",
-
-        "Asset Loaded Event",
-    };
-
-    return lookup_events[code];
-}
-
-const char* getErrorCodeStr(ErrorCode error)
-{
-    constexpr char const *lookup_errors[MAX_ERROR_CODES] = {
-        "Unknown error",
-
-        "Unsupported Graphics API",
-    };
-
-    return lookup_errors[error];
-}
 }

@@ -14,7 +14,7 @@ struct ShapeDesc {
     hkm::vec3f color;
 
     f32 thickness = 1.f;
-    b8 use_depth = true;
+    u32 use_depth = 1; // bool, but u32 for alignment
 };
 
 void init(VkDescriptorSetLayout global_set_layout,
@@ -29,10 +29,13 @@ void point(const ShapeDesc &desc, const hkm::vec3f &pos);
 void line(const ShapeDesc &desc, const hkm::vec3f &from, const hkm::vec3f &to);
 
 /* ===== 2D shapes ===== */
-// void rect(Info info, hkm::vec3f from, hkm::vec3f to); // plane?
+void rect(const ShapeDesc &desc,
+          const hkm::vec3f &p1, const hkm::vec3f &p2,
+          const hkm::vec3f &p3, const hkm::vec3f &p4,
+          const hkm::vec3f &normal);
 void circle(const ShapeDesc &desc,
-            const hkm::vec3f &center, f32 radius,
-            const hkm::vec3f &normal);
+          const hkm::vec3f &center, f32 radius,
+          const hkm::vec3f &normal);
 
 
 /* ===== 3D shapes ===== */
@@ -44,10 +47,15 @@ void sphere(const ShapeDesc &desc, const hkm::vec3f &center, f32 radius);
 
 
 /* ===== Other Shapes ===== */
-// void view_frustum(); // for camera
-// void pyramidal_frustum(); // for rect spot light
+// for camera
+void view_frustum(const ShapeDesc &desc, const hkm::mat4f view_proj_inv);
 
-// for disc(circle) spot light
+// for rect(cell?) spot light
+// void pyramidal_frustum(const ShapeDesc &desc,
+//                        const hkm::vec3f &apex, f32 apex_radius,
+//                        const hkm::vec3f &base, f32 base_radius);
+
+// for disc spot light
 void conical_frustum(const ShapeDesc &desc,
                      const hkm::vec3f &apex, f32 apex_radius,
                      const hkm::vec3f &base, f32 base_radius);

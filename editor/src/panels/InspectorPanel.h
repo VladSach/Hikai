@@ -17,6 +17,7 @@ private:
     void addMeshInfo(const hk::MeshAsset &mesh);
     void addMaterialInfo(hk::SceneNode *node);
     void addLightInfo(hk::SceneNode *node);
+    void addCameraInfo(hk::SceneNode *node);
 
 public:
     b8 is_open_;

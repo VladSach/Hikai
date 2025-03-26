@@ -19,9 +19,9 @@ void* get(u32 handle)
 {
     if (cache.count(handle)) { return cache[handle]; }
 
-    hk::Image *image = hk::assets()->getTexture(handle).texture;
+    hk::ImageHandle image = hk::assets()->getTexture(handle).image;
 
-    cache[handle] = hk::imgui::addTexture(image->view(), r->samplers_.linear.repeat);
+    cache[handle] = hk::imgui::addTexture(image, r->samplers_.linear.repeat);
 
     return cache[handle];
 }

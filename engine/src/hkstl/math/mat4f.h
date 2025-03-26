@@ -124,14 +124,14 @@ inline mat4f operator *(const mat4f &A, const mat4f &B)
     );
 }
 
-// inline vec3f transformVec(const mat4f &M, const vec3f &v)
-// {
-//     vec4f homogeneous = { v.x, v.y, v.z, 0 };
-//     vec4f transformed = M * homogeneous;
-//     return vec3f( transformed.x,
-//                   transformed.y,
-//                   transformed.z );
-// }
+inline vec3f transformVec(const mat4f &M, const vec3f &v)
+{
+    vec4f homogeneous = { v.x, v.y, v.z, 0 };
+    vec4f transformed = M * homogeneous;
+    return vec3f( transformed.x,
+                  transformed.y,
+                  transformed.z );
+}
 
 inline vec3f transformPoint(const mat4f &M, const vec3f &v)
 {
