@@ -3,7 +3,7 @@
 namespace hk {
 
 DescriptorLayout::Builder& DescriptorLayout::Builder::addBinding(
-    u32 binding,
+    u32 binding, u32 count,
     VkDescriptorType type,
     VkShaderStageFlags stages,
     VkSampler *immutable_samplers)
@@ -13,8 +13,8 @@ DescriptorLayout::Builder& DescriptorLayout::Builder::addBinding(
 
     VkDescriptorSetLayoutBinding layout = {};
     layout.binding = binding;
-    layout.descriptorCount = 1;
     layout.descriptorType = type;
+    layout.descriptorCount = count;
     layout.stageFlags = stages;
     layout.pImmutableSamplers = immutable_samplers;
 
@@ -33,7 +33,9 @@ hk::vector<VkDescriptorSetLayoutBinding> DescriptorLayout::Builder::build()
     return bindings;
 }
 
-void DescriptorLayout::init(const hk::vector<VkDescriptorSetLayoutBinding> &bindings)
+void DescriptorLayout::init(
+    const hk::vector<VkDescriptorSetLayoutBinding> &bindings,
+    VkDescriptorSetLayoutCreateFlags flags)
 {
     VkResult err;
 
@@ -41,8 +43,7 @@ void DescriptorLayout::init(const hk::vector<VkDescriptorSetLayoutBinding> &bind
     info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     info.pBindings = bindings.size() ? bindings.data() : nullptr;
     info.bindingCount = bindings.size();
-    // info.pNext = nullptr;
-    // info.flags = 0;
+    info.flags = flags;
 
     VkDevice device = hk::vkc::device();
     err = vkCreateDescriptorSetLayout(device, &info, nullptr, &handle_);

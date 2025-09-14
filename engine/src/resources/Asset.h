@@ -82,7 +82,7 @@ struct ShaderAsset : public Asset {
 struct TextureAsset : public Asset {
     ImageHandle image;
     // lenses (VkViews)
-    // other modifiers
+    // sampler
 };
 
 struct MaterialAsset : public Asset {

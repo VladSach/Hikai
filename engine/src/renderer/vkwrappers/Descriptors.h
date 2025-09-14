@@ -17,7 +17,7 @@ class DescriptorLayout {
 public:
     class Builder {
     public:
-        Builder& addBinding(u32 binding,
+        Builder& addBinding(u32 binding, u32 count,
                             VkDescriptorType type,
                             VkShaderStageFlags stages,
                             VkSampler *immutable_samplers = VK_NULL_HANDLE);
@@ -33,7 +33,9 @@ public:
     ~DescriptorLayout() { deinit(); }
 
     // If bindings is empty - creates null/dummy descriptor layout
-    void init(const hk::vector<VkDescriptorSetLayoutBinding> &bindings);
+    void init(
+        const hk::vector<VkDescriptorSetLayoutBinding> &bindings,
+        VkDescriptorSetLayoutCreateFlags flags = 0);
     void deinit();
 
     constexpr VkDescriptorSetLayout handle() const

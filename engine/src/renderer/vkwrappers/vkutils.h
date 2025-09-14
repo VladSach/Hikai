@@ -68,14 +68,10 @@ constexpr VkImageUsageFlags to_vulkan(ImageType type)
 
     case ImageType::RENDER_TARGET: {
         out = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        // FIX: temp, until deferred uses subpasses
-        out |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
     } break;
 
     case ImageType::DEPTH_BUFFER: {
         out = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        // FIX: temp, until deferred uses subpasses
-        out |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
     } break;
 
     default: { break; }

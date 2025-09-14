@@ -59,7 +59,6 @@ public:
     // Light pass
     hk::ImageHandle color_;
     hk::Pipeline pipeline_;
-    hk::DescriptorLayout set_layout_;
 
     u32 hndl_vertex_;
     u32 hndl_pixel_;

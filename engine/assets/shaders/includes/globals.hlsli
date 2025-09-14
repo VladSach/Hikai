@@ -70,6 +70,9 @@ SamplerState anisotropic_mirror : register(s11);
 SamplerState anisotropic_clamp  : register(s12);
 SamplerState anisotropic_border : register(s13);
 }
+
+Texture2D<float4> textures[] : register(t2, space0);
+
 }
 
 #endif // HK_GLOBALS_HLSLI

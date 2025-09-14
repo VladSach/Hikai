@@ -30,49 +30,11 @@ void Renderer::init(const Window *window)
         { VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
         VK_PRESENT_MODE_MAILBOX_KHR);
 
-    hk::vector<hk::DescriptorAllocator::TypeSize> sizes =
-    {
-        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,  3 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
-        { VK_DESCRIPTOR_TYPE_SAMPLER, 12 },
-        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 6 },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
-        { VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 6 },
-    };
-    global_desc_alloc.init(100, sizes);
+    createFrameResources();
+
+    createBindlessDescriptor();
 
     createSamplers();
-
-    global_desc_layout.init(
-        hk::DescriptorLayout::Builder()
-        // Scene and other data
-        .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
-
-        // Lights
-        // PERF: right now no need to change to ssbo but maybe later
-        .addBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
-
-        // Static Samplers
-        .addBinding(2, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.nearest.repeat)
-        .addBinding(3, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.nearest.mirror)
-        .addBinding(4, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.nearest.clamp)
-        .addBinding(5, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.nearest.border)
-
-        .addBinding(6, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.linear.repeat)
-        .addBinding(7, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.linear.mirror)
-        .addBinding(8, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.linear.clamp)
-        .addBinding(9, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.linear.border)
-
-        .addBinding(10, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.anisotropic.repeat)
-        .addBinding(11, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.anisotropic.mirror)
-        .addBinding(12, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.anisotropic.clamp)
-        .addBinding(13, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.anisotropic.border)
-        .build()
-    );
-    hk::debug::setName(global_desc_layout.handle(), "Per Frame Descriptor Set Layout");
-
-    createFrameResources();
 
     hk::BufferDesc desc;
     desc.type = hk::BufferType::UNIFORM_BUFFER;
@@ -84,23 +46,17 @@ void Renderer::init(const Window *window)
     desc.stride = sizeof(LightSources);
     lights_buffer = hk::bkr::create_buffer(desc, "Light Data");
 
-    // hk::debug::setName(frame_data_buffer.buffer(), "Uniform Buffer - Global");
-    // hk::debug::setName(lights_buffer.buffer(), "Uniform Buffer - Lights");
-    // end ubo
-
     use_ui_ = true;
 
     loadShaders();
 
-    offscreen_.init(&swapchain_, global_desc_layout.handle());
+    offscreen_.init(&swapchain_, bindless_.layout);
     post_process_.init(&swapchain_);
     present_.init(&swapchain_);
     ui_.init(window_, &swapchain_);
 
-    hk::dd::init(global_desc_layout.handle(),
+    hk::dd::init(bindless_.layout,
                  offscreen_.set_layout_.handle(), offscreen_.render_pass_);
-
-    createGridPipeline();
 
     hk::event::subscribe(hk::event::EVENT_WINDOW_RESIZE, resize, this);
 }
@@ -129,11 +85,10 @@ void Renderer::deinit()
     present_.deinit();
     ui_.deinit();
 
-    gridPipeline.deinit();
     hk::dd::deinit();
 
-    global_desc_layout.deinit();
-    global_desc_alloc.deinit();
+    vkDestroyDescriptorSetLayout(device_, bindless_.layout, nullptr);
+    vkDestroyDescriptorPool(device_, bindless_.pool, nullptr);
 
     // FIX: temp
     hk::bkr::destroy_buffer(frame_data_buffer);
@@ -178,13 +133,6 @@ void Renderer::draw(hk::DrawContext &ctx)
 
     vkResetCommandBuffer(frame.cmd, 0);
 
-    frame.descriptor_alloc.clear();
-
-    VkDescriptorSet global_desc_set =
-        frame.descriptor_alloc.allocate(global_desc_layout.handle());
-
-    hk::DescriptorWriter writer;
-
     VkCommandBufferBeginInfo beginInfo = {};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
@@ -209,29 +157,14 @@ void Renderer::draw(hk::DrawContext &ctx)
 
     VkPipelineBindPoint bind_point_graphics = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
-    /* === Descriptor Sets ===
-     * Per-frame    0
-     * Per-pass     1
-     * Per-material 2
-     * Per-instance 3 (right now push constants)
-     */
+
+    vkCmdBindDescriptorSets(frame.cmd,
+                            bind_point_graphics,
+                            offscreen_.geometry_pipeline_.layout(), 0, 1,
+                            &bindless_.set, 0, nullptr);
 
     offscreen_.begin(frame.cmd, image_idx);
-        writer.writeBuffer(0, hk::bkr::handle(frame_data_buffer),
-                           sizeof(SceneData), 0,
-                           VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        writer.writeBuffer(1, hk::bkr::handle(lights_buffer),
-                           sizeof(LightSources), 0,
-                           VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        writer.updateSet(global_desc_set);
-
         offscreen_.geometry_pipeline_.bind(frame.cmd, bind_point_graphics);
-
-        // per-frame descriptor (0)
-        vkCmdBindDescriptorSets(frame.cmd,
-                                bind_point_graphics,
-                                offscreen_.geometry_pipeline_.layout(), 0, 1,
-                                &global_desc_set, 0, nullptr);
 
         // Geometry Pass
         for (auto &object : ctx.objects) {
@@ -241,17 +174,10 @@ void Renderer::draw(hk::DrawContext &ctx)
 
             object.bind(frame.cmd);
 
-            // per-material descriptor (2)
-            vkCmdBindDescriptorSets(frame.cmd,
-                                    bind_point_graphics,
-                                    mat.pipeline->layout(), 2, 1,
-                                    &mat.materialSet, 0, nullptr);
-
             u32 instance_count = object.instances.size();
             for (u32 mesh_idx = 0; mesh_idx < instance_count; ++mesh_idx) {
                 instance_data.model_to_world = object.instances.at(mesh_idx);
 
-                // per-instance descriptor (3)
                 vkCmdPushConstants(frame.cmd, mat.pipeline->layout(),
                                    VK_SHADER_STAGE_ALL_GRAPHICS, 0,
                                    sizeof(instance_data), &instance_data);
@@ -265,45 +191,7 @@ void Renderer::draw(hk::DrawContext &ctx)
         // Light pass
         vkCmdNextSubpass(frame.cmd, VK_SUBPASS_CONTENTS_INLINE);
 
-        // TODO: change all images layout to shader read
-
-        // FIX: temp
-        vkCmdBindDescriptorSets(frame.cmd,
-                                bind_point_graphics,
-                                offscreen_.pipeline_.layout(), 0, 1,
-                                &global_desc_set, 0, nullptr);
-
-        // per-pass descriptor (1)
-        VkDescriptorSet light_set = global_desc_alloc.allocate(offscreen_.set_layout_.handle());
-        writer.clear();
-        writer.writeImage(0, hk::bkr::view(offscreen_.position_), VK_NULL_HANDLE,
-                          // offscreen_.position_.layout(),
-                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                          VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
-        writer.writeImage(1, hk::bkr::view(offscreen_.normal_), VK_NULL_HANDLE,
-                          // offscreen_.normal_.layout(),
-                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                          VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
-        writer.writeImage(2, hk::bkr::view(offscreen_.albedo_), VK_NULL_HANDLE,
-                          // offscreen_.albedo_.layout(),
-                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                          VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
-        writer.writeImage(3, hk::bkr::view(offscreen_.material_), VK_NULL_HANDLE,
-                          // offscreen_.material_.layout(),
-                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                          VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
-        writer.writeImage(4, hk::bkr::view(offscreen_.depth_), VK_NULL_HANDLE,
-                          // offscreen_.depth_.layout(),
-                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                          VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT);
-
-        writer.updateSet(light_set);
-
         offscreen_.pipeline_.bind(frame.cmd, bind_point_graphics);
-
-        vkCmdBindDescriptorSets(frame.cmd, bind_point_graphics,
-                            offscreen_.pipeline_.layout(), 1, 1,
-                            &light_set, 0, nullptr);
 
         vkCmdDraw(frame.cmd, 3, 1, 0, 0);
 
@@ -350,7 +238,7 @@ void Renderer::draw(hk::DrawContext &ctx)
     //                      VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
     //                      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
     //                      0, 0, NULL, 0, NULL, 1, &bar);
-    //
+
     post_process_.render(offscreen_.color_,
                          frame.cmd, image_idx,
                          &frame.descriptor_alloc);
@@ -458,36 +346,123 @@ void Renderer::createFrameResources()
     }
 }
 
+void Renderer::createBindlessDescriptor()
+{
+    auto limits = hk::vkc::adapter_info().properties.limits;
+
+    constexpr VkDescriptorPoolSize sizes[] =
+    {
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,  6 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,  3 },
+        { VK_DESCRIPTOR_TYPE_SAMPLER,       12 },
+    };
+
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+    pool_info.maxSets = 1;
+    pool_info.poolSizeCount = sizeof(sizes) / sizeof(sizes[0]);
+    pool_info.pPoolSizes = sizes;
+
+    vkCreateDescriptorPool(device_, &pool_info, nullptr, &bindless_.pool);
+    hk::debug::setName(bindless_.pool, "Descriptor Pool - Bindless");
+
+    VkDescriptorSetLayoutBinding bindings[] = {
+        {
+            0,
+            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            limits.maxDescriptorSetUniformBuffers,
+            VK_SHADER_STAGE_ALL,
+            nullptr
+        },
+        {
+            1,
+            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            limits.maxDescriptorSetStorageBuffers,
+            VK_SHADER_STAGE_ALL,
+            nullptr
+        },
+        {
+            2,
+            VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+            limits.maxDescriptorSetSampledImages,
+            VK_SHADER_STAGE_ALL,
+            nullptr
+        },
+        {
+            3,
+            VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+            limits.maxDescriptorSetStorageImages,
+            VK_SHADER_STAGE_ALL,
+            nullptr
+        },
+    };
+
+    hk::vector<VkDescriptorBindingFlags> bind_flags(
+        sizeof(bindings) / sizeof(bindings[0]),
+        VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
+        VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT
+    );
+
+    VkDescriptorSetLayoutBindingFlagsCreateInfo flags = {};
+    flags.sType =
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+    flags.bindingCount = bind_flags.size();
+    flags.pBindingFlags = bind_flags.data();
+
+    VkDescriptorSetLayoutCreateInfo l_info = {};
+    l_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    l_info.bindingCount = bind_flags.size();
+    l_info.pBindings = bindings;
+    l_info.flags =
+        VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+    l_info.pNext = &flags;
+
+    vkCreateDescriptorSetLayout(device_, &l_info, nullptr, &bindless_.layout);
+    hk::debug::setName(bindless_.layout, "Descriptor Set Layout - Bindless");
+
+    VkDescriptorSetAllocateInfo set_info = {};
+    set_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    set_info.descriptorPool = bindless_.pool;
+    set_info.descriptorSetCount = 1;
+    set_info.pSetLayouts = &bindless_.layout;
+
+    vkAllocateDescriptorSets(device_, &set_info, &bindless_.set);
+    hk::debug::setName(bindless_.layout, "Descriptor Set - Bindless");
+}
+
 void Renderer::createGridPipeline()
 {
-    hk::PipelineBuilder builder;
-
-    builder.setShader(hndlGridVS);
-    builder.setShader(hndlGridPS);
-
-    builder.setVertexLayout(0, 0);
-
-    builder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
-    builder.setRasterizer(VK_POLYGON_MODE_FILL,
-                          VK_CULL_MODE_NONE,
-                          VK_FRONT_FACE_CLOCKWISE);
-    builder.setMultisampling();
-
-    hk::vector<VkDescriptorSetLayout> descriptorSetsLayouts = {
-        global_desc_layout.handle(),
-    };
-    builder.setDescriptors(descriptorSetsLayouts);
-
-    builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL, offscreen_.depth_format_);
-    builder.setColors({{ swapchain_.format(), hk::BlendState::DEFAULT }});
-
-    hk::vector<VkDynamicState> dynamic_states = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR,
-    };
-    builder.setDynamicStates(dynamic_states);
-    gridPipeline = builder.build(offscreen_.render_pass_, 1);
-    hk::debug::setName(gridPipeline.handle(), "Grid Pipeline");
+    // hk::PipelineBuilder builder;
+    //
+    // builder.setShader(hndlGridVS);
+    // builder.setShader(hndlGridPS);
+    //
+    // builder.setVertexLayout(0, 0);
+    //
+    // builder.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP);
+    // builder.setRasterizer(VK_POLYGON_MODE_FILL,
+    //                       VK_CULL_MODE_NONE,
+    //                       VK_FRONT_FACE_CLOCKWISE);
+    // builder.setMultisampling();
+    //
+    // hk::vector<VkDescriptorSetLayout> descriptorSetsLayouts = {
+    //     global_desc_layout.handle(),
+    // };
+    // builder.setDescriptors(descriptorSetsLayouts);
+    //
+    // builder.setDepthStencil(VK_TRUE, VK_COMPARE_OP_GREATER_OR_EQUAL, offscreen_.depth_format_);
+    // builder.setColors({{ swapchain_.format(), hk::BlendState::DEFAULT }});
+    //
+    // hk::vector<VkDynamicState> dynamic_states = {
+    //     VK_DYNAMIC_STATE_VIEWPORT,
+    //     VK_DYNAMIC_STATE_SCISSOR,
+    // };
+    // builder.setDynamicStates(dynamic_states);
+    // gridPipeline = builder.build(offscreen_.render_pass_, 1);
+    // hk::debug::setName(gridPipeline.handle(), "Grid Pipeline");
 }
 
 void Renderer::loadShaders()
@@ -636,7 +611,7 @@ void Renderer::resize(const hk::event::EventContext &size, void *listener)
     self->post_process_.deinit();
     self->offscreen_.deinit();
 
-    self->offscreen_.init(&self->swapchain_, self->global_desc_layout.handle());
+    self->offscreen_.init(&self->swapchain_, self->bindless_.layout);
     self->post_process_.init(&self->swapchain_);
     self->present_.init(&self->swapchain_);
     self->ui_.init(self->window_, &self->swapchain_);

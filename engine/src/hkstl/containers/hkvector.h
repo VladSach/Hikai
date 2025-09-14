@@ -31,7 +31,8 @@ public:
     constexpr vector(u32 count, const T &value);
 
     // Constructs a vector with contents (in-place) of the range [first, last)
-    template <typename ItType>
+    template<typename ItType,
+             typename = std::enable_if_t<std::is_pointer_v<ItType>>>
     constexpr vector(ItType first, ItType last);
 
     // Copy constructor
@@ -248,7 +249,7 @@ HKVEC_CONSTRACTOR vector(const vector<T> &other)    { *this = other; }
 HKVEC_CONSTRACTOR vector(vector<T> &&other)         { *this = hk::move(other); }
 
 template <typename T>
-template <typename ItType>
+template<typename ItType, typename>
 constexpr vector<T>::vector(ItType first, ItType last)
 {
     for (auto it = first; it != last; ++it) {

@@ -46,7 +46,8 @@ enum class BufferType : u8 {
 
     VERTEX_BUFFER,
     INDEX_BUFFER,
-    UNIFORM_BUFFER,
+    UNIFORM_BUFFER, // VK: UBO,  DX: Constant
+    STORAGE_BUFFER, // VK: SSBO, DX: RWBuffer
 
     MAX_BUFFER_TYPE
 };

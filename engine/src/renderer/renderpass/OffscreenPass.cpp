@@ -46,7 +46,6 @@ void OffscreenPass::deinit()
     swapchain_ = nullptr;
     device_ = VK_NULL_HANDLE;
 
-    set_layout_.deinit();
     color_format_ = VK_FORMAT_UNDEFINED;
     size_ = {};
 }
@@ -88,7 +87,6 @@ void OffscreenPass::createFramebuffers()
     // TODO: better image system, so it would work with subpasses and swapchain
 
     position_ = hk::bkr::create_image({
-        // hk::Image::Usage::SAMPLED
         ImageType::RENDER_TARGET,
         hk::Format::R32G32B32A32_SFLOAT,
         size_.width, size_.height, 4,
@@ -406,31 +404,7 @@ void OffscreenPass::createPipeline(VkDescriptorSetLayout scene_layout)
 
     builder.setPushConstants({{ VK_SHADER_STAGE_ALL_GRAPHICS, 0, 64 }});
 
-    set_layout_.init(hk::DescriptorLayout::Builder()
-        .addBinding(0,
-                    VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                    VK_SHADER_STAGE_FRAGMENT_BIT)
-        .addBinding(1,
-                    VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                    VK_SHADER_STAGE_FRAGMENT_BIT)
-        .addBinding(2,
-                    VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                    VK_SHADER_STAGE_FRAGMENT_BIT)
-        .addBinding(3,
-                    VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                    VK_SHADER_STAGE_FRAGMENT_BIT)
-        .addBinding(4,
-                    VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-                    VK_SHADER_STAGE_FRAGMENT_BIT)
-        .build()
-    );
-    hk::debug::setName(set_layout_.handle(), "Light Descriptor Layout");
-
-    hk::vector<VkDescriptorSetLayout> set_layouts = {
-        scene_layout,
-        set_layout_.handle(),
-    };
-    builder.setDescriptors(set_layouts);
+    builder.setDescriptors({ scene_layout });
 
     builder.setShader(hndl_vertex_);
     builder.setShader(hndl_pixel_);

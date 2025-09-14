@@ -112,11 +112,14 @@ public:
 
     b8 use_ui_ = true;
 
-    hk::DescriptorAllocator global_desc_alloc;
+    struct BindlessDescriptor {
+        VkDescriptorPool pool = VK_NULL_HANDLE;
+        VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+        VkDescriptorSet set = VK_NULL_HANDLE;
+    } bindless_;
 
     // TODO: move to offscreen
     // Scene Data
-    hk::DescriptorLayout global_desc_layout; // per frame
     SceneData frame_data;
     hk::BufferHandle frame_data_buffer;
     LightSources lights;
@@ -128,8 +131,6 @@ public:
         VkSemaphore acquire_semaphore = VK_NULL_HANDLE;
         VkSemaphore submit_semaphore  = VK_NULL_HANDLE;
         VkFence in_flight_fence       = VK_NULL_HANDLE;
-
-        hk::DescriptorAllocator descriptor_alloc;
     };
 
     hk::vector<FrameData> frames_;
@@ -179,6 +180,8 @@ public:
 
 private:
     void createFrameResources();
+
+    void createBindlessDescriptor();
 
     // FIX: remove
     void createGridPipeline();
