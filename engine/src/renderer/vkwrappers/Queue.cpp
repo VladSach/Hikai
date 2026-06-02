@@ -10,28 +10,28 @@ void QueueFamily::findQueue(
     VkQueueFlags flags,
     const VkSurfaceKHR surface)
 {
-    u32 queueFamilyCount = 0;
+    u32 q_family_cnt = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(physical,
-                                             &queueFamilyCount,
+                                             &q_family_cnt,
                                              nullptr);
 
-    hk::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    hk::vector<VkQueueFamilyProperties> queueFamilies(q_family_cnt);
     vkGetPhysicalDeviceQueueFamilyProperties(physical,
-                                             &queueFamilyCount,
+                                             &q_family_cnt,
                                              queueFamilies.data());
 
-    u32 bestMatchIndex = VK_QUEUE_FAMILY_IGNORED;
+    // best match index
+    u32 target_idx = VK_QUEUE_FAMILY_IGNORED;
+
     u32 extraQueuesMin = hk::popcount(
         static_cast<VkQueueFlags>(VK_QUEUE_FLAG_BITS_MAX_ENUM));
 
-    for (u32 i = 0; i < queueFamilyCount; ++i) {
-        const VkQueueFamilyProperties &queueFamily = queueFamilies[i];
-        const VkQueueFlags &queueFlags = queueFamily.queueFlags;
+    for (u32 i = 0; i < q_family_cnt; ++i) {
+        const VkQueueFamilyProperties &q_family = queueFamilies[i];
+        const VkQueueFlags &q_flags = q_family.queueFlags;
 
         // Skip if doesn't contain the required flags
-        if (!(queueFlags & flags)) {
-            continue;
-        }
+        if (!(q_flags & flags)) { continue; }
 
         // Skip if a surface is provided and that surface
         // isn't supported by the queue
@@ -45,23 +45,40 @@ void QueueFamily::findQueue(
             }
         }
 
-        u32 extraQueues = hk::popcount(queueFlags & ~flags);
+        u32 extraQueues = hk::popcount(q_flags & ~flags);
 
+
+        // TODO: improve queue search
+        // first matching queue?  use it and continue
+        // if (targetIndex == UINT32_MAX) {
+        //     targetIndex = i;
+        //     targetFlags = queueFamilies[i].queueFlags;
+        //     continue;
+        // }
         if (extraQueues == 0) {
             index_ = i;
             break;
         }
 
-        if (bestMatchIndex == VK_QUEUE_FAMILY_IGNORED ||
+        // Matching queue, but with fewer flags than the current best?  Use it.
+        // if (countBits(queueFamilies[i].queueFlags) <
+        //     countBits(targetFlags)) {
+        //     targetIndex = i;
+        //     targetFlags = queueFamilies[i].queueFlags;
+        //     continue;
+        // }
+        if (target_idx == VK_QUEUE_FAMILY_IGNORED ||
             extraQueues < extraQueuesMin)
         {
-            bestMatchIndex = i;
+            target_idx = i;
             extraQueuesMin = extraQueues;
         }
+
     }
 
-    index_ = bestMatchIndex;
-    properties = queueFamilies[bestMatchIndex];
+
+    index_ = target_idx;
+    properties = queueFamilies[target_idx];
 }
 
 void Queue::init(VkDevice device, QueueFamily family)

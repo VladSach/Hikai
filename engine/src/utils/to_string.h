@@ -1,15 +1,15 @@
 #ifndef HK_TO_STRING_H
 #define HK_TO_STRING_H
 
-#include "spec_types.h"
 #include "core/input.h"
-#include "hkstl/Filewatch.h"
+#include "hkstl/filewatch.h"
 #include "renderer/resources.h"
 #include "resources/Asset.h"
+#include "platform/platform.h"
 
 namespace hk {
 
-namespace spec {
+namespace platform {
 
 constexpr const char* to_string(AdapterType type)
 {
@@ -39,7 +39,7 @@ constexpr const char* to_string(AdapterVendor vendor)
     return lookup_vendor[static_cast<u32>(vendor)];
 }
 
-constexpr const char* to_string(BackendType type) {
+constexpr const char* to_string(GraphicsBackend type) {
     constexpr const char* lookup_type[] = {
         "OpenGL",
         "Vulkan",
@@ -50,7 +50,7 @@ constexpr const char* to_string(BackendType type) {
     return lookup_type[static_cast<u32>(type)];
 }
 
-} // namespace spec
+} // namespace platform
 
 namespace log {
 
@@ -172,8 +172,10 @@ constexpr const char* to_string(Button button)
 
         "Esc",
 
-        // 0x1C - 0x1F
-        NDF, NDF, NDF, NDF,
+        // 0x1C - 0x1E
+        NDF, NDF, NDF,
+
+        "Mode Change"
 
         "Space",
         "Page Up",
@@ -438,7 +440,6 @@ constexpr char const* to_string(Format format)
 }
 
 // constexpr char const* to_string(Setting setting)
-
 
 } // namespace hk
 

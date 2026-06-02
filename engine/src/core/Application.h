@@ -45,9 +45,11 @@ public:
     static b8 running;
 
 protected:
-    hk::SceneGraph scene_;
+    // hk::SceneGraph scene_;
     Renderer *renderer_;
-    Window *window_;
+
+    // TODO: delete
+    hk::Window *window_;
 
     AppDesc desc_;
     const f32 desired_frame_rate_ = 60.f;

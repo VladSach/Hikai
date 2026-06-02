@@ -2,11 +2,26 @@
 #define HK_ASSERT_H
 
 #include "hkstl/Logger.h"
-#include "platform/utils.h"
+
+// FIX: no idea where to put break define
+#ifdef HKMSVC
+    #define HKBREAK __debugbreak()
+#elif defined(HKCLANG) || defined(HKGNUC)
+    #if __has_builtin(__builtin_debugtrap)
+        #define HKBREAK __builtin_debugtrap()
+    #else
+        #include <signal.h>
+        #if defined(SIGTRAP)
+            #define HKBREAK raise(SIGTRAP)
+        #else
+            #define HKBREAK raise(SIGABRT)
+        #endif
+    #endif
+#else
+    #define HKBREAK asm("int $3")
+#endif
 
 #define STATIC_ASSERT static_assert
-
-#define HKBREAK __debugbreak()
 
 #if _MSVC_TRADITIONAL
     #define LOG_FATAL_HELPER(message, ...) \
@@ -17,7 +32,7 @@
             LOG_FATAL_HELPER("Assertion failed:", __VA_ARGS__); \
             hk::platform::addMessageBox( \
                 "Hikai Assertion Fail", \
-                hk::log::argsToString(__VA_ARGS__).c_str()); \
+                hk::log::to_string_va(__VA_ARGS__).c_str()); \
             HKBREAK; \
         }
 #else
@@ -25,10 +40,11 @@
     #define PANIC(title, reason, ...)            \
     {                                            \
         LOG_FATAL(title, ##__VA_ARGS__);         \
-        hk::platform::addTaskDialog(             \
-            hk::log::argsToString(title),        \
-            hk::log::argsToString(reason),       \
-            hk::log::argsToString(__VA_ARGS__)); \
+        /*hk::platform::addTaskDialog(             \
+            hk::log::to_string_va(title),        \
+            hk::log::to_string_va(reason),       \
+            hk::log::to_string_va(__VA_ARGS__)); \
+        hk::log::dispatch();*/                     \
         HKBREAK;                                 \
     }
 

@@ -3,7 +3,6 @@
 
 #include "vendor/vulkan/vulkan.h"
 
-#include "platform/platform.h"
 #include "renderer/vkwrappers/Queue.h"
 
 #include "hkstl/containers/hkvector.h"
@@ -12,7 +11,7 @@ namespace hk {
 
 class Swapchain {
 public:
-    void init(const Window *window);
+    void init();
     void deinit();
 
     HKAPI void recreate(
@@ -42,7 +41,7 @@ public:
     constexpr const SurfaceInfo& info() const { return surf_info_; }
 
 private:
-    void createSurface(const Window *window);
+    void createSurface();
     void setSurfaceFormat(const VkSurfaceFormatKHR &format);
     void setPresentMode(const VkPresentModeKHR &mode);
 

@@ -5,9 +5,9 @@
 
 #include "core/events.h"
 #include "platform/platform.h"
-#include "platform/filesystem.h"
+#include "platform/filesystem/filesystem.h"
 
-#include "hkstl/Filewatch.h"
+#include "hkstl/filewatch.h"
 #include "utils/to_string.h"
 
 #include <algorithm>
@@ -100,16 +100,16 @@ u32 AssetManager::load(const std::string &path, void *data)
 {
     std::string out;
 
-    if (hk::filesystem::find_file(folder_, path, &out)) {
+    if (hk::platform::find_file(folder_, path, &out)) {
         // Path inside folder_
     } else {
         // Path outside folder_
 
         // Check if path exist at all
-        if (!hk::filesystem::exists(path)) {
+        if (!hk::platform::exists(path)) {
             // Try to locate file by name inside folder_
             std::string name = path.substr(path.find_last_of("/\\") + 1);
-            if (hk::filesystem::find_file(folder_, name, &out)) {
+            if (hk::platform::find_file(folder_, name, &out)) {
                 // found
             } else if (false) { // Not inside folder_ or has other name
                 // TODO: add other possible ways to find file

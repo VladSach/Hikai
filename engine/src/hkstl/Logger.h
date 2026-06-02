@@ -2,6 +2,7 @@
 #define HK_LOGGER_H
 
 #include <string>
+#include <cstring>
 #include <sstream>
 #include <functional>
 
@@ -27,7 +28,7 @@
         FUNCTION_SIGNATURE,                  \
         std::strrchr("/" __FILE__, '/') + 1, \
         STRINGIZE(__LINE__),                 \
-        hk::log::argsToString(__VA_ARGS__)   \
+        hk::log::to_string_va(__VA_ARGS__)   \
     })
 
 #define LOG_FATAL(...) LOG(hk::log::Level::LVL_FATAL, __VA_ARGS__)
@@ -69,9 +70,9 @@ struct Log {
 // Modified message sent to handlers
 struct MsgInfo {
     Level level;
-    const std::string &callerName;
-    const std::string &filePath;
-    const std::string &lineNumber;
+    const std::string &caller;
+    const std::string &file_path;
+    const std::string &line_number;
     const std::string &args;
 };
 
@@ -81,31 +82,31 @@ HKAPI void deinit();
 HKAPI void log(const MsgInfo &info);
 
 using LoggerCallback = std::function<void(const hk::log::Log &log)>;
-HKAPI u32 addMessageHandler(LoggerCallback callback);
-HKAPI void removeMessageHandler(u32 handle);
+HKAPI u32 add_message_handler(LoggerCallback callback);
+HKAPI void remove_message_handler(u32 handle);
 
 // ===== HIKAI INTERNAL USE =====
 void dispatch();
 
 template <typename... Args>
-inline std::string argsToString(const Args& ...args)
+inline std::string to_string_va(const Args& ...args)
 {
     std::ostringstream oss;
     ((oss << args << " "), ...);
 
     // Remove trailing space
     std::string res = oss.str();
-    res.pop_back();
+    if (!res.empty()) { res.pop_back(); }
 
     return res;
 }
 
 // #ifdef HKDEBUG
 struct DebugInfo {
-    u32 logsIssued = 0;
+    u32 logs_issued = 0;
 };
 
-HKAPI const DebugInfo& getDebugInfo();
+HKAPI const DebugInfo& get_debug_info();
 // #endif
 
 }

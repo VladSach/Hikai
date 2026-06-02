@@ -3,7 +3,7 @@
 
 #include "utility/hktypes.h"
 
-#include "utils/spec.h"
+#include "platform/specs/specs.h"
 
 namespace hk {
 
@@ -44,8 +44,10 @@ constexpr u32 popcount(T v)
     }
 
     // TEST: do i really need to check specs for this?
-    if (hk::spec::cpu().feature.popcnt) {
-        return static_cast<u32>(__popcnt64(v));
+    if (hk::platform::cpu().feature.popcnt) {
+        // FIX: temp clang++ fix
+        // return static_cast<u32>(__popcnt64(v));
+        return static_cast<u32>(__builtin_elementwise_popcount(v));
     }
 
     // FIX: doesn't work for T = u64

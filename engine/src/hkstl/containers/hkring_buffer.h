@@ -31,7 +31,7 @@ public:
         return buffer[index];
     }
 
-    inline b8 push(const T &value)
+    constexpr b8 push(const T &value)
     {
         if (size_ == N) {
             if (!overwrite) {
@@ -55,7 +55,7 @@ public:
         return true;
     }
 
-    inline b8 pop(T &value)
+    constexpr b8 pop(T &value)
     {
         if (!size_) {
             // LOG_WARN("Trying to read value from empty ring_buffer");
@@ -69,7 +69,7 @@ public:
         return true;
     }
 
-    inline b8 peek(T &value) const
+    constexpr b8 peek(T &value) const
     {
         if (!size_) {
             // LOG_WARN("Trying to read value from empty ring_buffer");
@@ -82,11 +82,11 @@ public:
 
     constexpr void clear() noexcept
     {
-        while(size_--) {
-            T value; pop(value);
+        T value;
+        while(pop(value)) {
             value.~T();
         }
-        tail = 0; head = 0; size_ = 0;
+        tail = 0; head = 0;
     }
 
     constexpr u32 size() const { return size_; }

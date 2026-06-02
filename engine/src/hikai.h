@@ -8,8 +8,8 @@
 #include "core/SceneGraph.h"
 
 #include "platform/platform.h"
-#include "platform/filesystem.h"
-#include "platform/utils.h"
+#include "platform/filesystem/filesystem.h"
+#include "platform/specs/specs.h"
 
 #include "renderer/object/Camera.h"
 #include "renderer/ui/imguiwrapper.h"
@@ -19,7 +19,6 @@
 #include "hkstl/hkstl.h"
 #include "hkstl/math/hkmath.h"
 
-#include "utils/spec.h"
 #include "utils/to_string.h"
 
 
