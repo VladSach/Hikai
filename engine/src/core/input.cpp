@@ -1,5 +1,7 @@
 #include "input.h"
 
+#include "utils/to_string.h"
+
 namespace hk::input {
 
 enum ButtonState {
@@ -190,7 +192,8 @@ void registerKeyPress(const hk::event::EventContext &keyinfo, void*)
     Button button = static_cast<Button>(keyinfo.u16[0]);
     b8 pressed = static_cast<b8>(keyinfo.u16[1]);
 
-    // LOG_DEBUG("Key pressed:", getKeycodeStr(button));
+    // LOG_DEBUG("Key button",
+    //           pressed ? "pressed:" : "released", to_string(button));
 
     if (keyboard.keys[button] == pressed) { return; }
 
@@ -210,6 +213,7 @@ void registerMouseMove(const hk::event::EventContext &mouseinfo, void*)
     if (mouse.x == x && mouse.y == y) { return; }
 
     // LOG_DEBUG("Mouse current pos:", x, y);
+
     mouse.x_delta = x - mouse.x;
     mouse.y_delta = y - mouse.y;
     mouse.x = x;
@@ -242,7 +246,8 @@ void registerMousePress(const hk::event::EventContext &mouseinfo, void*)
     Button button = static_cast<Button>(mouseinfo.u16[0]);
     b8 pressed = static_cast<b8>(mouseinfo.u16[1]);
 
-    // LOG_DEBUG("Mouse button pressed:", getKeycodeStr(button));
+    // LOG_DEBUG("Mouse button",
+    //           pressed ? "pressed:" : "released", to_string(button));
 
     if (mouse.buttons[button] == pressed) { return; }
 

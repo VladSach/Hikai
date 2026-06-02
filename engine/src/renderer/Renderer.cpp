@@ -11,11 +11,9 @@
 // FIX: temp
 static InstanceData instance_data;
 
-void Renderer::init(const Window *window)
+void Renderer::init(const hk::Window *window)
 {
     LOG_INFO("Initializing Vulkan Renderer");
-
-    window_ = window;
 
     hk::vkc::init();
 
@@ -24,9 +22,9 @@ void Renderer::init(const Window *window)
     device_ = hk::vkc::device();
     physical_ = hk::vkc::adapter();
 
-    swapchain_.init(window_);
+    swapchain_.init();
     swapchain_.recreate(
-        { window_->width(), window_->height() },
+        { hk::platform::window_width(), hk::platform::window_height() },
         { VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
         VK_PRESENT_MODE_MAILBOX_KHR);
 
@@ -34,31 +32,67 @@ void Renderer::init(const Window *window)
 
     createBindlessDescriptor();
 
-    createSamplers();
-
-    hk::BufferDesc desc;
-    desc.type = hk::BufferType::UNIFORM_BUFFER;
-    desc.access = hk::MemoryType::CPU_UPLOAD;
-    desc.size = 1; // FIX: temp, make depend on framebuffers size
-    desc.stride = sizeof(SceneData);
-    frame_data_buffer = hk::bkr::create_buffer(desc, "Scene Data");
-
-    desc.stride = sizeof(LightSources);
-    lights_buffer = hk::bkr::create_buffer(desc, "Light Data");
-
-    use_ui_ = true;
-
-    loadShaders();
-
-    offscreen_.init(&swapchain_, bindless_.layout);
-    post_process_.init(&swapchain_);
-    present_.init(&swapchain_);
-    ui_.init(window_, &swapchain_);
-
-    hk::dd::init(bindless_.layout,
-                 offscreen_.set_layout_.handle(), offscreen_.render_pass_);
-
-    hk::event::subscribe(hk::event::EVENT_WINDOW_RESIZE, resize, this);
+    // createSamplers();
+    //
+    // global_desc_layout.init(
+    //     hk::DescriptorLayout::Builder()
+    //     // Scene and other data
+    //     .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
+    //
+    //     // Lights
+    //     // PERF: right now no need to change to ssbo but maybe later
+    //     .addBinding(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
+    //
+    //     // Static Samplers
+    //     .addBinding(2, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.nearest.repeat)
+    //     .addBinding(3, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.nearest.mirror)
+    //     .addBinding(4, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.nearest.clamp)
+    //     .addBinding(5, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.nearest.border)
+    //
+    //     .addBinding(6, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.linear.repeat)
+    //     .addBinding(7, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.linear.mirror)
+    //     .addBinding(8, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.linear.clamp)
+    //     .addBinding(9, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.linear.border)
+    //
+    //     .addBinding(10, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.anisotropic.repeat)
+    //     .addBinding(11, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.anisotropic.mirror)
+    //     .addBinding(12, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.anisotropic.clamp)
+    //     .addBinding(13, VK_DESCRIPTOR_TYPE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, &samplers_.anisotropic.border)
+    //     .build()
+    // );
+    // hk::debug::setName(global_desc_layout.handle(), "Per Frame Descriptor Set Layout");
+    //
+    // createFrameResources();
+    //
+    // hk::BufferDesc desc;
+    // desc.type = hk::BufferType::UNIFORM_BUFFER;
+    // desc.access = hk::MemoryType::CPU_UPLOAD;
+    // desc.size = 1; // FIX: temp, make depend on framebuffers size
+    // desc.stride = sizeof(SceneData);
+    // frame_data_buffer = hk::bkr::create_buffer(desc, "Scene Data");
+    //
+    // desc.stride = sizeof(LightSources);
+    // lights_buffer = hk::bkr::create_buffer(desc, "Light Data");
+    //
+    // // hk::debug::setName(frame_data_buffer.buffer(), "Uniform Buffer - Global");
+    // // hk::debug::setName(lights_buffer.buffer(), "Uniform Buffer - Lights");
+    // // end ubo
+    //
+    // use_ui_ = true;
+    //
+    // loadShaders();
+    //
+    // offscreen_.init(&swapchain_, global_desc_layout.handle());
+    // post_process_.init(&swapchain_);
+    // present_.init(&swapchain_);
+    // // ui_.init(window_, &swapchain_);
+    //
+    // hk::dd::init(global_desc_layout.handle(),
+    //              offscreen_.set_layout_.handle(), offscreen_.render_pass_);
+    //
+    // createGridPipeline();
+    //
+    // hk::event::subscribe(hk::event::EVENT_WINDOW_RESIZE, resize, this);
 }
 
 void Renderer::deinit()
@@ -123,8 +157,8 @@ void Renderer::draw(hk::DrawContext &ctx)
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR) {
         hk::event::EventContext context;
-        context.u32[0] = window_->width();
-        context.u32[1] = window_->height();
+        context.u32[0] = hk::platform::window_width();
+        context.u32[1] = hk::platform::window_height();
         resize(context, this);
         return;
     } else if (err != VK_SUCCESS && err != VK_SUBOPTIMAL_KHR) {
@@ -293,8 +327,8 @@ void Renderer::draw(hk::DrawContext &ctx)
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR || resized) {
         hk::event::EventContext context;
-        context.u32[0] = window_->width();
-        context.u32[1] = window_->height();
+        context.u32[0] = hk::platform::window_width();
+        context.u32[1] = hk::platform::window_height();
         resize(context, this);
     } else if (err != VK_SUCCESS) {
         LOG_ERROR("Failed to present Swapchain image");
@@ -600,6 +634,7 @@ void Renderer::createSamplers()
 
 void Renderer::resize(const hk::event::EventContext &size, void *listener)
 {
+<<<<<<< HEAD
     Renderer *self = reinterpret_cast<Renderer*>(listener);
 
     vkDeviceWaitIdle(self->device_);
@@ -617,4 +652,23 @@ void Renderer::resize(const hk::event::EventContext &size, void *listener)
     self->ui_.init(self->window_, &self->swapchain_);
 
     self->resized = false;
+=======
+    // Renderer *self = reinterpret_cast<Renderer*>(listener);
+    //
+    // vkDeviceWaitIdle(self->device_);
+    //
+    // self->swapchain_.recreate({size.u32[0], size.u32[1]});
+    //
+    // self->ui_.deinit();
+    // self->present_.deinit();
+    // self->post_process_.deinit();
+    // self->offscreen_.deinit();
+    //
+    // self->offscreen_.init(&self->swapchain_, self->global_desc_layout.handle());
+    // self->post_process_.init(&self->swapchain_);
+    // self->present_.init(&self->swapchain_);
+    // self->ui_.init(self->window_, &self->swapchain_);
+    //
+    // self->resized = false;
+>>>>>>> origin/linux-port
 }

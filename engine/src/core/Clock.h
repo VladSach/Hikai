@@ -2,6 +2,7 @@
 #define HK_CLOCK_H
 
 #include "hkcommon.h"
+#include "utility/hktypes.h"
 
 #include <chrono>
 

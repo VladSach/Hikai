@@ -72,7 +72,7 @@ public:
     Renderer() = default;
     ~Renderer() { deinit(); }
 
-    void init(const Window *window);
+    void init(const hk::Window *window);
     void deinit();
 
     void draw(hk::DrawContext &context);
@@ -93,9 +93,6 @@ public:
 
 // FIX: temp public
 public:
-    // TODO: probably don't need it
-    const Window *window_;
-
     hk::Swapchain swapchain_;
 
     // Passes

@@ -2,7 +2,7 @@
 
 #include "platform/platform.h"
 
-#if defined(HKWINDOWS)
+#if defined(HKWIN32)
 #ifdef UNDEFINED_FAR
     #pragma pop_macro("far")
 #endif // UNDEFINED_FAR
@@ -16,13 +16,11 @@
 #endif // far
 
 #define CComPtr Microsoft::WRL::ComPtr
-#else
-#include "vendor/dxc/WinAdapter.h"
 #endif
 
 #include "vendor/dxc/dxcapi.h"
 
-#include "platform/filesystem.h"
+#include "platform/filesystem/filesystem.h"
 
 #include "hkstl/strings/hklocale.h"
 
@@ -40,7 +38,9 @@ struct IncludeHandler : public IDxcIncludeHandler {
         HRESULT hr;
         CComPtr<IDxcBlobEncoding> pEncoding;
 
-        hr = dxcUtils->LoadFile(pFilename, nullptr, pEncoding.GetAddressOf());
+        // FIX: linux tmp port
+        // hr = dxcUtils->LoadFile(pFilename, nullptr, pEncoding.GetAddressOf());
+        hr = dxcUtils->LoadFile(pFilename, nullptr, &pEncoding.p);
         if (SUCCEEDED(hr)) {
             *ppIncludeSource = pEncoding.Detach();
         }
@@ -50,7 +50,9 @@ struct IncludeHandler : public IDxcIncludeHandler {
 
     HRESULT STDMETHODCALLTYPE QueryInterface(
         REFIID riid,
-        _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) override
+        // FIX: linux tmp port
+        // _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) override
+        _COM_Outptr_ void **ppvObject) override
     {
         (void)riid; (void)ppvObject;
         return E_NOINTERFACE;
@@ -89,7 +91,7 @@ hk::vector<u32> loadShader(const ShaderDesc &desc)
     if(!initialized) { init(); }
 
     hk::vector<u8> shader;
-    if (!hk::filesystem::read_file(desc.path, shader)) {
+    if (!hk::platform::read_file(desc.path, shader)) {
         LOG_ERROR("Failed to read from file:", desc.path);
     }
 

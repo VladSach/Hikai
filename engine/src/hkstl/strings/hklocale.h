@@ -12,48 +12,59 @@ namespace hk {
 
 inline std::string wstring_convert(const std::wstring &in)
 {
-    if (in.empty()) { return std::string(); }
-
-    i32 sz = WideCharToMultiByte(
-        CP_UTF8, 0,
-        in.data(), -1,
-        NULL, 0, NULL, NULL);
-
-    std::string out(sz, 0);
-
-    WideCharToMultiByte(
-        CP_UTF8, 0,
-        in.data(), -1,
-        out.data(), sz,
-        NULL, NULL);
-
-    // FIX: stripping null terminator for convenience, shouldn't probably do this
-    out.pop_back();
-
+    std::string out("EMPTY", 0);
     return out;
 }
-
 inline std::wstring string_convert(const std::string &in)
 {
-    if (in.empty()) { return std::wstring(); }
-
-    i32 sz = MultiByteToWideChar(
-        CP_UTF8, 0,
-        in.data(), -1,
-        NULL, 0);
-
-    std::wstring out(sz, 0);
-
-    MultiByteToWideChar(
-        CP_UTF8, 0,
-        in.data(), -1,
-        out.data(), sz);
-
-    // FIX: stripping null terminator for convenience, shouldn't probably do this
-    out.pop_back();
-
+    std::wstring out(L"EMPTY", 0);
     return out;
 }
+
+// inline std::string wstring_convert(const std::wstring &in)
+// {
+//     if (in.empty()) { return std::string(); }
+//
+//     i32 sz = WideCharToMultiByte(
+//         CP_UTF8, 0,
+//         in.data(), -1,
+//         NULL, 0, NULL, NULL);
+//
+//     std::string out(sz, 0);
+//
+//     WideCharToMultiByte(
+//         CP_UTF8, 0,
+//         in.data(), -1,
+//         out.data(), sz,
+//         NULL, NULL);
+//
+//     // FIX: stripping null terminator for convenience, shouldn't probably do this
+//     out.pop_back();
+//
+//     return out;
+// }
+
+// inline std::wstring string_convert(const std::string &in)
+// {
+//     if (in.empty()) { return std::wstring(); }
+//
+//     i32 sz = MultiByteToWideChar(
+//         CP_UTF8, 0,
+//         in.data(), -1,
+//         NULL, 0);
+//
+//     std::wstring out(sz, 0);
+//
+//     MultiByteToWideChar(
+//         CP_UTF8, 0,
+//         in.data(), -1,
+//         out.data(), sz);
+//
+//     // FIX: stripping null terminator for convenience, shouldn't probably do this
+//     out.pop_back();
+//
+//     return out;
+// }
 
 inline std::string normalise(const std::string &path)
 {

@@ -271,6 +271,7 @@ inline vector<T>::~vector()
 {
     clear();
     if (buffer_) { free (buffer_); }
+    buffer_ = nullptr;
 }
 
 /* ===== Operator Overloads ===== */

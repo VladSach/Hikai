@@ -1,7 +1,12 @@
 #include "Swapchain.h"
 
-#ifdef HKWINDOWS
+#include "platform/predef.h"
+
+#ifdef HKWIN32
 #include "vendor/vulkan/vulkan_win32.h"
+#elif defined(HKLINUX)
+#include "platform/backend/X11/x11.h"
+#include "vendor/vulkan/vulkan_xlib.h"
 #endif
 
 #include "renderer/vkwrappers/vkcontext.h"
@@ -11,8 +16,10 @@
 
 namespace hk {
 
-void Swapchain::init(const Window *window)
+void Swapchain::init()
 {
+    LOG_INFO("Creating Vulkan Swapchain");
+
     instance_ = hk::vkc::instance();
     device_   = hk::vkc::device();
     physical_ = hk::vkc::adapter();
@@ -21,7 +28,7 @@ void Swapchain::init(const Window *window)
     present_mode_ = VK_PRESENT_MODE_MAX_ENUM_KHR;
     surf_info_ = {};
 
-    createSurface(window);
+    createSurface();
 }
 
 void Swapchain::deinit()
@@ -197,18 +204,31 @@ void Swapchain::setPresentMode(const VkPresentModeKHR &preferred_mode)
     present_mode_ = VK_PRESENT_MODE_FIFO_KHR;
 }
 
-void Swapchain::createSurface(const Window *window)
+void Swapchain::createSurface()
 {
     VkResult err;
 
-#ifdef HKWINDOWS
+#ifdef HKWIN32
     const Window *win = static_cast<const Window *>(window);
     VkWin32SurfaceCreateInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
     info.hwnd = win->hwnd();
     info.hinstance = win->instance();
     err = vkCreateWin32SurfaceKHR(instance_, &info, 0, &surface_);
-#endif // HKWINDOWS
+#elif defined (HKLINUX)
+    // const Window *win = static_cast<const Window *>(window);
+    // VkWaylandSurfaceCreateInfoKHR info = {};
+    // info.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
+    // info.display;
+    // info.surface = platform::get_wayland_surface();
+    // err = vkCreateWaylandSurfaceKHR(instance_, &info, 0, &surface_);
+
+    VkXlibSurfaceCreateInfoKHR info = {};
+    info.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
+    info.dpy = platform::x11::get_display();
+    info.window = platform::x11::get_window();
+    err = vkCreateXlibSurfaceKHR(instance_, &info, 0, &surface_);
+#endif
 
     ALWAYS_ASSERT(!err, "Failed to create Vulkan Surface");
 
@@ -238,6 +258,12 @@ void Swapchain::createSurface(const Window *window)
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_, surface_,
                                               &surf_info_.caps);
 
+    // TODO: add better handling
+    if (!surf_info_.caps.maxImageCount) {
+        // 3 is a random number
+        surf_info_.caps.maxImageCount = surf_info_.caps.minImageCount + 3;
+    }
+
     // Get present queue
     // if (!present_.handle()) {
     //     hk::QueueFamily family;
@@ -250,7 +276,6 @@ void Swapchain::createSurface(const Window *window)
     // This also means that the swapchain sharing mode is exclusive.
     // Whether this impacts performance require further profiling
     present_ = hk::vkc::graphics();
-
 }
 
 }

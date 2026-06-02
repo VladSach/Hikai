@@ -11,7 +11,7 @@ namespace hk::log {
 
 // For now handles will just be indexes
 // Don't even think there is a need for more complex logic
-static u32 cntHandlers = 0;
+static u32 cnt_handlers = 0;
 
 /* PERF: Could be 2 vectors as well, inspect which option is faster
  * https://stackoverflow.com/questions/77546017/
@@ -31,40 +31,40 @@ void init()
 {
     LOG_INFO("Logger initialized");
     handlers.clear();
-    cntHandlers = 0;
+    cnt_handlers = 0;
 }
 
 void deinit()
 {
     LOG_INFO("Logger deinitialized");
     handlers.clear();
-    cntHandlers = 0;
+    cnt_handlers = 0;
 }
 
-u32 addMessageHandler(LoggerCallback callback)
+u32 add_message_handler(LoggerCallback callback)
 {
     if (handlers.empty()) {
         handlers.push_front(callback);
-        return cntHandlers++;
+        return cnt_handlers++;
     }
 
     auto it = handlers.begin();
-    std::advance(it, cntHandlers - 1);
+    std::advance(it, cnt_handlers - 1);
     handlers.insert_after(it, callback);
-    return cntHandlers++;
+    return cnt_handlers++;
 }
 
-void removeMessageHandler(u32 handle)
+void remove_message_handler(u32 handle)
 {
     if (handle == 0) {
         handlers.pop_front();
-        --cntHandlers;
+        --cnt_handlers;
         return;
     }
     auto it = handlers.begin();
     std::advance(it, handle - 1);
     handlers.erase_after(it);
-    --cntHandlers;
+    --cnt_handlers;
 }
 
 void log(const MsgInfo &info)
@@ -72,10 +72,12 @@ void log(const MsgInfo &info)
     std::time_t now = std::time(nullptr);
     std::tm tm;
     char time_str[32];
-    localtime_s(&tm, &now);
+    // localtime_s(&tm, &now);
+    // FIX: temp linux fix
+    localtime_r(&now, &tm);
     std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
 
-    std::string caller = info.callerName;
+    std::string caller = info.caller;
 #ifdef _MSC_VER
     // Removes all __cdecl instances from __FUNCSIG__
     std::string r = "__cdecl ";
@@ -90,15 +92,15 @@ void log(const MsgInfo &info)
 
     // Obtaining only file name instead of full path
     std::string file =
-        info.filePath.substr(info.filePath.find_last_of("/\\") + 1);
+        info.file_path.substr(info.file_path.find_last_of("/\\") + 1);
 
     Log log =
-        { info.level, caller, file, info.lineNumber, time_str, info.args };
+        { info.level, caller, file, info.line_number, time_str, info.args };
 
     logs.push(log);
 
 // #ifdef HKDEBUG
-    debug_info.logsIssued++;
+    debug_info.logs_issued++;
 // #endif
 }
 
@@ -106,13 +108,13 @@ void dispatch()
 {
     Log log;
     while (logs.pop(log)) {
-        for (auto &handle : handlers) {
-            handle(log);
+        for (auto &handler : handlers) {
+            handler(log);
         }
     }
 }
 
-const DebugInfo& getDebugInfo()
+const DebugInfo& get_debug_info()
 {
     return debug_info;
 }

@@ -7,7 +7,7 @@
 
 namespace hk {
 
-void UIPass::init(const Window *window, hk::Swapchain *swapchain)
+void UIPass::init(hk::Swapchain *swapchain)
 {
     LOG_TRACE("Creating UI RenderPass");
 
@@ -21,7 +21,7 @@ void UIPass::init(const Window *window, hk::Swapchain *swapchain)
     createFramebuffers();
 
     // TODO: imgui should be initialized and deinitilized inside pass
-    hk::imgui::init(window, render_pass_);
+    // hk::imgui::init(render_pass_);
 }
 
 void UIPass::deinit()

@@ -13,7 +13,7 @@ namespace hk {
 
 class UIPass {
 public:
-    void init(const Window *window, hk::Swapchain *swapchain);
+    void init(hk::Swapchain *swapchain);
     void deinit();
 
     void render(VkCommandBuffer cmd, u32 idx);

@@ -3,9 +3,9 @@
 #include "input.h"
 #include "hkstl/filewatch.h"
 #include "resources/AssetManager.h"
-#include "platform/filesystem.h"
 
-#include "utils/spec.h"
+#include "platform/platform.h"
+
 #include "utils/to_string.h"
 
 #include <thread>
@@ -15,89 +15,90 @@ b8 Application::running = false;
 Application::Application(const AppDesc &desc)
     : desc_(desc)
 {
-    clock_.record();
+    // clock_.record();
 
-    hk::spec::update_cpu_specs();
-    hk::spec::update_system_specs();
+    hk::platform::update_cpu_specs();
+    hk::platform::update_system_specs();
 
     hk::event::init();
     hk::event::subscribe(hk::event::EVENT_APP_SHUTDOWN, shutdown, this);
 
-    window_ = new Window();
-    window_->init(desc.title, desc.width, desc.height);
-    window_->enableRawMouseInput();
+    hk::platform::init();
+    hk::platform::create_window(desc.title.c_str(), desc.width, desc.height);
+
+    // window_ = new hk::Window();
+    // window_->init(desc.title, desc.width, desc.height);
+    // window_->enableRawMouseInput();
 
     hk::input::init();
 
-    // FIX: temp development fix
-    hk::assets()->init(hk::filesystem::canonical("..\\editor\\assets"));
+    // // FIX: temp development fix
+    // hk::assets()->init(hk::platform::canonical("..\\editor\\assets"));
 
     renderer_ = new Renderer();
     renderer_->init(window_);
 
-    hk::spec::update_adapter_specs();
-
-    scene_.init();
+    // hk::spec::update_adapter_specs();
+    //
+    // scene_.init();
 
     running = true;
 }
 
 void Application::run()
 {
-    f32 dt = .0f;
-    f32 fixed_dt = .0f;
-
-    const f32 ms_per_frame = 1.f / desired_frame_rate_;
-
-    hk::DrawContext ctx;
+    // f32 dt = .0f;
+    // f32 fixed_dt = .0f;
+    //
+    // const f32 ms_per_frame = 1.f / desired_frame_rate_;
+    //
+    // hk::DrawContext ctx;
 
     while (running) {
-        if (!window_->ProcessMessages()) {
+        if (!hk::platform::process_messages()) {
             running = false;
             break;
         }
 
-        dt = static_cast<f32>(clock_.update());
+        // dt = static_cast<f32>(clock_.update());
 
-        if (!window_->isVisible()) {
-            continue;
-        }
+        // if (!window_->isVisible()) { continue; }
 
         // PERF: is spin loop faster then waiting for (frameRate - dt)?
-        while (dt < ms_per_frame) {
-            std::this_thread::sleep_for(std::chrono::nanoseconds(1));
-            dt += static_cast<f32>(clock_.update());
-        }
+        // while (dt < ms_per_frame) {
+        //     std::this_thread::sleep_for(std::chrono::nanoseconds(1));
+        //     dt += static_cast<f32>(clock_.update());
+        // }
 
-        renderer_->updateFrameData(
-        {
-            camera_.position(),
-            camera_.viewProjection(),
-            {
-                static_cast<f32>(window_->width()),
-                static_cast<f32>(window_->height())
-            },
-            time_since_start_
-        });
+        // renderer_->updateFrameData(
+        // {
+        //     camera_.position(),
+        //     camera_.viewProjection(),
+        //     {
+        //         static_cast<f32>(window_->width()),
+        //         static_cast<f32>(window_->height())
+        //     },
+        //     time_since_start_
+        // });
 
-        time_since_start_ += dt;
-
-        update(dt);
+        // time_since_start_ += dt;
+        //
+        // update(dt);
         hk::input::update();
 
-        hk::event::dispatch(); // FIX: why dispatch is here?
+        hk::event::dispatch(); // FIX: why is dispatch here?
 
-        fixed_dt += dt;
-        while (fixed_dt >= ms_per_frame) {
-            fixedUpdate();
-            fixed_dt -= ms_per_frame;
-        }
+        // fixed_dt += dt;
+        // while (fixed_dt >= ms_per_frame) {
+        //     fixedUpdate();
+        //     fixed_dt -= ms_per_frame;
+        // }
 
-        scene_.update();
-        scene_.updateDrawContext(ctx, *renderer_);
+        // scene_.update();
+        // scene_.updateDrawContext(ctx, *renderer_);
 
-        render();
-        renderer_->draw(ctx);
+        // render();
+        // renderer_->draw(ctx);
 
         hk::log::dispatch();
     }
@@ -105,12 +106,12 @@ void Application::run()
 
 void Application::cleanup()
 {
-    scene_.deinit();
-    hk::assets()->deinit();
-    renderer_->deinit();
-    hk::filewatch::deinit();
+    // scene_.deinit();
+    // hk::assets()->deinit();
+    // renderer_->deinit();
+    // hk::filewatch::deinit();
     hk::input::deinit();
-    window_->deinit();
+    hk::platform::deinit();
     hk::event::deinit();
 }
 

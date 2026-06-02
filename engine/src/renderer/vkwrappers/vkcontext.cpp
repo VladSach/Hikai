@@ -1,12 +1,18 @@
 #include "vkcontext.h"
 
 #include "platform/platform.h"
+#ifdef HKWIN32
 #include "vulkan/vulkan_win32.h"
+#elif defined(HKLINUX)
+#include "platform/backend/X11/x11.h"
+#include "vulkan/vulkan_xlib.h"
+#endif
 
 #include "vkdebug.h"
 
-#include "utils/spec.h"
 #include "utils/settings.h"
+
+#include "platform/specs/specs.h"
 
 namespace hk::vkc {
 
@@ -94,8 +100,10 @@ void init()
     string_set exts;
     exts.insert(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
     exts.insert(VK_KHR_SURFACE_EXTENSION_NAME);
-#ifdef HKWINDOWS
+#ifdef HKWIN32
     exts.insert(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+#elif defined(HKLINUX)
+    exts.insert(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
 #endif
 #ifdef HKDEBUG
     exts.insert(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -283,9 +291,10 @@ void pick_adapter()
 {
     // TODO: improve device picking
     for (u32 i = 0; i < ctx.info_.adapters.size(); ++i) {
-        if (ctx.info_.adapters.at(i).properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-            ctx.info_.adapter_index = i;
-        }
+        // if (ctx.info_.adapters.at(i).properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+        //     ctx.info_.adapter_index = i;
+        // }
+        ctx.info_.adapter_index = i;
     }
 
     ALWAYS_ASSERT(ctx.info_.adapter_index != -1, "Failed to find a suitable GPU");
@@ -313,22 +322,23 @@ void create_device()
         queueCreateInfo.pQueuePriorities = &queuePriority;
         queueCreateInfos.push_back(queueCreateInfo);
     }
-    if (info.compute_family) {
-        VkDeviceQueueCreateInfo queueCreateInfo = {};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = info.compute_family.index_;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
-        queueCreateInfos.push_back(queueCreateInfo);
-    }
-    if (info.transfer_family) {
-        VkDeviceQueueCreateInfo queueCreateInfo = {};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = info.transfer_family.index_;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
-        queueCreateInfos.push_back(queueCreateInfo);
-    }
+    // TODO: what to do, if there is less then 3 separate queues?
+    // if (info.compute_family) {
+    //     VkDeviceQueueCreateInfo queueCreateInfo = {};
+    //     queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    //     queueCreateInfo.queueFamilyIndex = info.compute_family.index_;
+    //     queueCreateInfo.queueCount = 1;
+    //     queueCreateInfo.pQueuePriorities = &queuePriority;
+    //     queueCreateInfos.push_back(queueCreateInfo);
+    // }
+    // if (info.transfer_family) {
+    //     VkDeviceQueueCreateInfo queueCreateInfo = {};
+    //     queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    //     queueCreateInfo.queueFamilyIndex = info.transfer_family.index_;
+    //     queueCreateInfo.queueCount = 1;
+    //     queueCreateInfo.pQueuePriorities = &queuePriority;
+    //     queueCreateInfos.push_back(queueCreateInfo);
+    // }
 
     ALWAYS_ASSERT(queueCreateInfos.size(), "Failed to find at least one queue");
 
@@ -369,7 +379,7 @@ void create_device()
 }
 
 // FIX: find other place for this
-namespace hk::spec {
+namespace hk::platform {
 
 static hk::vector <AdapterSpec> specs;
 
@@ -411,7 +421,7 @@ void update_adapter_specs()
         spec.vendor = vendor;
         spec.type = type;
 
-        spec.api.type = BackendType::VULKAN;
+        spec.api.type = GraphicsBackend::VULKAN;
 
         spec.api.version += std::to_string(VK_API_VERSION_MAJOR(instance.api));
         spec.api.version += '.';
