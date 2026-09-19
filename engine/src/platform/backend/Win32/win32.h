@@ -1,50 +1,33 @@
-#ifndef HK_WIN_H
-#define HK_WIN_H
+#ifndef HK_WIN32_h
+#define HK_WIN32_h
 
-#ifdef UNDEFINED_MIN
-#pragma pop_macro("min")
-#endif
+#include "win.h"
+#include "platform/backend/backend.h"
 
-#ifdef UNDEFINED_MAX
-#pragma pop_macro("max")
-#endif
+#include "win32window.h"
 
-#ifdef UNDEFINED_NEAR
-#pragma pop_macro("near")
-#endif
+namespace hk::platform::win32 {
 
-#ifdef UNDEFINED_FAR
-#pragma pop_macro("far")
-#endif
+HINSTANCE get_instance();
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
+HWND get_hwnd();
 
-#include <windows.h>
+void set_proc(WindowHandle window, window_callback callback);
 
-#ifdef min
-#define UNDEFINED_MIN
-#pragma push_macro("min")
-#undef min
-#endif
+b8 prehook(Window *window, UINT msg, WPARAM wp, LPARAM lp);
 
-#ifdef max
-#define UNDEFINED_MAX
-#pragma push_macro("max")
-#undef max
-#endif
+}
 
-#ifdef near
-#define UNDEFINED_NEAR
-#pragma push_macro("near")
-#undef near
-#endif
+// Routs messaged to windows
+LRESULT CALLBACK WindowProc(HWND, UINT, WPARAM, LPARAM);
 
-#ifdef far
-#define UNDEFINED_FAR
-#pragma push_macro("far")
-#undef far
-#endif
+// Callback handler for the task dialog
+HRESULT CALLBACK TaskDialogCallback(HWND hwndFocus, UINT uNotification,
+                                    WPARAM wParam, LPARAM lParam,
+                                    LONG_PTR dwRefData);
 
-#endif // HK_WIN_H
+BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdcMonitor,
+                              LPRECT lprcMonitor, LPARAM dwData);
+
+
+#endif // HK_WIN32_h

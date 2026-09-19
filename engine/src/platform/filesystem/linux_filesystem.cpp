@@ -1,3 +1,7 @@
+#include "platform/platform.h"
+
+#ifdef HKLINUX
+
 #include "filesystem.h"
 
 #include <sys/dir.h>
@@ -73,3 +77,5 @@ std::string relative(const std::string &path, const std::string &base)
 }
 
 }
+
+#endif // HKLINUX

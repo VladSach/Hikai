@@ -238,12 +238,13 @@ void PostProcessPass::createPipeline()
                           VK_FRONT_FACE_COUNTER_CLOCKWISE);
     builder.setMultisampling();
 
-    set_layout_.init(hk::DescriptorLayout::Builder()
-        .addBinding(2,
-                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                    VK_SHADER_STAGE_ALL_GRAPHICS)
-        .build()
-    );
+    // FIX: remove comment
+    // set_layout_.init(hk::DescriptorLayout::Builder()
+    //     .addBinding(2,
+    //                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+    //                 VK_SHADER_STAGE_ALL_GRAPHICS)
+    //     .build()
+    // );
     hk::debug::setName(set_layout_.handle(), "Post Process Descriptor Layout");
 
     hk::vector<VkDescriptorSetLayout> set_layouts = { set_layout_.handle() };

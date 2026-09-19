@@ -6,6 +6,7 @@
 
 namespace hkm {
 
+// row-vector
 struct mat3f {
     f32 n[3][3];
 
@@ -15,9 +16,9 @@ struct mat3f {
                     f32 n10, f32 n11, f32 n12,
                     f32 n20, f32 n21, f32 n22) :
         n{
-            {n00, n01, n02},
-            {n10, n11, n12},
-            {n20, n21, n22}
+            { n00, n01, n02 },
+            { n10, n11, n12 },
+            { n20, n21, n22 }
         }
     {}
 
@@ -32,9 +33,10 @@ struct mat3f {
     constexpr b8 operator ==(const mat3f &rhs) const
     {
         return (
-            getRowAsVec3(0) == rhs.getRowAsVec3(0) &&
-            getRowAsVec3(1) == rhs.getRowAsVec3(1) &&
-            getRowAsVec3(2) == rhs.getRowAsVec3(2));
+            get_row_as_vec3(0) == rhs.get_row_as_vec3(0) &&
+            get_row_as_vec3(1) == rhs.get_row_as_vec3(1) &&
+            get_row_as_vec3(2) == rhs.get_row_as_vec3(2)
+        );
     }
 
     constexpr f32& operator()(u32 i, u32 j) { return n[i][j]; }
@@ -47,22 +49,24 @@ struct mat3f {
                      0, 0, 1);
     }
 
-    constexpr vec3f getRowAsVec3(u32 row) const
+    constexpr vec3f get_row_as_vec3(u32 row) const
     {
         return vec3f(n[row][0], n[row][1], n[row][2]);
     }
 
-    vec3f& getRowAsVec3(u32 row)
-    {
-        f32 *temp[3] = {0};
-        for (u32 i = 0; i < 3; i++) {
-            temp[i] = &n[row][i];
-        }
-
-        return *reinterpret_cast<vec3f*>(*temp);
-    }
+    // vec3f& get_row_as_vec3(u32 row)
+    // {
+    //     f32 *temp[3] = {0};
+    //     for (u32 i = 0; i < 3; i++) {
+    //         temp[i] = &n[row][i];
+    //     }
+    //
+    //     return *reinterpret_cast<vec3f*>(*temp);
+    // }
 };
 
+/* Technically it's doing transpose of Matrix * vector
+ * so treat is as **row** vector * Matrix */
 constexpr vec3f operator *(const mat3f &M, const vec3f &v)
 {
     return vec3f(M(0, 0) * v.x + M(1, 0) * v.y + M(2, 0) * v.z,
@@ -70,7 +74,15 @@ constexpr vec3f operator *(const mat3f &M, const vec3f &v)
                  M(0, 2) * v.x + M(1, 2) * v.y + M(2, 2) * v.z);
 }
 
-inline mat3f operator *(const mat3f &A, const mat3f &B)
+// TODO: change
+// constexpr vec3f operator *(const vec3f &v, const mat3f &M)
+// {
+//     return vec3f(M(0, 0) * v.x + M(1, 0) * v.y + M(2, 0) * v.z,
+//                  M(0, 1) * v.x + M(1, 1) * v.y + M(2, 1) * v.z,
+//                  M(0, 2) * v.x + M(1, 2) * v.y + M(2, 2) * v.z);
+// }
+
+constexpr mat3f operator *(const mat3f &A, const mat3f &B)
 {
     return mat3f
     (
@@ -86,13 +98,30 @@ inline mat3f operator *(const mat3f &A, const mat3f &B)
     );
 }
 
-inline mat3f transpose(const mat3f &m)
+constexpr mat3f transpose(const mat3f &m)
 {
     return mat3f(m(0, 0), m(1, 0), m(2, 0),
                  m(0, 1), m(1, 1), m(2, 1),
                  m(0, 2), m(1, 2), m(2, 2));
 }
 
+inline mat3f from_axis_angle(const vec3f &axis, f32 angle)
+{
+    f32 c = std::cosf(angle);
+    f32 s = std::sinf(angle);
+    f32 t = 1.f - c;
+
+    f32 x = axis.x;
+    f32 y = axis.y;
+    f32 z = axis.z;
+
+    return mat3f(
+        t*x*x + c,    t*x*y + z*s,  t*x*z - y*s,
+        t*x*y - z*s,  t*y*y + c,    t*y*z + x*s,
+        t*x*z + y*s,  t*y*z - x*s,  t*z*z + c
+    );
 }
+
+} // hkm
 
 #endif // HK_MAT3F_H

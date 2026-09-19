@@ -1,8 +1,7 @@
-#include "memory.h"
-
-#include "platform/predef.h"
-
+#include "platform/platform.h"
 #ifdef HKLINUX
+
+#include "memory.h"
 
 #include <sys/mman.h>
 

@@ -4,24 +4,44 @@
 
 namespace hk {
 
-void Camera::setPerspective(f32 fov, f32 aspectRatio, f32 nearPlane, f32 farPlane)
+void Camera::init(f32 fov, f32 aspect_ratio, f32 near_plane, f32 far_plane)
 {
-    f32 scale = 1 / std::tanf(fov * .5f * hkm::degree2rad);
+    fov_ = fov;
+    aspect_ratio_ = aspect_ratio;
+    near_ = near_plane;
+    far_ = far_plane;
 
-    f32 remap_z1 = nearPlane / (nearPlane - farPlane);
-    f32 remap_z2 = farPlane * nearPlane / (nearPlane - farPlane);
+    f32 scale = 1.f / std::tanf(fov * .5f * hkm::degree2rad);
 
-    proj_ = { scale/aspectRatio,  0.f,    0.f,       0.f,
-              0.f,               -scale,  0.f,       0.f,
-              0.f,                0.f,    remap_z1,  1.f,
-              0.f,                0.f,   -remap_z2,  0.f };
+    f32 remap_z1 = near_ / (near_ - far_);
+    f32 remap_z2 = far_ * near_ / (near_ - far_);
+
+    proj_ = { scale/aspect_ratio_,  0.f,    0.f,       0.f,
+              0.f,                 -scale,  0.f,       0.f,
+              0.f,                  0.f,    remap_z1,  1.f,
+              0.f,                  0.f,   -remap_z2,  0.f };
 
     proj_inv_ = inverse(proj_);
+}
 
-    fov_ = fov;
-    aspect_ratio_ = aspectRatio;
-    near_ = nearPlane;
-    far_ = farPlane;
+void Camera::deinit()
+{
+    fov_ = 0;
+    aspect_ratio_ = 0;
+    near_ = 0;
+    far_ = 0;
+
+    view_      = mat4f::identity();
+    proj_      = mat4f::identity();
+    view_proj_ = mat4f::identity();
+
+    view_inv_      = mat4f::identity();
+    proj_inv_      = mat4f::identity();
+    view_proj_inv_ = mat4f::identity();
+
+    rotation_ = mat3f::identity();
+
+    updated_ = false;
 }
 
 void Camera::lookAt(const hkm::vec3f &dir)

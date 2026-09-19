@@ -7,6 +7,7 @@
 
 namespace hkm {
 
+// row-vector
 struct mat4f {
     f32 n[4][4];
 
@@ -17,10 +18,10 @@ struct mat4f {
                     f32 n20, f32 n21, f32 n22, f32 n23,
                     f32 n30, f32 n31, f32 n32, f32 n33) :
         n{
-            {n00, n01, n02, n03},
-            {n10, n11, n12, n13},
-            {n20, n21, n22, n23},
-            {n30, n31, n32, n33},
+            { n00, n01, n02, n03 },
+            { n10, n11, n12, n13 },
+            { n20, n21, n22, n23 },
+            { n30, n31, n32, n33 },
         }
     { }
 
@@ -42,10 +43,11 @@ struct mat4f {
     constexpr b8 operator ==(const mat4f &rhs) const
     {
         return (
-            getRowAsVec4(0) == rhs.getRowAsVec4(0) &&
-            getRowAsVec4(1) == rhs.getRowAsVec4(1) &&
-            getRowAsVec4(2) == rhs.getRowAsVec4(2) &&
-            getRowAsVec4(3) == rhs.getRowAsVec4(3));
+            get_ro_as_vec4(0) == rhs.get_ro_as_vec4(0) &&
+            get_ro_as_vec4(1) == rhs.get_ro_as_vec4(1) &&
+            get_ro_as_vec4(2) == rhs.get_ro_as_vec4(2) &&
+            get_ro_as_vec4(3) == rhs.get_ro_as_vec4(3)
+        );
     }
 
     constexpr f32& operator()(u32 i, u32 j) { return n[i][j]; }
@@ -59,27 +61,27 @@ struct mat4f {
                      0, 0, 0, 1);
     }
 
-    constexpr vec3f getRowAsVec3(u32 row) const
+    constexpr vec3f get_row_as_vec3(u32 row) const
     {
         return vec3f(n[row][0], n[row][1], n[row][2]);
     }
 
-    constexpr vec4f getRowAsVec4(u32 row) const
+    constexpr vec4f get_ro_as_vec4(u32 row) const
     {
         return vec4f(n[row][0], n[row][1], n[row][2], n[row][3]);
     }
 
-    vec3f& getRowAsVec3(u32 row)
-    {
-        f32 *temp[3] = {0};
-        for (u32 i = 0; i < 3; i++) {
-            temp[i] = &n[row][i];
-        }
+    // vec3f& get_row_as_vec3(u32 row)
+    // {
+    //     f32 *temp[3] = {0};
+    //     for (u32 i = 0; i < 3; i++) {
+    //         temp[i] = &n[row][i];
+    //     }
+    //
+    //     return *reinterpret_cast<vec3f*>(*temp);
+    // }
 
-        return *reinterpret_cast<vec3f*>(*temp);
-    }
-
-    void asMat3(const mat3f &m)
+    void from_mat3(const mat3f &m)
     {
         n[0][0] = m(0, 0); n[1][0] = m(1, 0); n[2][0] = m(2, 0);
         n[0][1] = m(0, 1); n[1][1] = m(1, 1); n[2][1] = m(2, 1);
@@ -94,6 +96,8 @@ struct mat4f {
     // }
 };
 
+/* Technically it's doing transpose of Matrix * vector
+ * so treat is as **row** vector * Matrix */
 constexpr vec4f operator *(const mat4f &M, const vec4f &v)
 {
     return vec4f(M(0, 0) * v.x + M(1, 0) * v.y + M(2, 0) * v.z + M(3, 0) * v.w,
@@ -102,7 +106,7 @@ constexpr vec4f operator *(const mat4f &M, const vec4f &v)
                  M(0, 3) * v.x + M(1, 3) * v.y + M(2, 3) * v.z + M(3, 3) * v.w);
 }
 
-inline mat4f operator *(const mat4f &A, const mat4f &B)
+constexpr mat4f operator *(const mat4f &A, const mat4f &B)
 {
     return mat4f(
         A(0, 0) * B(0, 0) + A(0, 1) * B(1, 0) + A(0, 2) * B(2, 0) + A(0, 3) * B(3, 0),
@@ -124,7 +128,7 @@ inline mat4f operator *(const mat4f &A, const mat4f &B)
     );
 }
 
-inline vec3f transformVec(const mat4f &M, const vec3f &v)
+constexpr vec3f transform_vec(const mat4f &M, const vec3f &v)
 {
     vec4f homogeneous = { v.x, v.y, v.z, 0 };
     vec4f transformed = M * homogeneous;
@@ -133,7 +137,7 @@ inline vec3f transformVec(const mat4f &M, const vec3f &v)
                   transformed.z );
 }
 
-inline vec3f transformPoint(const mat4f &M, const vec3f &v)
+constexpr vec3f transform_point(const mat4f &M, const vec3f &v)
 {
     vec4f homogeneous = { v.x, v.y, v.z, 1 };
     vec4f transformed = M * homogeneous;
@@ -144,7 +148,7 @@ inline vec3f transformPoint(const mat4f &M, const vec3f &v)
                   transformed.z * transformed.w );
 }
 
-inline mat4f transpose(const mat4f &m)
+constexpr mat4f transpose(const mat4f &m)
 {
     return mat4f(m(0, 0), m(1, 0), m(2, 0), m(3, 0),
                  m(0, 1), m(1, 1), m(2, 1), m(3, 1),
@@ -152,7 +156,7 @@ inline mat4f transpose(const mat4f &m)
                  m(0, 3), m(1, 3), m(2, 3), m(3, 3));
 }
 
-inline mat4f inverse(const mat4f &m)
+constexpr mat4f inverse(const mat4f &m)
 {
     f32 A2323 = m(2, 2) * m(3, 3) - m(2, 3) * m(3, 2);
     f32 A1323 = m(2, 1) * m(3, 3) - m(2, 3) * m(3, 1);
@@ -202,6 +206,6 @@ inline mat4f inverse(const mat4f &m)
     return im;
 }
 
-}
+} // hkm
 
 #endif // HK_MAT4F_H

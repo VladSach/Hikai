@@ -12,31 +12,33 @@
 
 b8 Application::running = false;
 
-Application::Application(const AppDesc &desc)
-    : desc_(desc)
+// TODO: needed for assertion, move somewhere else
+hk_assert_callback hk_assert_handler = nullptr;
+void hk_set_assert_handler(hk_assert_callback callback)
+{
+    hk_assert_handler = callback;
+}
+
+void Application::startup(const AppDesc &desc)
 {
     // clock_.record();
 
     hk::platform::update_cpu_specs();
-    hk::platform::update_system_specs();
 
     hk::event::init();
     hk::event::subscribe(hk::event::EVENT_APP_SHUTDOWN, shutdown, this);
 
     hk::platform::init();
-    hk::platform::create_window(desc.title.c_str(), desc.width, desc.height);
 
-    // window_ = new hk::Window();
-    // window_->init(desc.title, desc.width, desc.height);
-    // window_->enableRawMouseInput();
+    // hk::platform::enable_raw_mouse_input();
 
     hk::input::init();
 
     // // FIX: temp development fix
     // hk::assets()->init(hk::platform::canonical("..\\editor\\assets"));
 
-    renderer_ = new Renderer();
-    renderer_->init(window_);
+    // renderer_ = new Renderer();
+    // renderer_->init(window_);
 
     // hk::spec::update_adapter_specs();
     //

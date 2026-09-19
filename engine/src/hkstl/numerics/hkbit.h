@@ -13,13 +13,13 @@ namespace hk {
 #pragma clang diagnostic ignored "-Winvalid-constexpr"
 // Detects whether the function call occurs within a constant-evaluated context
 constexpr b8 is_constant_evaluated() noexcept {
-#if defined(_MSC_VER)
+#ifdef HKMSVC
     // https://stackoverflow.com/a/76271410
     struct C {};
     struct M : C { i32 a; };
     struct N : C { i32 a; };
     return &M::a != static_cast<int C::*>(&N::a);
-#elif defined(__GNUC__)
+#elif HKGNUC
     return __builtin_constant_p(42);
 #else
     return false;
@@ -45,9 +45,9 @@ constexpr u32 popcount(T v)
 
     // TEST: do i really need to check specs for this?
     if (hk::platform::cpu().feature.popcnt) {
+        return static_cast<u32>(__popcnt64(v));
         // FIX: temp clang++ fix
-        // return static_cast<u32>(__popcnt64(v));
-        return static_cast<u32>(__builtin_elementwise_popcount(v));
+        // return static_cast<u32>(__builtin_elementwise_popcount(v));
     }
 
     // FIX: doesn't work for T = u64

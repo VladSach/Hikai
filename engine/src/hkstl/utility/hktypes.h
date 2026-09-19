@@ -69,6 +69,7 @@ constexpr b8 is_lvalue_reference_v = is_lvalue_reference<T>::value;
 /* ===== Utils ===== */
 
 // Indicate that an object MAY be moved
+// TODO: maybe rename to hk::rvalue_cast
 template <typename T>
 constexpr remove_reference_t<T>&& move(T&& value)
 {

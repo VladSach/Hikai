@@ -72,10 +72,10 @@ void log(const MsgInfo &info)
     std::time_t now = std::time(nullptr);
     std::tm tm;
     char time_str[32];
-    // localtime_s(&tm, &now);
+    localtime_s(&tm, &now);
     // FIX: temp linux fix
-    localtime_r(&now, &tm);
-    std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
+    // localtime_r(&now, &tm);
+    // std::strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm);
 
     std::string caller = info.caller;
 #ifdef _MSC_VER

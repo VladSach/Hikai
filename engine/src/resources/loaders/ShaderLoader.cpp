@@ -3,18 +3,6 @@
 #include "platform/platform.h"
 
 #if defined(HKWIN32)
-#ifdef UNDEFINED_FAR
-    #pragma pop_macro("far")
-#endif // UNDEFINED_FAR
-
-#include <wrl/client.h>
-
-#ifdef far
-    #define UNDEFINED_FAR
-    #pragma push_macro("far")
-    #undef far
-#endif // far
-
 #define CComPtr Microsoft::WRL::ComPtr
 #endif
 
@@ -38,9 +26,9 @@ struct IncludeHandler : public IDxcIncludeHandler {
         HRESULT hr;
         CComPtr<IDxcBlobEncoding> pEncoding;
 
-        // FIX: linux tmp port
-        // hr = dxcUtils->LoadFile(pFilename, nullptr, pEncoding.GetAddressOf());
-        hr = dxcUtils->LoadFile(pFilename, nullptr, &pEncoding.p);
+        // FIX: linux port
+        // hr = dxcUtils->LoadFile(pFilename, nullptr, &pEncoding.p);
+        hr = dxcUtils->LoadFile(pFilename, nullptr, pEncoding.GetAddressOf());
         if (SUCCEEDED(hr)) {
             *ppIncludeSource = pEncoding.Detach();
         }
@@ -50,9 +38,9 @@ struct IncludeHandler : public IDxcIncludeHandler {
 
     HRESULT STDMETHODCALLTYPE QueryInterface(
         REFIID riid,
-        // FIX: linux tmp port
-        // _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) override
-        _COM_Outptr_ void **ppvObject) override
+        // FIX: linux port
+        // _COM_Outptr_ void **ppvObject) override
+        _COM_Outptr_ void __RPC_FAR* __RPC_FAR* ppvObject) override
     {
         (void)riid; (void)ppvObject;
         return E_NOINTERFACE;

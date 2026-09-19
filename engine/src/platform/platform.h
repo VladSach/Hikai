@@ -5,9 +5,7 @@
 
 // Platform dependent main
 #if defined(HKWIN32)
-    // This, alongside platform::args, is a complitly garbage way to do this
-    // but at least it works so I let it be as it is till better days
-    #define PLATFORM_MAIN "platform/entry/win_main.h"
+    #define PLATFORM_MAIN "platform/entry/win32_main.h"
 #elif defined (HKLINUX)
     #define PLATFORM_MAIN "platform/entry/linux_main.h"
 #endif

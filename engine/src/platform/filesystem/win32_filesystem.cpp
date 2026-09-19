@@ -1,7 +1,9 @@
-#include "filesystem.h"
+#include "platform/platform.h"
 
 #ifdef HKWIN32
-#include "win.h"
+
+#include "filesystem.h"
+
 #include "PathCch.h"
 
 #include "hkstl/strings/hklocale.h"

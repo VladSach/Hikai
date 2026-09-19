@@ -2,6 +2,13 @@
 
 #include "Editor.h"
 
+void assert_handler(const char *title, const char *reason, const char *va)
+{
+    // LOG_FATAL(title, reason, va);
+    hk::platform::create_task_dialog(title, reason, va);
+}
+hk_assert_callback hk_assert_handler = assert_handler;
+
 // FIX: temp place
 // Maybe should put it in utils like to_string
 #include "platform/console/console.h"
@@ -87,7 +94,7 @@ void log_console(const hk::log::Log &log)
 
     wss << '\n';
 
-    u32 length = static_cast<u32>(wss.str().size());
+    // u32 length = static_cast<u32>(wss.str().size());
     hk::platform::write_console(wss.str().c_str());
 }
 
@@ -132,11 +139,11 @@ Application* create_app()
 {
     AppDesc desc;
     desc.title = "Hikai Editor";
-    desc.width = 1280;
-    desc.height = 720;
 
     u32 hndl_console = add_message_handler(log_console);
     // u32 hndl_file = add_message_handler(log_file);
+
+    hk_set_assert_handler(assert_handler);
 
     return new Editor(desc);
 }

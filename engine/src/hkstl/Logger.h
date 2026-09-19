@@ -86,7 +86,7 @@ HKAPI u32 add_message_handler(LoggerCallback callback);
 HKAPI void remove_message_handler(u32 handle);
 
 // ===== HIKAI INTERNAL USE =====
-void dispatch();
+HKAPI void dispatch();
 
 template <typename... Args>
 inline std::string to_string_va(const Args& ...args)

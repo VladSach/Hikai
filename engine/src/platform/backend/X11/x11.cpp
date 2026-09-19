@@ -1,5 +1,6 @@
-#include "x11.h"
+#ifdef HKX11
 
+#include "x11.h"
 #include "x11context.h"
 
 #include "utility/hkassert.h"
@@ -473,3 +474,5 @@ input::Button map_keysym(KeySym keysym)
 } // namespace x11
 
 } // namespace hk::platform
+
+#endif // HKLINUX

@@ -1,6 +1,7 @@
 #include "Swapchain.h"
 
-#include "platform/predef.h"
+#include "platform/platform.h"
+#include "platform/window/Window.h"
 
 #ifdef HKWIN32
 #include "vendor/vulkan/vulkan_win32.h"
@@ -209,11 +210,11 @@ void Swapchain::createSurface()
     VkResult err;
 
 #ifdef HKWIN32
-    const Window *win = static_cast<const Window *>(window);
+    // const Window *win = static_cast<const Window *>(window);
     VkWin32SurfaceCreateInfoKHR info = {};
     info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    info.hwnd = win->hwnd();
-    info.hinstance = win->instance();
+    // info.hwnd = win->hwnd();
+    // info.hinstance = win->instance();
     err = vkCreateWin32SurfaceKHR(instance_, &info, 0, &surface_);
 #elif defined (HKLINUX)
     // const Window *win = static_cast<const Window *>(window);

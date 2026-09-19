@@ -243,16 +243,17 @@ void SceneGraph::updateDrawContext(DrawContext &context, Renderer &renderer)
                 hk::MaterialAsset asset = hk::assets()->getMaterial(node->entity->hndlMaterial);
                 object.rm.material = &asset.data;
 
-                object.rm.build(
-                    renderer.offscreen_.render_pass_,
-                    sizeof(InstanceData),
-                    renderer.global_desc_layout.handle(),
-                    renderer.offscreen_.set_layout_.handle(),
-                    renderer.offscreen_.formats_,
-                    renderer.offscreen_.depth_format_,
-                    asset.name);
-
-                object.material = object.rm.write(renderer.global_desc_alloc);
+                // FIX: remove comment
+                // object.rm.build(
+                //     renderer.offscreen_.render_pass_,
+                //     sizeof(InstanceData),
+                //     renderer.global_desc_layout.handle(),
+                //     renderer.offscreen_.set_layout_.handle(),
+                //     renderer.offscreen_.formats_,
+                //     renderer.offscreen_.depth_format_,
+                //     asset.name);
+                //
+                // object.material = object.rm.write(renderer.global_desc_alloc);
 
                 node->entity->dirty.flip(1);
             }

@@ -4,7 +4,7 @@ setlocal EnableDelayedExpansion
 set SOURCE_DIR=src
 set BUILD_DIR=build
 set OUT_DIR=bin
-set LIB_DIR=lib
+set LIB_DIR=lib\Windows
 
 set INCLUDE_DIRS=/Isrc /Isrc/vendor /Isrc/hkstl
 set DEFINES=/D HKDEBUG /D HKDLL_OUT
@@ -23,7 +23,7 @@ REM /Z7   - Debug Information Format
 REM /LD   - Use Run-Time Library. Created DLL
 REM /MD   - Use RTL. Uses multithread and DLL version of the run-time library.
 REM /Zc:preprocessor - MSVC new cross-platform compatible preprocessor
-set COMPILER_FLAGS=/EHsc /W4 /std:c++17 /Z7 /LDd /MD /Zc:preprocessor
+set COMPILER_FLAGS=/EHsc /W4 /std:c++17 /Z7 /LDd /MD
 
 
 REM Sets environment variable "VCROOT" to  Drive:\Path\To\VS\VC.

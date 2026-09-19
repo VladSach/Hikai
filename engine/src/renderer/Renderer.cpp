@@ -23,10 +23,11 @@ void Renderer::init(const hk::Window *window)
     physical_ = hk::vkc::adapter();
 
     swapchain_.init();
-    swapchain_.recreate(
-        { hk::platform::window_width(), hk::platform::window_height() },
-        { VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
-        VK_PRESENT_MODE_MAILBOX_KHR);
+    // FIX: uncomment
+    // swapchain_.recreate(
+    //     { hk::platform::window_width(), hk::platform::window_height() },
+    //     { VK_FORMAT_R8G8B8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR },
+    //     VK_PRESENT_MODE_MAILBOX_KHR);
 
     createFrameResources();
 
@@ -132,7 +133,7 @@ void Renderer::deinit()
         vkDestroySemaphore(device_, frame.acquire_semaphore, nullptr);
         vkDestroySemaphore(device_, frame.submit_semaphore, nullptr);
         vkDestroyFence(device_, frame.in_flight_fence, nullptr);
-        frame.descriptor_alloc.deinit();
+        // frame.descriptor_alloc.deinit();
     }
 
     swapchain_.deinit();
@@ -157,8 +158,9 @@ void Renderer::draw(hk::DrawContext &ctx)
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR) {
         hk::event::EventContext context;
-        context.u32[0] = hk::platform::window_width();
-        context.u32[1] = hk::platform::window_height();
+        // FIX: uncomment
+        // context.u32[0] = hk::platform::window_width();
+        // context.u32[1] = hk::platform::window_height();
         resize(context, this);
         return;
     } else if (err != VK_SUCCESS && err != VK_SUBOPTIMAL_KHR) {
@@ -273,9 +275,9 @@ void Renderer::draw(hk::DrawContext &ctx)
     //                      VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
     //                      0, 0, NULL, 0, NULL, 1, &bar);
 
-    post_process_.render(offscreen_.color_,
-                         frame.cmd, image_idx,
-                         &frame.descriptor_alloc);
+    // post_process_.render(offscreen_.color_,
+    //                      frame.cmd, image_idx,
+    //                      &frame.descriptor_alloc);
 
     // hk::imman().transition_image_layout(post_process_.color_, );
 
@@ -298,9 +300,9 @@ void Renderer::draw(hk::DrawContext &ctx)
     if (use_ui_) {
         ui_.render(frame.cmd, image_idx);
     } else {
-        present_.render(post_process_.color_,
-                        frame.cmd, image_idx,
-                        &frame.descriptor_alloc);
+        // present_.render(post_process_.color_,
+        //                 frame.cmd, image_idx,
+        //                 &frame.descriptor_alloc);
     }
 
     err = vkEndCommandBuffer(frame.cmd);
@@ -327,8 +329,9 @@ void Renderer::draw(hk::DrawContext &ctx)
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR || resized) {
         hk::event::EventContext context;
-        context.u32[0] = hk::platform::window_width();
-        context.u32[1] = hk::platform::window_height();
+        // FIX: uncomment
+        // context.u32[0] = hk::platform::window_width();
+        // context.u32[1] = hk::platform::window_height();
         resize(context, this);
     } else if (err != VK_SUCCESS) {
         LOG_ERROR("Failed to present Swapchain image");
@@ -376,7 +379,7 @@ void Renderer::createFrameResources()
         ALWAYS_ASSERT(!err, "Failed to create Vulkan Fence");
         hk::debug::setName(frames_[i].in_flight_fence, "In Flight Fence Frame #" + idx);
 
-        frames_[i].descriptor_alloc.init(10, sizes);
+        // frames_[i].descriptor_alloc.init(10, sizes);
     }
 }
 
@@ -634,7 +637,6 @@ void Renderer::createSamplers()
 
 void Renderer::resize(const hk::event::EventContext &size, void *listener)
 {
-<<<<<<< HEAD
     Renderer *self = reinterpret_cast<Renderer*>(listener);
 
     vkDeviceWaitIdle(self->device_);
@@ -649,26 +651,7 @@ void Renderer::resize(const hk::event::EventContext &size, void *listener)
     self->offscreen_.init(&self->swapchain_, self->bindless_.layout);
     self->post_process_.init(&self->swapchain_);
     self->present_.init(&self->swapchain_);
-    self->ui_.init(self->window_, &self->swapchain_);
+    self->ui_.init(&self->swapchain_);
 
     self->resized = false;
-=======
-    // Renderer *self = reinterpret_cast<Renderer*>(listener);
-    //
-    // vkDeviceWaitIdle(self->device_);
-    //
-    // self->swapchain_.recreate({size.u32[0], size.u32[1]});
-    //
-    // self->ui_.deinit();
-    // self->present_.deinit();
-    // self->post_process_.deinit();
-    // self->offscreen_.deinit();
-    //
-    // self->offscreen_.init(&self->swapchain_, self->global_desc_layout.handle());
-    // self->post_process_.init(&self->swapchain_);
-    // self->present_.init(&self->swapchain_);
-    // self->ui_.init(self->window_, &self->swapchain_);
-    //
-    // self->resized = false;
->>>>>>> origin/linux-port
 }

@@ -1,7 +1,5 @@
-#include "platform/predef.h"
+#include "platform/platform.h"
 #ifdef HKWIN32
-
-#include "console.h"
 
 #include "console.h"
 
@@ -19,7 +17,7 @@ BOOL WINAPI HandlerRoutine(DWORD dwCtrlType)
          * https://stackoverflow.com/questions/696117/
          * what-happens-when-you-close-a-c-console-application
          */
-        deallocWinConsole();
+        hk::platform::dealloc_console();
         return TRUE;
     } break;
 
@@ -30,8 +28,6 @@ BOOL WINAPI HandlerRoutine(DWORD dwCtrlType)
 namespace hk::platform {
 
 static HANDLE hConsole = nullptr;
-static u32 hndl_console = 0;
-
 constexpr u32 MaxFuncNameLength = 45;
 
 void alloc_console()
@@ -70,9 +66,7 @@ void alloc_console()
     SetConsoleScreenBufferSize(hConsole, bufferSize);
 
     GetConsoleScreenBufferInfo(hConsole, &csbi);
-    setConsoleSize(maxBufferLineSize, csbi.srWindow.Bottom);
-
-    hndl_console = hk::log::addMessageHandler(logWinConsole);
+    set_console_size(maxBufferLineSize, csbi.srWindow.Bottom);
 }
 
 void dealloc_console()
@@ -83,14 +77,12 @@ void dealloc_console()
     hConsole = 0;
 
     FreeConsole();
-
-    hk::log::removeMessageHandler(hndl_console);
 }
 
-void write_console(const char *text);
+void write_console(const char *text)
 {
     DWORD dwBytesWritten = 0;
-    WriteConsoleW(hConsole, text, strlen(text), &dwBytesWritten, NULL);
+    WriteConsoleA(hConsole, text, strlen(text), &dwBytesWritten, NULL);
 }
 
 b8 set_console_size(i16 cols, i16 rows)
@@ -125,7 +117,6 @@ b8 set_console_size(i16 cols, i16 rows)
     coord.Y = bi.dwSize.Y;
 
     if (coord.X < cols || coord.Y < rows) {
-
         if (coord.X < cols) { coord.X = cols; }
         if (coord.Y < rows) { coord.Y = rows; }
 

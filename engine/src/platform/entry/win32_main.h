@@ -10,19 +10,19 @@ int WINAPI WinMain(HINSTANCE hInstance,
                    HINSTANCE hPrevInstance,
                    LPSTR lpCmdLine, int nShowCmd)
 {
-    hk::log::init();
-
-#ifdef HKDEBUG
-    hk::platform::alloc_console();
-    setLogFile("hikai_log.txt");
-#endif
-
-    LOG_INFO("Initializing Windows startup");
-
     hk::platform::args::hInstance     = hInstance;
     hk::platform::args::hPrevInstance = hPrevInstance;
     hk::platform::args::lpCmdLine     = lpCmdLine;
     hk::platform::args::nShowCmd      = nShowCmd;
+
+    hk::log::init();
+
+#ifdef HKDEBUG
+    hk::platform::alloc_console();
+    // hk::platform::set_log_file("hikai_log.txt");
+#endif
+
+    LOG_INFO("Initializing Windows startup");
 
     Application *app = create_app();
 
@@ -33,8 +33,8 @@ int WINAPI WinMain(HINSTANCE hInstance,
     delete app;
 
 #ifdef HKDEBUG
-    removeLogFile();
-    deallocWinConsole();
+    // hk::platform::remove_log_file();
+    hk::platform::dealloc_console();
 #endif
 
     hk::log::deinit();

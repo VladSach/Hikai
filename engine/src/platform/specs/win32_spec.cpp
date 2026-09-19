@@ -1,105 +1,19 @@
 #include "specs.h"
 
-#include "platform/backend/backend.h"
+#include "platform/platform.h"
 
-namespace hk::platform {
-
-// void update_display_specs()
-// {
-//     query_monitor_info();
-// }
-
-}
-
-// #ifdef HKWIN32
-// #include <intrin.h>
+#ifdef HKWIN32
+#include <intrin.h>
 
 // #ifdef HKLINUX
-#include <unistd.h>
-
-#include "platform/platform.h"
+// #include <unistd.h>
 
 namespace hk::platform {
 
 static ProcessorSpec cpu_specs;
-static SystemSpec sys_specs;
 
-HKAPI const ProcessorSpec& cpu() { return cpu_specs; }
-HKAPI const SystemSpec& system() { return sys_specs; }
-
-// BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor,
-//                               HDC hdcMonitor,
-//                               LPRECT lprcMonitor, LPARAM dwData);
-//
-// void update_monitor_info()
-// {
-//     sys_specs.monitors.clear();
-//
-//     EnumDisplayMonitors(NULL, NULL, MonitorEnumProc, 0);
-//
-//     // FIX: main monitor should always be available at the index 0
-//
-//     DISPLAY_DEVICE dd;
-//     dd.cb = sizeof(dd);
-//     u32 device_idx = 0;
-//     while (EnumDisplayDevicesA(0, device_idx, &dd, 0)) {
-//         hk::string name = dd.DeviceName;
-//         u32 monitor_idx = 0;
-//         while (EnumDisplayDevicesA(name.c_str(), monitor_idx, &dd, 0)) {
-//             // sys_specs.monitors.at(monitor_idx).name = dd.DeviceName;
-//             // sys_specs.monitors.at(monitor_idx).name += ", ";
-//             sys_specs.monitors.at(monitor_idx).name = dd.DeviceString;
-//             ++monitor_idx;
-//         }
-//         ++device_idx;
-//     }
-// }
-//
-// BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdcMonitor,
-//                               LPRECT lprcMonitor, LPARAM dwData)
-// {
-//     (void)hdcMonitor, (void)lprcMonitor, (void)dwData;
-//
-//     MonitorSpec out;
-//
-//     // https://stackoverflow.com/questions/70976583/get-real-screen-resolution-using-win32-api
-//
-//     MONITORINFOEX info = { sizeof(MONITORINFOEX) };
-//     GetMonitorInfo(hMonitor, &info);
-//
-//     DEVMODE devmode = {};
-//     devmode.dmSize = sizeof(DEVMODE);
-//     EnumDisplaySettings(info.szDevice, ENUM_CURRENT_SETTINGS, &devmode);
-//
-//     // It returns native resolution in any case,
-//     // even if the OS tries to lie due to the DPI awareness of the process
-//     out.width = devmode.dmPelsWidth;
-//     out.height = devmode.dmPelsHeight;
-//
-//     // Always >= 96
-//     u32 win32dpi = GetDpiForSystem();
-//
-//     // Values can be negative if not the primary monitor
-//     i32 virtual_width = info.rcMonitor.right - info.rcMonitor.left;
-//
-//     f32 virtual_to_real_ratio = virtual_width / static_cast<f32>(out.width);
-//
-//     out.scale = win32dpi / 96.f / virtual_to_real_ratio;
-//
-//     out.hz = devmode.dmDisplayFrequency;
-//     out.depth = devmode.dmBitsPerPel;
-//
-//     sys_specs.monitors.push_back(out);
-//
-//     return TRUE;
-// }
-
-void update_system_specs()
-{
-    sys_specs.type = SystemType::WINDOWS;
-
-    // update_monitor_info();
-}
+const ProcessorSpec& cpu() { return cpu_specs; }
+// const SystemSpec& system() { return sys_specs; }
 
 // TODO: Return to cpu info one day
 #pragma warning(disable : 4201)
@@ -137,109 +51,107 @@ struct CPUID {
 
 void update_cpu_specs()
 {
-    cpu_specs.page_size = sysconf(_SC_PAGESIZE);
-
-    // cpu_specs.numa_nodes++;
-    // cpu_specs.cores++;
-    // cpu_specs.physical_packages++;
-
-    // Used after CPUID section
-    u32 processorL1CacheCount = 0;
-    u32 processorL2CacheCount = 0;
-    u32 processorL3CacheCount = 0;
-
-    for (u32 i = 0; ; i++) {
-        char path[256];
-        snprintf(path, sizeof(path),
-                 "/sys/devices/system/cpu/cpu0/cache/index%d/level", i);
-
-        FILE *f = fopen(path, "r");
-        if (!f) break;
-
-        u32 level = 0;
-        fscanf(f, "%d", &level);
-        fclose(f);
-
-        if      (level == 1) { processorL1CacheCount++; }
-        else if (level == 2) { processorL2CacheCount++; }
-        else if (level == 3) { processorL3CacheCount++; }
-    }
-
-    /* ==== WinAPI ==== */
+    // cpu_specs.page_size = sysconf(_SC_PAGESIZE);
     //
-    // SYSTEM_INFO sysinfo;
-    // GetSystemInfo(&sysinfo);
-    //
-    // cpu_specs.page_size = sysinfo.dwPageSize;
-    //
-    // // https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getlogicalprocessorinformation
-    //
-    // DWORD return_length = 0;
-    // PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = NULL;
-    //
-    // // Get required buffer size
-    // while (true) {
-    //     DWORD rc = GetLogicalProcessorInformation(buffer, &return_length);
-    //
-    //     if (rc != FALSE) { break; }
-    //
-    //     if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
-    //         ALWAYS_ASSERT(false, "Error:", GetLastError());
-    //     }
-    //
-    //     if (buffer) { free(buffer); }
-    //
-    //     buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
-    //
-    //     ALWAYS_ASSERT(buffer, "Failed to allocate processor info buffer");
-    // }
-    //
-    // u64 byte_offset = 0;
-    // PCACHE_DESCRIPTOR Cache;
-    // PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
-    // u64 info_size = sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+    // // cpu_specs.numa_nodes++;
+    // // cpu_specs.cores++;
+    // // cpu_specs.physical_packages++;
     //
     // // Used after CPUID section
-    // DWORD processorL1CacheCount = 0;
-    // DWORD processorL2CacheCount = 0;
-    // DWORD processorL3CacheCount = 0;
+    // u32 processorL1CacheCount = 0;
+    // u32 processorL2CacheCount = 0;
+    // u32 processorL3CacheCount = 0;
     //
-    // while (byte_offset + info_size <= return_length) {
-    //     switch (ptr->Relationship) {
-    //     case RelationNumaNode: {
-    //         // Non-NUMA systems report a single record of this type
-    //         cpu_specs.numa_nodes++;
-    //     } break;
+    // for (u32 i = 0; ; i++) {
+    //     char path[256];
+    //     snprintf(path, sizeof(path),
+    //              "/sys/devices/system/cpu/cpu0/cache/index%d/level", i);
     //
-    //     case RelationProcessorCore: {
-    //         cpu_specs.cores++;
-    //     } break;
+    //     FILE *f = fopen(path, "r");
+    //     if (!f) break;
     //
-    //     case RelationCache: {
-    //         // Cache data is in ptr->Cache,
-    //         // one CACHE_DESCRIPTOR structure for each cache
-    //         Cache = &ptr->Cache;
+    //     u32 level = 0;
+    //     fscanf(f, "%d", &level);
+    //     fclose(f);
     //
-    //         if      (Cache->Level == 1) { processorL1CacheCount++; }
-    //         else if (Cache->Level == 2) { processorL2CacheCount++; }
-    //         else if (Cache->Level == 3) { processorL3CacheCount++; }
-    //
-    //     } break;
-    //
-    //     case RelationProcessorPackage: {
-    //         // Logical processors share a physical package
-    //         cpu_specs.physical_packages++;
-    //     } break;
-    //
-    //     default:
-    //         LOG_ERROR("Unsupported LOGICAL_PROCESSOR_RELATIONSHIP value");
-    //     }
-    //
-    //     byte_offset += info_size;
-    //     ptr++;
+    //     if      (level == 1) { processorL1CacheCount++; }
+    //     else if (level == 2) { processorL2CacheCount++; }
+    //     else if (level == 3) { processorL3CacheCount++; }
     // }
-    //
-    // free(buffer);
+
+    SYSTEM_INFO sysinfo;
+    GetSystemInfo(&sysinfo);
+
+    cpu_specs.page_size = sysinfo.dwPageSize;
+
+    // https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getlogicalprocessorinformation
+
+    DWORD return_length = 0;
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = NULL;
+
+    // Get required buffer size
+    while (true) {
+        DWORD rc = GetLogicalProcessorInformation(buffer, &return_length);
+
+        if (rc != FALSE) { break; }
+
+        if (GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+            ALWAYS_ASSERT(false, "Error:", GetLastError());
+        }
+
+        if (buffer) { free(buffer); }
+
+        buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
+
+        ALWAYS_ASSERT(buffer, "Failed to allocate processor info buffer");
+    }
+
+    u64 byte_offset = 0;
+    PCACHE_DESCRIPTOR Cache;
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+    u64 info_size = sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+
+    // Used after CPUID section
+    DWORD processorL1CacheCount = 0;
+    DWORD processorL2CacheCount = 0;
+    DWORD processorL3CacheCount = 0;
+
+    while (byte_offset + info_size <= return_length) {
+        switch (ptr->Relationship) {
+        case RelationNumaNode: {
+            // Non-NUMA systems report a single record of this type
+            cpu_specs.numa_nodes++;
+        } break;
+
+        case RelationProcessorCore: {
+            cpu_specs.cores++;
+        } break;
+
+        case RelationCache: {
+            // Cache data is in ptr->Cache,
+            // one CACHE_DESCRIPTOR structure for each cache
+            Cache = &ptr->Cache;
+
+            if      (Cache->Level == 1) { processorL1CacheCount++; }
+            else if (Cache->Level == 2) { processorL2CacheCount++; }
+            else if (Cache->Level == 3) { processorL3CacheCount++; }
+
+        } break;
+
+        case RelationProcessorPackage: {
+            // Logical processors share a physical package
+            cpu_specs.physical_packages++;
+        } break;
+
+        default:
+            LOG_ERROR("Unsupported LOGICAL_PROCESSOR_RELATIONSHIP value");
+        }
+
+        byte_offset += info_size;
+        ptr++;
+    }
+
+    free(buffer);
 
     /* ==== CPUID ==== */
 
@@ -527,4 +439,4 @@ void update_cpu_specs()
 
 }
 
-// #endif // HKWIN32
+#endif // HKWIN32

@@ -9,7 +9,13 @@
 namespace hkm {
 
 struct vec4f {
-    f32 x, y, z, w;
+    union {
+        struct { f32 x, y, z, w; };
+        struct { f32 r, g, b, a; };
+        f32 n[4];
+        f32 xyzw[4];
+        f32 rgba[4];
+    };
 
     constexpr vec4f() : x(0), y(0), z(0), w(0) {}
     constexpr vec4f(f32 w) : x(w), y(w), z(w), w(w) {}
@@ -18,8 +24,8 @@ struct vec4f {
     constexpr vec4f(const vec3f &v, f32 w) : x(v.x), y(v.y), z(v.z), w(w) {}
     constexpr vec4f(f32 arr[4]) : x(arr[0]), y(arr[1]), z(arr[2]), w(arr[3]) {}
 
-    constexpr f32& operator [](u32 i) { return ((&x)[i]); }
-    constexpr const f32& operator [](u32 i) const { return ((&x)[i]); }
+    constexpr f32& operator [](u32 i) { return n[i]; }
+    constexpr const f32& operator [](u32 i) const { return n[i]; }
 
     inline f32 length() const
     {
@@ -124,14 +130,19 @@ constexpr vec4f operator /(const vec4f &u, f32 s)
     return vec4f(u.x * s, u.y * s, u.z * s, u.w * s);
 }
 
-inline vec4f normalize(const vec4f &v) {
+inline vec4f normalize(const vec4f &v)
+{
     const f32 length = v.length();
-    if (length <= 0) return vec4f(0.f);
+
+    // constexpr f32 epsilon = 1e-6f;
+    // if (length <= epsilon) { return vec4f(0.f); }
+    if (fuzzy_compare(length, 0)) { return vec4f(0.f); }
 
     return v / length;
 }
 
-constexpr vec4f clamp(const vec4f &v, f32 upper, f32 lower) {
+constexpr vec4f clamp(const vec4f &v, f32 upper, f32 lower)
+{
     f32 x = (v.x > upper) ? upper : (v.x < lower) ? lower : v.x;
     f32 y = (v.y > upper) ? upper : (v.y < lower) ? lower : v.y;
     f32 z = (v.z > upper) ? upper : (v.z < lower) ? lower : v.z;
@@ -140,5 +151,16 @@ constexpr vec4f clamp(const vec4f &v, f32 upper, f32 lower) {
     return vec4f(x, y, z, w);
 }
 
+constexpr vec4f floor(const vec4f &v)
+{
+    return { floor(v.x), floor(v.y), floor(v.z), floor(v.w) };
 }
+
+constexpr vec4f fract(const vec4f &v)
+{
+    return { fract(v.x), fract(v.y), fract(v.z), floor(v.w) };
+}
+
+} // hkm
+
 #endif // HK_VEC4F_H

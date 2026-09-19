@@ -1,12 +1,9 @@
-#include "memory.h"
-
-#include "platform/predef.h"
-
+#include "platform/platform.h"
 #ifdef HKWIN32
 
-#include <windows.h>
+#include "memory.h"
 
-namespace hk {
+namespace hk::pltf {
 
 void* memory_reserve(u64 size)
 {

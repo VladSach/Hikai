@@ -9,13 +9,6 @@
 
 namespace hk::platform {
 
-// OS Info
-// void query_system_info();
-
-// Hardware Info
-// void query_monitor_info();
-
-
 struct ProcessorSpec;
 struct AdapterSpec;
 struct SystemSpec;
@@ -25,7 +18,6 @@ HKAPI const SystemSpec& system();
 HKAPI const AdapterSpec& adapter(u32 idx = 0);
 
 void update_cpu_specs();
-void update_system_specs();
 void update_adapter_specs();
 
 #pragma warning(disable : 4201)
@@ -139,42 +131,6 @@ struct AdapterSpec {
 
         hk::string driver_version;
     } api;
-};
-
-struct MonitorSpec {
-    hk::string name;
-    hk::string vendor;
-    hk::string model;
-
-    // Resolution
-    u32 width = 0;
-    u32 height = 0;
-
-    f32 scale = 1.f;
-
-    // Refresh Rate
-    u32 hz = 0;
-
-    // Color Depth
-    u32 depth = 0;
-
-    // Position
-    u32 x = 0;
-    u32 y = 0;
-
-    // Physical demensions in mm
-    u32 physical_width = 0;
-    u32 physical_height = 0;
-};
-
-struct SystemSpec {
-    SystemType type;
-
-    hk::vector<MonitorSpec> monitors;
-    // Mouse
-    // Keyboard
-    // Gamepad
-    // etc
 };
 
 }

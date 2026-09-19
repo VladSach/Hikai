@@ -241,12 +241,12 @@ private:
 
 
 /* ===== Constructors ===== */
-#define HKVEC_CONSTRACTOR template <typename T> constexpr vector<T>::
+#define HKVEC_CONSTRUCTOR template <typename T> constexpr vector<T>::
 
-HKVEC_CONSTRACTOR vector(u32 size)                  { resize(size); }
-HKVEC_CONSTRACTOR vector(u32 count, const T &value) { resize(count, value); }
-HKVEC_CONSTRACTOR vector(const vector<T> &other)    { *this = other; }
-HKVEC_CONSTRACTOR vector(vector<T> &&other)         { *this = hk::move(other); }
+HKVEC_CONSTRUCTOR vector(u32 size)                  { resize(size); }
+HKVEC_CONSTRUCTOR vector(u32 count, const T &value) { resize(count, value); }
+HKVEC_CONSTRUCTOR vector(const vector<T> &other)    { *this = other; }
+HKVEC_CONSTRUCTOR vector(vector<T> &&other)         { *this = hk::move(other); }
 
 template <typename T>
 template<typename ItType, typename>
@@ -262,7 +262,7 @@ constexpr vector<T>::vector(std::initializer_list<T> list)
     : vector(list.begin(), list.end())
 {}
 
-#undef HKVEC_CONSTRACTOR
+#undef HKVEC_CONSTRUCTOR
 
 /* ===== Destructors ===== */
 

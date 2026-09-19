@@ -99,10 +99,11 @@ void init(VkDescriptorSetLayout global_set_layout,
                           VK_FRONT_FACE_COUNTER_CLOCKWISE);
     builder.setMultisampling();
 
-    ctx.set_layout.init(hk::DescriptorLayout::Builder()
-        .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
-        .build()
-    );
+    // FIX: remove comment
+    // ctx.set_layout.init(hk::DescriptorLayout::Builder()
+    //     .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_ALL_GRAPHICS)
+    //     .build()
+    // );
     hk::debug::setName(ctx.set_layout.handle(), "Debug Descriptor Layout");
 
     builder.setPushConstants({{ VK_SHADER_STAGE_ALL_GRAPHICS, 0, 64 }});

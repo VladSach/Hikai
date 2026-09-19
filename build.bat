@@ -28,10 +28,10 @@ robocopy ".\engine\bin" ".\bin" hikai.dll /R:0 /W:0 /mt 2>&1 | findstr /i "ERROR
 robocopy ".\engine\bin" ".\bin" hikai.pdb /mt 2>&1 | findstr /i "ERROR"
 
 echo Copying dxcompiler.dll...
-robocopy ".\engine\lib" ".\bin" dxcompiler.dll /mt 2>&1 | findstr /i "ERROR"
+robocopy ".\engine\lib\Windows" ".\bin" dxcompiler.dll /mt 2>&1 | findstr /i "ERROR"
 
 echo Copying assimp-vc143-mt.dll...
-robocopy ".\engine\lib" ".\bin" assimp-vc143-mt.dll /mt 2>&1 | findstr /i "ERROR"
+robocopy ".\engine\lib\Windows" ".\bin" assimp-vc143-mt.dll /mt 2>&1 | findstr /i "ERROR"
 
 echo Copying editor.exe...
 robocopy ".\editor\bin" ".\bin" editor.exe /mt 2>&1 | findstr /i "ERROR"

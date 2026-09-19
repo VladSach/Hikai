@@ -3,6 +3,17 @@
 
 #include "hikai.h"
 
+#include "Viewport.h"
+
+#include "AssetBrowser.h"
+#include "panels/InspectorPanel.h"
+#include "panels/HierarchyPanel.h"
+#include "panels/LogPanel.h"
+#include "panels/MetricsPanel.h"
+#include "panels/SettingsPanel.h"
+#include "panels/ResourcesPanel.h"
+#include "panels/SpecsPanel.h"
+
 class Editor final : public Application {
 public:
     Editor(const AppDesc &desc)
@@ -17,6 +28,42 @@ public:
 
     void update(f32 dt);
     void render();
+
+private:
+    void processInput(f32 dt);
+
+private:
+    hk::SceneNode *selected = nullptr;
+
+    b8 wasInViewport = false;
+    b8 isInViewport = false;
+
+    b8 viewportMode = true;
+
+// GUI part
+private:
+    Viewport viewport;
+
+    AssetBrowser assets;
+    InspectorPanel inspector;
+    HierarchyPanel hierarchy;
+    LogPanel log;
+    MetricsPanel metrics;
+    SettingsPanel settings;
+    ResourcesPanel resources;
+    SpecsPanel specs;
+
+    b8 showImGuiDemo = false;
+
+    ImGuiID mainDockSpaceID;
+    ImGuiID upper;
+    ImGuiID lower;
+    ImGuiID left;
+    ImGuiID right;
+
+private:
+    void showMenuBar();
+    void restoreLayout();
 };
 
 #endif // HK_EDITOR_H

@@ -30,11 +30,6 @@ enum class AdapterVendor : u8 {
     MAX_VENDOR
 };
 
-enum class SystemType : u8 {
-    WINDOWS,
-    LINUX,
-};
-
 enum class WindowBackend : u8 {
     // Windows
     GDI,

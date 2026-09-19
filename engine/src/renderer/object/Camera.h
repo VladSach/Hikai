@@ -28,10 +28,10 @@ public:
     HKAPI void update();
 
 public:
-    HKAPI constexpr hkm::vec3f right()    const { return view_inv_.getRowAsVec3(0); }
-    HKAPI constexpr hkm::vec3f top()      const { return view_inv_.getRowAsVec3(1); }
-    HKAPI constexpr hkm::vec3f forward()  const { return view_inv_.getRowAsVec3(2); }
-    HKAPI constexpr hkm::vec3f position() const { return view_inv_.getRowAsVec3(3); }
+    HKAPI constexpr hkm::vec3f right()    const { return view_inv_.get_row_as_vec3(0); }
+    HKAPI constexpr hkm::vec3f top()      const { return view_inv_.get_row_as_vec3(1); }
+    HKAPI constexpr hkm::vec3f forward()  const { return view_inv_.get_row_as_vec3(2); }
+    HKAPI constexpr hkm::vec3f position() const { return view_inv_.get_row_as_vec3(3); }
 
     HKAPI constexpr hkm::mat4f view() const { return view_; }
     HKAPI constexpr hkm::mat4f projection() const { return proj_; }
@@ -47,11 +47,11 @@ public:
     HKAPI constexpr f32 near() const { return near_; }
 
 private:
-    hkm::vec3f& pos()
-    {
-        updated = false;
-        return view_inv_.getRowAsVec3(3);
-    }
+    // hkm::vec3f& pos()
+    // {
+    //     updated = false;
+    //     return view_inv_.get_row_as_vec3(3);
+    // }
 
 private:
     f32 fov_ = 0;
